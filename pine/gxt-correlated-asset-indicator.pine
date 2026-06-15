@@ -1,0 +1,238 @@
+//@version=6
+indicator(
+     "GxT Correlated Asset Indicator",
+     overlay = true,
+     max_lines_count = 500,
+     max_labels_count = 500,
+     dynamic_requests = false
+ )
+
+TZ = "America/New_York"
+SESSION_HOUR = 18
+WEEKLY_END_HOUR = 17
+LEVEL_COLOR = color.black
+LABEL_SIZE = size.small
+LABEL_GAP_TICKS = 2
+
+f_cme_daily_session_key() =>
+    et_hour = hour(time, TZ)
+    y = year(time, TZ)
+    m = month(time, TZ)
+    d = dayofmonth(time, TZ)
+    if et_hour >= SESSION_HOUR
+        timestamp(TZ, y, m, d, 0, 0)
+    else
+        timestamp(TZ, y, m, d, 0, 0) - 86400000
+
+f_current_daily_session_end() =>
+    session_start_day = f_cme_daily_session_key()
+    y = year(session_start_day, TZ)
+    m = month(session_start_day, TZ)
+    d = dayofmonth(session_start_day, TZ)
+    timestamp(TZ, y, m, d + 1, WEEKLY_END_HOUR, 0)
+
+f_in_cme_week() =>
+    dow = dayofweek(time, TZ)
+    et_hour = hour(time, TZ)
+    et_minute = minute(time, TZ)
+    sun_evening = dow == dayofweek.sunday and et_hour >= SESSION_HOUR
+    mid_week = dow > dayofweek.sunday and dow < dayofweek.friday
+    fri_close = dow == dayofweek.friday and (et_hour < WEEKLY_END_HOUR or (et_hour == WEEKLY_END_HOUR and et_minute == 0))
+    sun_evening or mid_week or fri_close
+
+f_cme_week_session_key() =>
+    dow = dayofweek(time, TZ)
+    y = year(time, TZ)
+    m = month(time, TZ)
+    d = dayofmonth(time, TZ)
+    offset = dow == dayofweek.sunday ? 0 : dow
+    sun_day = d - offset
+    f_in_cme_week() ? timestamp(TZ, y, m, sun_day, SESSION_HOUR, 0) : na
+
+f_track_extreme(float cur_extreme, int cur_time, float candidate, int candidate_time) =>
+    if na(cur_extreme) or candidate > cur_extreme
+        [candidate, candidate_time]
+    else
+        [cur_extreme, cur_time]
+
+f_track_extreme_low(float cur_extreme, int cur_time, float candidate, int candidate_time) =>
+    if na(cur_extreme) or candidate < cur_extreme
+        [candidate, candidate_time]
+    else
+        [cur_extreme, cur_time]
+
+f_session_rails() =>
+    var float cur_daily_high = na
+    var float cur_daily_low = na
+    var int cur_daily_high_time = na
+    var int cur_daily_low_time = na
+    var float cur_week_high = na
+    var float cur_week_low = na
+    var int cur_week_high_time = na
+    var int cur_week_low_time = na
+    var float out_pdh = na
+    var float out_pdl = na
+    var int out_pdh_time = na
+    var int out_pdl_time = na
+    var float out_pwh = na
+    var float out_pwl = na
+    var int out_pwh_time = na
+    var int out_pwl_time = na
+    var float out_daily_open = na
+    var int out_daily_open_time = na
+
+    daily_key = f_cme_daily_session_key()
+    week_key = f_cme_week_session_key()
+    new_daily = ta.change(daily_key) != 0
+    new_week = not na(week_key) and ta.change(week_key) != 0
+
+    if new_daily
+        if not na(cur_daily_high)
+            out_pdh := cur_daily_high
+            out_pdl := cur_daily_low
+            out_pdh_time := cur_daily_high_time
+            out_pdl_time := cur_daily_low_time
+        cur_daily_high := high
+        cur_daily_low := low
+        cur_daily_high_time := time
+        cur_daily_low_time := time
+        out_daily_open := open
+        out_daily_open_time := time
+    else
+        [next_high, next_high_time] = f_track_extreme(cur_daily_high, cur_daily_high_time, high, time)
+        [next_low, next_low_time] = f_track_extreme_low(cur_daily_low, cur_daily_low_time, low, time)
+        cur_daily_high := next_high
+        cur_daily_high_time := next_high_time
+        cur_daily_low := next_low
+        cur_daily_low_time := next_low_time
+
+    if not na(week_key)
+        if new_week
+            if not na(cur_week_high)
+                out_pwh := cur_week_high
+                out_pwl := cur_week_low
+                out_pwh_time := cur_week_high_time
+                out_pwl_time := cur_week_low_time
+            cur_week_high := high
+            cur_week_low := low
+            cur_week_high_time := time
+            cur_week_low_time := time
+        else
+            [next_week_high, next_week_high_time] = f_track_extreme(cur_week_high, cur_week_high_time, high, time)
+            [next_week_low, next_week_low_time] = f_track_extreme_low(cur_week_low, cur_week_low_time, low, time)
+            cur_week_high := next_week_high
+            cur_week_high_time := next_week_high_time
+            cur_week_low := next_week_low
+            cur_week_low_time := next_week_low_time
+
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time]
+
+[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime] = request.security(
+     syminfo.tickerid,
+     "1",
+     f_session_rails(),
+     gaps = barmerge.gaps_off,
+     lookahead = barmerge.lookahead_off
+ )
+
+sessionEnd = request.security(
+     syminfo.tickerid,
+     "1",
+     f_current_daily_session_end(),
+     gaps = barmerge.gaps_off,
+     lookahead = barmerge.lookahead_off
+ )
+
+f_label_y(float price, string placement) =>
+    gap = syminfo.mintick * LABEL_GAP_TICKS
+    placement == "above" ? price + gap : placement == "below" ? price - gap : price
+
+f_label_style(string placement) =>
+    placement == "above" ? label.style_label_up : placement == "below" ? label.style_label_down : label.style_label_left
+
+// Map a 1m origin timestamp to the chart bar that contains it (avoids bar_time rounding forward).
+f_bar_index_for_time(int target_time) =>
+    int result = bar_index
+    if not na(target_time)
+        int max_i = math.min(bar_index, 4999)
+        for i = 0 to max_i
+            bool in_bar = time[i] <= target_time and (i == 0 or target_time < time[i - 1])
+            if in_bar
+                result := bar_index - i
+                break
+    result
+
+f_draw_level(
+     line existing_line,
+     label existing_label,
+     float price,
+     int origin_time,
+     int session_end_time,
+     string txt,
+     bool dashed,
+     string label_placement
+ ) =>
+    line next_line = existing_line
+    label next_label = existing_label
+    if barstate.islast and not na(price) and not na(origin_time) and not na(session_end_time)
+        if not na(existing_line)
+            line.delete(existing_line)
+        if not na(existing_label)
+            label.delete(existing_label)
+        origin_bi = f_bar_index_for_time(origin_time)
+        end_bi = math.max(origin_bi, f_bar_index_for_time(session_end_time))
+        next_line := line.new(
+             origin_bi,
+             price,
+             end_bi,
+             price,
+             xloc = xloc.bar_index,
+             extend = extend.none,
+             color = LEVEL_COLOR,
+             width = 1,
+             style = dashed ? line.style_dashed : line.style_solid
+         )
+        next_label := label.new(
+             end_bi,
+             f_label_y(price, label_placement),
+             txt,
+             xloc = xloc.bar_index,
+             style = f_label_style(label_placement),
+             color = color(na),
+             textcolor = LEVEL_COLOR,
+             size = LABEL_SIZE
+         )
+    [next_line, next_label]
+
+var line pdh_line = na
+var line pdl_line = na
+var line pwh_line = na
+var line pwl_line = na
+var line daily_open_line = na
+var label pdh_label = na
+var label pdl_label = na
+var label pwh_label = na
+var label pwl_label = na
+var label daily_open_label = na
+
+open_near_pwl = not na(dailyOpen) and not na(pwl) and math.abs(dailyOpen - pwl) <= syminfo.mintick * LABEL_GAP_TICKS * 4
+
+[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhTime, sessionEnd, "PDH", false, "on")
+pdh_line := _pdh_line
+pdh_label := _pdh_label
+
+[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlTime, sessionEnd, "PDL", false, "on")
+pdl_line := _pdl_line
+pdl_label := _pdl_label
+
+[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh, pwhTime, sessionEnd, "PWH", false, "on")
+pwh_line := _pwh_line
+pwh_label := _pwh_label
+
+[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl, pwlTime, sessionEnd, "PWL", false, open_near_pwl ? "below" : "on")
+pwl_line := _pwl_line
+pwl_label := _pwl_label
+
+[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, dailyOpen, dailyOpenTime, sessionEnd, "Daily Open", true, "above")
+daily_open_line := _daily_open_line
+daily_open_label := _daily_open_label

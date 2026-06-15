@@ -1,0 +1,10 @@
+{
+  "name": "newgxt",
+  "private": true,
+  "workspaces": [
+    "level-engine"
+  ],
+  "scripts": {
+    "test": "npm test --workspace=@gxt/level-engine"
+  }
+}

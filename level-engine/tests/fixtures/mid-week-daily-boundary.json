@@ -1,0 +1,50 @@
+[
+  {
+    "time": 1735513200000,
+    "open": 4800,
+    "high": 5200,
+    "low": 4700,
+    "close": 4880,
+    "comment": "Sun Dec 29 2024 18:00 ET — previous week (not asserted on PD rails)"
+  },
+  {
+    "time": 1736118000000,
+    "open": 5020,
+    "high": 5100,
+    "low": 5000,
+    "close": 5080,
+    "comment": "Sun Jan 5 2025 18:00 ET — previous daily session open"
+  },
+  {
+    "time": 1736150400000,
+    "open": 5080,
+    "high": 5090,
+    "low": 5010,
+    "close": 5040,
+    "comment": "Mon Jan 6 2025 03:00 ET — previous daily session mid"
+  },
+  {
+    "time": 1736182800000,
+    "open": 5040,
+    "high": 5060,
+    "low": 5025,
+    "close": 5055,
+    "comment": "Mon Jan 6 2025 12:00 ET — previous daily session mid"
+  },
+  {
+    "time": 1736204400000,
+    "open": 5055,
+    "high": 5065,
+    "low": 5035,
+    "close": 5045,
+    "comment": "Mon Jan 6 2025 18:00 ET — current daily session open bar"
+  },
+  {
+    "time": 1736208000000,
+    "open": 5045,
+    "high": 5075,
+    "low": 5040,
+    "close": 5065,
+    "comment": "Mon Jan 6 2025 19:00 ET — current daily session"
+  }
+]
