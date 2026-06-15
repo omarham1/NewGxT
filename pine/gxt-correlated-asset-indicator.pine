@@ -49,7 +49,7 @@ f_cme_week_session_key() =>
     y = year(time, TZ)
     m = month(time, TZ)
     d = dayofmonth(time, TZ)
-    offset = dow == dayofweek.sunday ? 0 : dow
+    offset = dow - 1
     sun_day = d - offset
     f_in_cme_week() ? timestamp(TZ, y, m, sun_day, SESSION_HOUR, 0) : na
 
