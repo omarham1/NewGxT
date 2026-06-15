@@ -34,8 +34,16 @@ function currentWeekBearishGap(): Bar[] {
   ];
 }
 
+function abovePdhDisplacementGap(): Bar[] {
+  return [
+    bar(SUN_JAN_5_OPEN, 5150, 5160, 5140, 5152),
+    bar(SUN_JAN_5_OPEN + HOUR_MS, 5152, 5175, 5151, 5170),
+    bar(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5170, 5185, 5165, 5180),
+  ];
+}
+
 describe("HTF FVG", () => {
-  it("detects a bullish FVG using body extremes for zone boundaries", () => {
+  it("detects a bullish FVG using wick extremes for zone boundaries", () => {
     const bars4h = currentWeekBullishGap();
 
     const fvgs = computeHtfFvgs({
@@ -49,14 +57,14 @@ describe("HTF FVG", () => {
       {
         timeframe: "4H",
         direction: "bullish",
-        zoneLow: 102,
-        zoneHigh: 108,
+        zoneLow: 105,
+        zoneHigh: 106,
         formedAt: SUN_JAN_5_OPEN + 2 * HOUR_MS,
       },
     ]);
   });
 
-  it("detects a bearish FVG using body extremes for zone boundaries", () => {
+  it("detects a bearish FVG using wick extremes for zone boundaries", () => {
     const bars1h = currentWeekBearishGap();
 
     const fvgs = computeHtfFvgs({
@@ -70,19 +78,15 @@ describe("HTF FVG", () => {
       {
         timeframe: "1H",
         direction: "bearish",
-        zoneLow: 100,
-        zoneHigh: 106,
+        zoneLow: 102,
+        zoneHigh: 105,
         formedAt: SUN_JAN_5_OPEN + 2 * HOUR_MS,
       },
     ]);
   });
 
   it("includes unmitigated FVGs entirely above PDH", () => {
-    const bars4h = [
-      bar(SUN_JAN_5_OPEN, 5150, 5160, 5140, 5155),
-      bar(SUN_JAN_5_OPEN + HOUR_MS, 5155, 5170, 5150, 5165),
-      bar(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5165, 5180, 5160, 5175),
-    ];
+    const bars4h = abovePdhDisplacementGap();
 
     const fvgs = computeHtfFvgs({
       bars4h,
@@ -95,7 +99,7 @@ describe("HTF FVG", () => {
       {
         timeframe: "4H",
         direction: "bullish",
-        zoneLow: 5155,
+        zoneLow: 5160,
         zoneHigh: 5165,
         formedAt: SUN_JAN_5_OPEN + 2 * HOUR_MS,
       },
@@ -116,10 +120,10 @@ describe("HTF FVG", () => {
     expect(fvgs[0]?.direction).toBe("bearish");
   });
 
-  it("mitigates an FVG when price enters the body-based zone", () => {
+  it("mitigates an FVG when price enters the wick-based zone", () => {
     const bars4h = currentWeekBullishGap();
     const mitigationBars = [
-      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 111, 113, 107, 112),
+      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 105, 107),
     ];
 
     const fvgs = computeHtfFvgs({
@@ -143,6 +147,40 @@ describe("HTF FVG", () => {
     });
 
     expect(fvgs).toHaveLength(1);
+  });
+
+  it("rejects a bullish gap when the middle candle range is fully inside the first candle", () => {
+    const bars1h = [
+      bar(SUN_JAN_5_OPEN, 100, 105, 99, 102),
+      bar(SUN_JAN_5_OPEN + HOUR_MS, 102, 104, 101, 103),
+      bar(SUN_JAN_5_OPEN + 2 * HOUR_MS, 106, 108, 106, 107),
+    ];
+
+    const fvgs = computeHtfFvgs({
+      bars4h: [],
+      bars1h,
+      mitigationBars: [],
+      asOf: MON_JAN_6_EVAL,
+    });
+
+    expect(fvgs).toEqual([]);
+  });
+
+  it("rejects a bearish gap when the middle candle range is fully inside the first candle", () => {
+    const bars1h = [
+      bar(SUN_JAN_5_OPEN, 103, 106, 100, 103),
+      bar(SUN_JAN_5_OPEN + HOUR_MS, 103, 104, 101, 102),
+      bar(SUN_JAN_5_OPEN + 2 * HOUR_MS, 96, 98, 95, 97),
+    ];
+
+    const fvgs = computeHtfFvgs({
+      bars4h: [],
+      bars1h,
+      mitigationBars: [],
+      asOf: MON_JAN_6_EVAL,
+    });
+
+    expect(fvgs).toEqual([]);
   });
 
   it("excludes an unmitigated gap outside the two-week lookback window", () => {

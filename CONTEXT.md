@@ -34,7 +34,7 @@ High and low of the completed CME weekly session (Sunday 18:00 ET to Friday 17:0
 _Avoid_: Weekly extremes, range boundaries
 
 **Fair Value Gap (FVG)**:
-A market imbalance identified by a three-candle sequence where the range of the second candle is not fully overlapped by the first and third candles. Zone boundaries use candle body extremes, not wicks. Mitigated when price enters the gap zone.
+A market imbalance identified by a three-candle sequence where the range of the second candle is not fully overlapped by the first and third candles. Bullish zone: candle 1 high wick to candle 3 low wick. Bearish zone: candle 3 high wick to candle 1 low wick. Mitigated when price enters the gap zone.
 _Avoid_: Imbalance zone, liquidity void, gap
 
 **HTF FVG (Relevant Level)**:

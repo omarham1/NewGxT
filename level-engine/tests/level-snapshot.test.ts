@@ -17,6 +17,14 @@ function bar(
   return { time, open, high, low, close };
 }
 
+function abovePdhDisplacementGap(time: number): Bar[] {
+  return [
+    bar(time, 5150, 5160, 5140, 5152),
+    bar(time + HOUR_MS, 5152, 5175, 5151, 5170),
+    bar(time + 2 * HOUR_MS, 5170, 5185, 5165, 5180),
+  ];
+}
+
 describe("Level Snapshot", () => {
   it("excludes mitigated HTF FVGs from the snapshot", () => {
     const bars = loadFixture("mid-week-daily-boundary");
@@ -26,7 +34,7 @@ describe("Level Snapshot", () => {
       bar(SUN_JAN_5_OPEN + 2 * HOUR_MS, 108, 115, 106, 112),
     ];
     const mitigationBars = [
-      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 111, 113, 107, 112),
+      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 105, 107),
     ];
 
     const snapshot = computeLevelSnapshot({
@@ -43,11 +51,7 @@ describe("Level Snapshot", () => {
 
   it("includes an unmitigated HTF FVG outside the Previous Day range in the snapshot", () => {
     const bars = loadFixture("mid-week-daily-boundary");
-    const bars4h = [
-      bar(SUN_JAN_5_OPEN, 5150, 5160, 5140, 5155),
-      bar(SUN_JAN_5_OPEN + HOUR_MS, 5155, 5170, 5150, 5165),
-      bar(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5165, 5180, 5160, 5175),
-    ];
+    const bars4h = abovePdhDisplacementGap(SUN_JAN_5_OPEN);
 
     const snapshot = computeLevelSnapshot({
       bars,
@@ -62,7 +66,7 @@ describe("Level Snapshot", () => {
       {
         timeframe: "4H",
         direction: "bullish",
-        zoneLow: 5155,
+        zoneLow: 5160,
         zoneHigh: 5165,
         formedAt: SUN_JAN_5_OPEN + 2 * HOUR_MS,
       },
@@ -71,11 +75,7 @@ describe("Level Snapshot", () => {
 
   it("excludes an unmitigated HTF FVG outside the two-week lookback window", () => {
     const bars = loadFixture("mid-week-daily-boundary");
-    const bars4h = [
-      bar(SUN_DEC_22_OPEN, 5150, 5160, 5140, 5155),
-      bar(SUN_DEC_22_OPEN + HOUR_MS, 5155, 5170, 5150, 5165),
-      bar(SUN_DEC_22_OPEN + 2 * HOUR_MS, 5165, 5180, 5160, 5175),
-    ];
+    const bars4h = abovePdhDisplacementGap(SUN_DEC_22_OPEN);
 
     const snapshot = computeLevelSnapshot({
       bars,

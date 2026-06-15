@@ -227,22 +227,29 @@ type HtfFvgZone
     int formedTime
     string txt
 
-f_body_high(int idx = 0) =>
-    math.max(open[idx], close[idx])
+f_range_fully_in(float innerLow, float innerHigh, float outerLow, float outerHigh) =>
+    innerLow >= outerLow and innerHigh <= outerHigh
 
-f_body_low(int idx = 0) =>
-    math.min(open[idx], close[idx])
+f_middle_fully_overlapped_by_outer(int firstIdx, int middleIdx, int thirdIdx) =>
+    float innerLow = low[middleIdx]
+    float innerHigh = high[middleIdx]
+    float aLow = low[firstIdx]
+    float aHigh = high[firstIdx]
+    float bLow = low[thirdIdx]
+    float bHigh = high[thirdIdx]
+    bool inFirst = f_range_fully_in(innerLow, innerHigh, aLow, aHigh)
+    bool inThird = f_range_fully_in(innerLow, innerHigh, bLow, bHigh)
+    bool spansFirstThenThird = innerLow >= aLow and aHigh >= innerLow and innerHigh <= bHigh and bLow <= aHigh
+    bool spansThirdThenFirst = innerLow >= bLow and bHigh >= innerLow and innerHigh <= aHigh and aLow <= bHigh
+    inFirst or inThird or spansFirstThenThird or spansThirdThenFirst
 
 f_detect_fvg() =>
-    float firstBodyHigh = f_body_high(2)
-    float firstBodyLow = f_body_low(2)
-    float thirdBodyHigh = f_body_high(0)
-    float thirdBodyLow = f_body_low(0)
-    bool bullish = thirdBodyLow > firstBodyHigh
-    bool bearish = thirdBodyHigh < firstBodyLow
-    float zoneLow = bullish ? firstBodyHigh : bearish ? thirdBodyHigh : na
-    float zoneHigh = bullish ? thirdBodyLow : bearish ? firstBodyLow : na
-    bool formed = bullish or bearish
+    bool bullish = low[0] > high[2]
+    bool bearish = high[0] < low[2]
+    bool middleOverlapped = f_middle_fully_overlapped_by_outer(2, 1, 0)
+    float zoneLow = bullish ? high[2] : bearish ? high[0] : na
+    float zoneHigh = bullish ? low[0] : bearish ? low[2] : na
+    bool formed = (bullish or bearish) and not middleOverlapped
     [formed, zoneLow, zoneHigh, time]
 
 f_price_enters_zone(float zoneLow, float zoneHigh) =>

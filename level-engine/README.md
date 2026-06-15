@@ -14,7 +14,7 @@ npm run test:watch
 - **Session Calendar** — CME daily (18:00–17:00 ET) and weekly (Sun 18:00–Fri 17:00 ET) session grouping
 - **Session Rails** — PDH, PDL, PWH, PWL, and 18:00 Daily Open from session-grouped bars
 - **Session Context** — ADR band (open ± ADR, consumption %), PD Equilibrium Range (25%–75% of PD wick-to-wick)
-- **HTF FVG** — body-based three-candle gaps on 4H and 1H; mitigation on zone entry; only gaps formed during the current or immediately previous CME week are eligible (Sunday 18:00 ET through Friday 17:00 ET, expiring at each Sunday 18:00 ET roll)
+- **HTF FVG** — wick-based three-candle gaps on 4H and 1H (candle 1 high to candle 3 low for bullish); mitigation on zone entry; only gaps formed during the current or immediately previous CME week are eligible (Sunday 18:00 ET through Friday 17:00 ET, expiring at each Sunday 18:00 ET roll)
 - **Level Snapshot** — session context plus unmitigated HTF FVGs for renderer consumption
 
 ## Public API

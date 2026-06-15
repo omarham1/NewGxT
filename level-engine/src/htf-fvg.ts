@@ -18,16 +18,56 @@ export type ComputeHtfFvgsInput = {
   asOf: number;
 };
 
-function bodyHigh(bar: Bar): number {
-  return Math.max(bar.open, bar.close);
-}
-
-function bodyLow(bar: Bar): number {
-  return Math.min(bar.open, bar.close);
-}
-
 function barEntersZone(bar: Bar, zoneLow: number, zoneHigh: number): boolean {
   return bar.low <= zoneHigh && bar.high >= zoneLow;
+}
+
+/** True when every price in [innerLow, innerHigh] lies in bar A or bar B range. */
+function rangeFullyOverlappedByPair(
+  innerLow: number,
+  innerHigh: number,
+  aLow: number,
+  aHigh: number,
+  bLow: number,
+  bHigh: number,
+): boolean {
+  let segments: Array<[number, number]> = [[innerLow, innerHigh]];
+
+  for (const [coverLow, coverHigh] of [
+    [aLow, aHigh],
+    [bLow, bHigh],
+  ] as const) {
+    const next: Array<[number, number]> = [];
+    for (const [segLow, segHigh] of segments) {
+      if (coverHigh < segLow || coverLow > segHigh) {
+        next.push([segLow, segHigh]);
+        continue;
+      }
+      if (segLow < coverLow) {
+        next.push([segLow, coverLow]);
+      }
+      if (segHigh > coverHigh) {
+        next.push([coverHigh, segHigh]);
+      }
+    }
+    segments = next;
+    if (segments.length === 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function middleRangeFullyOverlappedByOuter(first: Bar, middle: Bar, third: Bar): boolean {
+  return rangeFullyOverlappedByPair(
+    middle.low,
+    middle.high,
+    first.low,
+    first.high,
+    third.low,
+    third.high,
+  );
 }
 
 function detectFvgAt(
@@ -35,25 +75,26 @@ function detectFvgAt(
   middle: Bar,
   third: Bar,
 ): Pick<HtfFvg, "direction" | "zoneLow" | "zoneHigh" | "formedAt"> | null {
-  const firstBodyHigh = bodyHigh(first);
-  const firstBodyLow = bodyLow(first);
-  const thirdBodyHigh = bodyHigh(third);
-  const thirdBodyLow = bodyLow(third);
-
-  if (thirdBodyLow > firstBodyHigh) {
+  if (third.low > first.high) {
+    if (middleRangeFullyOverlappedByOuter(first, middle, third)) {
+      return null;
+    }
     return {
       direction: "bullish",
-      zoneLow: firstBodyHigh,
-      zoneHigh: thirdBodyLow,
+      zoneLow: first.high,
+      zoneHigh: third.low,
       formedAt: third.time,
     };
   }
 
-  if (thirdBodyHigh < firstBodyLow) {
+  if (third.high < first.low) {
+    if (middleRangeFullyOverlappedByOuter(first, middle, third)) {
+      return null;
+    }
     return {
       direction: "bearish",
-      zoneLow: thirdBodyHigh,
-      zoneHigh: firstBodyLow,
+      zoneLow: third.high,
+      zoneHigh: first.low,
       formedAt: third.time,
     };
   }

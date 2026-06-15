@@ -19,10 +19,31 @@ function simulatePineFvgLifecycle(
 
   const active: Zone[] = [];
 
-  const bodyHigh = (b: Bar) => Math.max(b.open, b.close);
-  const bodyLow = (b: Bar) => Math.min(b.open, b.close);
   const entersZone = (bar: Bar, low: number, high: number) =>
     bar.low <= high && bar.high >= low;
+
+  const rangeFullyOverlappedByPair = (
+    innerLow: number,
+    innerHigh: number,
+    aLow: number,
+    aHigh: number,
+    bLow: number,
+    bHigh: number,
+  ): boolean => {
+    const inFirst = innerLow >= aLow && innerHigh <= aHigh;
+    const inThird = innerLow >= bLow && innerHigh <= bHigh;
+    const spansFirstThenThird =
+      innerLow >= aLow &&
+      aHigh >= innerLow &&
+      innerHigh <= bHigh &&
+      bLow <= aHigh;
+    const spansThirdThenFirst =
+      innerLow >= bLow &&
+      bHigh >= innerLow &&
+      innerHigh <= aHigh &&
+      aLow <= bHigh;
+    return inFirst || inThird || spansFirstThenThird || spansThirdThenFirst;
+  };
 
   const pruneExpired = (asOf: number) => {
     for (let j = active.length - 1; j >= 0; j--) {
@@ -35,19 +56,28 @@ function simulatePineFvgLifecycle(
   for (let i = 2; i < bars.length; i++) {
     const first = bars[i - 2]!;
     const third = bars[i]!;
-    const firstBodyHigh = bodyHigh(first);
-    const firstBodyLow = bodyLow(first);
-    const thirdBodyHigh = bodyHigh(third);
-    const thirdBodyLow = bodyLow(third);
 
-    const bullish = thirdBodyLow > firstBodyHigh;
-    const bearish = thirdBodyHigh < firstBodyLow;
+    const bullish = third.low > first.high;
+    const bearish = third.high < first.low;
     if (!bullish && !bearish) {
       continue;
     }
 
-    const zoneLow = bullish ? firstBodyHigh : thirdBodyHigh;
-    const zoneHigh = bullish ? thirdBodyLow : firstBodyLow;
+    if (
+      rangeFullyOverlappedByPair(
+        bars[i - 1]!.low,
+        bars[i - 1]!.high,
+        first.low,
+        first.high,
+        third.low,
+        third.high,
+      )
+    ) {
+      continue;
+    }
+
+    const zoneLow = bullish ? first.high : third.high;
+    const zoneHigh = bullish ? third.low : first.low;
     const formedAt = third.time;
 
     const exists = active.some((z) => z.formedAt === formedAt);
@@ -110,6 +140,20 @@ describe("Pine FVG lifecycle simulation", () => {
     });
 
     expect(surviving).toBe(1);
+  });
+
+  it("rejects gaps when the middle candle range is fully inside the first candle", () => {
+    const grindUp = [
+      bar(1, 100, 105, 99, 102),
+      bar(2, 102, 104, 101, 103),
+      bar(3, 106, 108, 106, 107),
+    ];
+
+    const surviving = simulatePineFvgLifecycle(grindUp, {
+      skipMitigationOnFormationBar: true,
+    });
+
+    expect(surviving).toBe(0);
   });
 
   it("prunes gaps older than two CME weeks even when unmitigated", () => {
