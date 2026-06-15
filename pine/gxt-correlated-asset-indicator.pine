@@ -11,8 +11,12 @@ TZ = "America/New_York"
 SESSION_HOUR = 18
 WEEKLY_END_HOUR = 17
 LEVEL_COLOR = color.black
+SESSION_CONTEXT_COLOR = color.new(color.gray, 30)
 LABEL_SIZE = size.small
 LABEL_GAP_TICKS = 2
+ADR_LOOKBACK = 14
+
+showPdEquilibrium50 = input.bool(true, "Show PD 50% Equilibrium", group = "Session Context")
 
 f_cme_daily_session_key() =>
     et_hour = hour(time, TZ)
@@ -80,6 +84,7 @@ f_session_rails() =>
     var int out_pwl_time = na
     var float out_daily_open = na
     var int out_daily_open_time = na
+    var array<float> completed_daily_ranges = array.new_float(0)
 
     daily_key = f_cme_daily_session_key()
     week_key = f_cme_week_session_key()
@@ -92,6 +97,9 @@ f_session_rails() =>
             out_pdl := cur_daily_low
             out_pdh_time := cur_daily_high_time
             out_pdl_time := cur_daily_low_time
+            array.push(completed_daily_ranges, cur_daily_high - cur_daily_low)
+            if array.size(completed_daily_ranges) > ADR_LOOKBACK
+                array.shift(completed_daily_ranges)
         cur_daily_high := high
         cur_daily_low := low
         cur_daily_high_time := time
@@ -125,9 +133,22 @@ f_session_rails() =>
             cur_week_low := next_week_low
             cur_week_low_time := next_week_low_time
 
-    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time]
+    float out_adr = na
+    int range_count = array.size(completed_daily_ranges)
+    if range_count > 0
+        float range_sum = 0.0
+        for i = 0 to range_count - 1
+            range_sum += array.get(completed_daily_ranges, i)
+        out_adr := range_sum / range_count
 
-[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime] = request.security(
+    float out_open_plus_adr = not na(out_daily_open) and not na(out_adr) ? out_daily_open + out_adr : na
+    float out_open_minus_adr = not na(out_daily_open) and not na(out_adr) ? out_daily_open - out_adr : na
+    float current_daily_range = not na(cur_daily_high) and not na(cur_daily_low) ? cur_daily_high - cur_daily_low : na
+    float out_adr_consumption_pct = not na(current_daily_range) and not na(out_adr) and out_adr > 0 ? current_daily_range / out_adr * 100.0 : na
+
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct]
+
+[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct] = request.security(
      syminfo.tickerid,
      "1",
      f_session_rails(),
@@ -170,38 +191,41 @@ f_draw_level(
      int session_end_time,
      string txt,
      bool dashed,
-     string label_placement
+     string label_placement,
+     color line_color
  ) =>
-    line next_line = existing_line
-    label next_label = existing_label
-    if barstate.islast and not na(price) and not na(origin_time) and not na(session_end_time)
+    line next_line = na
+    label next_label = na
+    if barstate.islast
         if not na(existing_line)
             line.delete(existing_line)
         if not na(existing_label)
             label.delete(existing_label)
-        origin_bi = f_bar_index_for_time(origin_time)
-        end_bi = math.max(origin_bi, f_bar_index_for_time(session_end_time))
-        next_line := line.new(
-             origin_bi,
-             price,
-             end_bi,
-             price,
-             xloc = xloc.bar_index,
-             extend = extend.none,
-             color = LEVEL_COLOR,
-             width = 1,
-             style = dashed ? line.style_dashed : line.style_solid
-         )
-        next_label := label.new(
-             end_bi,
-             f_label_y(price, label_placement),
-             txt,
-             xloc = xloc.bar_index,
-             style = f_label_style(label_placement),
-             color = color(na),
-             textcolor = LEVEL_COLOR,
-             size = LABEL_SIZE
-         )
+        if not na(price) and not na(origin_time) and not na(session_end_time)
+            origin_bi = f_bar_index_for_time(origin_time)
+            end_bi = math.max(origin_bi, f_bar_index_for_time(session_end_time))
+            next_line := line.new(
+                 origin_bi,
+                 price,
+                 end_bi,
+                 price,
+                 xloc = xloc.bar_index,
+                 extend = extend.none,
+                 color = line_color,
+                 width = 1,
+                 style = dashed ? line.style_dashed : line.style_solid
+             )
+            if txt != ""
+                next_label := label.new(
+                     end_bi,
+                     f_label_y(price, label_placement),
+                     txt,
+                     xloc = xloc.bar_index,
+                     style = f_label_style(label_placement),
+                     color = color(na),
+                     textcolor = line_color,
+                     size = LABEL_SIZE
+                 )
     [next_line, next_label]
 
 var line pdh_line = na
@@ -209,30 +233,49 @@ var line pdl_line = na
 var line pwh_line = na
 var line pwl_line = na
 var line daily_open_line = na
+var line open_plus_adr_line = na
+var line open_minus_adr_line = na
+var line pd_equilibrium_line = na
 var label pdh_label = na
 var label pdl_label = na
 var label pwh_label = na
 var label pwl_label = na
 var label daily_open_label = na
+var label adr_consumption_label = na
+var label pd_equilibrium_label = na
 
 open_near_pwl = not na(dailyOpen) and not na(pwl) and math.abs(dailyOpen - pwl) <= syminfo.mintick * LABEL_GAP_TICKS * 4
+pdEq50 = not na(pdh) and not na(pdl) ? (pdh + pdl) / 2 : na
+pd_eq_price = showPdEquilibrium50 ? pdEq50 : na
 
-[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhTime, sessionEnd, "PDH", false, "on")
+[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhTime, sessionEnd, "PDH", false, "on", LEVEL_COLOR)
 pdh_line := _pdh_line
 pdh_label := _pdh_label
 
-[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlTime, sessionEnd, "PDL", false, "on")
+[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlTime, sessionEnd, "PDL", false, "on", LEVEL_COLOR)
 pdl_line := _pdl_line
 pdl_label := _pdl_label
 
-[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh, pwhTime, sessionEnd, "PWH", false, "on")
+[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh, pwhTime, sessionEnd, "PWH", false, "on", LEVEL_COLOR)
 pwh_line := _pwh_line
 pwh_label := _pwh_label
 
-[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl, pwlTime, sessionEnd, "PWL", false, open_near_pwl ? "below" : "on")
+[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl, pwlTime, sessionEnd, "PWL", false, open_near_pwl ? "below" : "on", LEVEL_COLOR)
 pwl_line := _pwl_line
 pwl_label := _pwl_label
 
-[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, dailyOpen, dailyOpenTime, sessionEnd, "Daily Open", true, "above")
+[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, dailyOpen, dailyOpenTime, sessionEnd, "Daily Open", true, "above", SESSION_CONTEXT_COLOR)
 daily_open_line := _daily_open_line
 daily_open_label := _daily_open_label
+
+adr_consumption_txt = not na(adrConsumptionPct) ? str.format("ADR {0,number,#.#}%", adrConsumptionPct) : "ADR"
+[_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, openPlusAdr, dailyOpenTime, sessionEnd, adr_consumption_txt, true, "above", SESSION_CONTEXT_COLOR)
+open_plus_adr_line := _open_plus_adr_line
+adr_consumption_label := _adr_consumption_label
+
+[_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, openMinusAdr, dailyOpenTime, sessionEnd, "", true, "below", SESSION_CONTEXT_COLOR)
+open_minus_adr_line := _open_minus_adr_line
+
+[_pd_equilibrium_line, _pd_equilibrium_label] = f_draw_level(pd_equilibrium_line, pd_equilibrium_label, pd_eq_price, dailyOpenTime, sessionEnd, "PD EQ 50%", true, "on", SESSION_CONTEXT_COLOR)
+pd_equilibrium_line := _pd_equilibrium_line
+pd_equilibrium_label := _pd_equilibrium_label

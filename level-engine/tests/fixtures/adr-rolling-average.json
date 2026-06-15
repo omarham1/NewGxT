@@ -1,0 +1,130 @@
+[
+  {
+    "time": 1734303600000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Sun Dec 15 2024 18:00 718:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1734390000000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Mon Dec 16 2024 18:00 118:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1734476400000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Tue Dec 17 2024 18:00 218:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1734562800000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Wed Dec 18 2024 18:00 318:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1734649200000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Thu Dec 19 2024 18:00 418:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1734735600000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Fri Dec 20 2024 18:00 518:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1734822000000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Sat Dec 21 2024 18:00 618:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1734908400000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Sun Dec 22 2024 18:00 718:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1734994800000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Mon Dec 23 2024 18:00 118:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1735081200000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Tue Dec 24 2024 18:00 218:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1735167600000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Wed Dec 25 2024 18:00 318:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1735254000000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Thu Dec 26 2024 18:00 418:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1735340400000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Fri Dec 27 2024 18:00 518:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1735426800000,
+    "open": 5050,
+    "high": 5100,
+    "low": 5000,
+    "close": 5050,
+    "comment": "Sat Dec 28 2024 18:00 618:00 — completed daily session (range 100)"
+  },
+  {
+    "time": 1736204400000,
+    "open": 5055,
+    "high": 5065,
+    "low": 5035,
+    "close": 5045,
+    "comment": "Mon Jan 6 2025 18:00 ET — current session open"
+  },
+  {
+    "time": 1736208000000,
+    "open": 5045,
+    "high": 5075,
+    "low": 5040,
+    "close": 5065,
+    "comment": "Mon Jan 6 2025 19:00 ET — current session"
+  }
+]

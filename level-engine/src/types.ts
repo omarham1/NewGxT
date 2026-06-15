@@ -14,3 +14,12 @@ export type SessionRails = {
   pwl: number;
   dailyOpen: number;
 };
+
+export type SessionContext = SessionRails & {
+  adr: number;
+  openPlusAdr: number;
+  openMinusAdr: number;
+  adrConsumptionPct: number;
+  pdEquilibriumLow: number;
+  pdEquilibriumHigh: number;
+};
