@@ -1,8 +1,8 @@
 # HTF FVG display — CME two-week lookback
 
 **Type:** AFK  
-**Triage:** ready-for-agent  
-**Blocked by:** `docs/issues/001-htf-fvg-remove-pd-gate.md`
+**Triage:** done  
+**Status:** Closed in 814e77e
 
 ## Parent
 
@@ -29,15 +29,15 @@ Edge cases outside the CME weekly window (Friday 17:00 ET → Sunday 18:00 ET) m
 
 ## Acceptance criteria
 
-- [ ] Lookback helper returns true for formation times in the current CME week and the immediately previous CME week, false for two or more weeks ago
-- [ ] Week-roll at Sunday 18:00 ET drops gaps from the third week back while still unmitigated
-- [ ] A gap formed in the Friday close region of the prior CME week remains visible through the following week until the next Sunday 18:00 ET roll
-- [ ] `computeHtfFvgs` excludes a gap outside the lookback window even when unmitigated and outside PD range
-- [ ] `computeLevelSnapshot` integration test: includes in-window gap, excludes expired-week gap
-- [ ] Pine prunes zones that fall outside the two-week lookback; in-window zones still render on native 4H/1H
-- [ ] Pine lifecycle simulation covers week expiry in addition to mitigation
-- [ ] Level Engine README documents the CME two-week formation lookback
-- [ ] `npm test` in `level-engine` passes
+- [x] Lookback helper returns true for formation times in the current CME week and the immediately previous CME week, false for two or more weeks ago
+- [x] Week-roll at Sunday 18:00 ET drops gaps from the third week back while still unmitigated
+- [x] A gap formed in the Friday close region of the prior CME week remains visible through the following week until the next Sunday 18:00 ET roll
+- [x] `computeHtfFvgs` excludes a gap outside the lookback window even when unmitigated and outside PD range
+- [x] `computeLevelSnapshot` integration test: includes in-window gap, excludes expired-week gap
+- [x] Pine prunes zones that fall outside the two-week lookback; in-window zones still render on native 4H/1H
+- [x] Pine lifecycle simulation covers week expiry in addition to mitigation
+- [x] Level Engine README documents the CME two-week formation lookback
+- [x] `npm test` in `level-engine` passes
 
 ## Blocked by
 

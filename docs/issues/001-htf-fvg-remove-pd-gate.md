@@ -1,8 +1,8 @@
 # HTF FVG display — remove PD overlap gate
 
 **Type:** AFK  
-**Triage:** ready-for-agent  
-**Blocked by:** None — can start immediately
+**Triage:** done  
+**Status:** Closed in 814e77e
 
 ## Parent
 
@@ -27,14 +27,14 @@ Session POI auto-selection at 18:00 ET continues to use the PD Equilibrium Range
 
 ## Acceptance criteria
 
-- [ ] Level Engine includes an unmitigated 4H or 1H FVG in `htfFvgs` when the gap sits entirely above PDH or entirely below PDL (replacing the test that asserted PD-overlap-only inclusion)
-- [ ] Level Engine still excludes mitigated gaps and still does not mitigate on the formation bar
-- [ ] `computeLevelSnapshot` returns an outside-PD unmitigated gap in `htfFvgs` alongside correct session context
-- [ ] Pine draws teal FVG boxes for gaps outside the Previous Day range on native 4H and 1H charts
-- [ ] Pine does not draw FVG boxes on non-native timeframes (5m, 15m, Daily, etc.)
-- [ ] Pine lifecycle simulation updated to drop the PD overlap gate; existing formation-bar mitigation tests still pass
-- [ ] Level Engine README reflects that PD overlap is not a display filter
-- [ ] `npm test` in `level-engine` passes
+- [x] Level Engine includes an unmitigated 4H or 1H FVG in `htfFvgs` when the gap sits entirely above PDH or entirely below PDL (replacing the test that asserted PD-overlap-only inclusion)
+- [x] Level Engine still excludes mitigated gaps and still does not mitigate on the formation bar
+- [x] `computeLevelSnapshot` returns an outside-PD unmitigated gap in `htfFvgs` alongside correct session context
+- [x] Pine draws teal FVG boxes for gaps outside the Previous Day range on native 4H and 1H charts
+- [x] Pine does not draw FVG boxes on non-native timeframes (5m, 15m, Daily, etc.)
+- [x] Pine lifecycle simulation updated to drop the PD overlap gate; existing formation-bar mitigation tests still pass
+- [x] Level Engine README reflects that PD overlap is not a display filter
+- [x] `npm test` in `level-engine` passes
 
 ## Blocked by
 
