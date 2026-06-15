@@ -4,6 +4,7 @@ indicator(
      overlay = true,
      max_lines_count = 500,
      max_labels_count = 500,
+     max_boxes_count = 500,
      dynamic_requests = false
  )
 
@@ -12,6 +13,7 @@ SESSION_HOUR = 18
 WEEKLY_END_HOUR = 17
 LEVEL_COLOR = color.black
 SESSION_CONTEXT_COLOR = color.new(color.gray, 30)
+FVG_COLOR = color.new(color.teal, 85)
 LABEL_SIZE = size.small
 LABEL_GAP_TICKS = 2
 ADR_LOOKBACK = 14
@@ -171,6 +173,78 @@ f_label_y(float price, string placement) =>
 f_label_style(string placement) =>
     placement == "above" ? label.style_label_up : placement == "below" ? label.style_label_down : label.style_label_left
 
+type HtfFvgZone
+    float zoneLow
+    float zoneHigh
+    int formedTime
+    string txt
+
+f_body_high(int idx = 0) =>
+    math.max(open[idx], close[idx])
+
+f_body_low(int idx = 0) =>
+    math.min(open[idx], close[idx])
+
+f_detect_fvg() =>
+    float firstBodyHigh = f_body_high(2)
+    float firstBodyLow = f_body_low(2)
+    float thirdBodyHigh = f_body_high(0)
+    float thirdBodyLow = f_body_low(0)
+    bool bullish = thirdBodyLow > firstBodyHigh
+    bool bearish = thirdBodyHigh < firstBodyLow
+    float zoneLow = bullish ? firstBodyHigh : bearish ? thirdBodyHigh : na
+    float zoneHigh = bullish ? thirdBodyLow : bearish ? firstBodyLow : na
+    bool formed = bullish or bearish
+    [formed, zoneLow, zoneHigh, time]
+
+f_overlaps_pd(float zoneLow, float zoneHigh, float pdLow, float pdHigh) =>
+    not na(zoneLow) and not na(zoneHigh) and zoneHigh >= pdLow and zoneLow <= pdHigh
+
+f_price_enters_zone(float zoneLow, float zoneHigh) =>
+    low <= zoneHigh and high >= zoneLow
+
+f_fvg_exists(array<HtfFvgZone> zones, int formedTime, string txt) =>
+    bool found = false
+    int count = array.size(zones)
+    if count > 0
+        for i = 0 to count - 1
+            HtfFvgZone zone = array.get(zones, i)
+            if zone.formedTime == formedTime and zone.txt == txt
+                found := true
+    found
+
+f_try_add_fvg(
+     array<HtfFvgZone> zones,
+     bool formed,
+     float zoneLow,
+     float zoneHigh,
+     int formedTime,
+     string txt,
+     float pdHigh,
+     float pdLow
+ ) =>
+    if formed and f_overlaps_pd(zoneLow, zoneHigh, pdLow, pdHigh) and not f_fvg_exists(zones, formedTime, txt)
+        array.push(zones, HtfFvgZone.new(zoneLow, zoneHigh, formedTime, txt))
+    zones
+
+f_mitigate_fvgs(array<HtfFvgZone> zones) =>
+    int i = array.size(zones) - 1
+    while i >= 0
+        HtfFvgZone zone = array.get(zones, i)
+        if time > zone.formedTime and f_price_enters_zone(zone.zoneLow, zone.zoneHigh)
+            array.remove(zones, i)
+        i -= 1
+    zones
+
+f_filter_fvgs_by_pd(array<HtfFvgZone> zones, float pdHigh, float pdLow) =>
+    int i = array.size(zones) - 1
+    while i >= 0
+        HtfFvgZone zone = array.get(zones, i)
+        if not f_overlaps_pd(zone.zoneLow, zone.zoneHigh, pdLow, pdHigh)
+            array.remove(zones, i)
+        i -= 1
+    zones
+
 // Map a 1m origin timestamp to the chart bar that contains it (avoids bar_time rounding forward).
 f_bar_index_for_time(int target_time) =>
     int result = bar_index
@@ -182,6 +256,52 @@ f_bar_index_for_time(int target_time) =>
                 result := bar_index - i
                 break
     result
+
+f_draw_fvg_zones(
+     array<box> existing_boxes,
+     array<label> existing_labels,
+     array<HtfFvgZone> zones,
+     int session_end_time
+ ) =>
+    array<box> next_boxes = array.new<box>()
+    array<label> next_labels = array.new<label>()
+    if barstate.islast
+        int box_count = array.size(existing_boxes)
+        if box_count > 0
+            for i = 0 to box_count - 1
+                box.delete(array.get(existing_boxes, i))
+        int label_count = array.size(existing_labels)
+        if label_count > 0
+            for i = 0 to label_count - 1
+                label.delete(array.get(existing_labels, i))
+        int zone_count = array.size(zones)
+        if zone_count > 0
+            for i = 0 to zone_count - 1
+                HtfFvgZone zone = array.get(zones, i)
+                int origin_bi = f_bar_index_for_time(zone.formedTime)
+                int end_bi = math.max(origin_bi, f_bar_index_for_time(session_end_time))
+                box next_box = box.new(
+                     origin_bi,
+                     zone.zoneHigh,
+                     end_bi,
+                     zone.zoneLow,
+                     xloc = xloc.bar_index,
+                     bgcolor = FVG_COLOR,
+                     border_color = color.new(color.teal, 40)
+                 )
+                label next_label = label.new(
+                     end_bi,
+                     zone.zoneHigh,
+                     zone.txt,
+                     xloc = xloc.bar_index,
+                     style = label.style_label_down,
+                     color = color(na),
+                     textcolor = color.teal,
+                     size = LABEL_SIZE
+                 )
+                array.push(next_boxes, next_box)
+                array.push(next_labels, next_label)
+    [next_boxes, next_labels]
 
 f_draw_level(
      line existing_line,
@@ -279,3 +399,33 @@ open_minus_adr_line := _open_minus_adr_line
 [_pd_equilibrium_line, _pd_equilibrium_label] = f_draw_level(pd_equilibrium_line, pd_equilibrium_label, pd_eq_price, dailyOpenTime, sessionEnd, "PD EQ 50%", true, "on", SESSION_CONTEXT_COLOR)
 pd_equilibrium_line := _pd_equilibrium_line
 pd_equilibrium_label := _pd_equilibrium_label
+
+chartTfSeconds = timeframe.in_seconds()
+on4hChart = chartTfSeconds == 14400
+on1hChart = chartTfSeconds == 3600
+showFvgs = on4hChart or on1hChart
+fvgLabel = on4hChart ? "4H FVG" : on1hChart ? "1H FVG" : ""
+
+[formed, zoneLow, zoneHigh, formedTime] = f_detect_fvg()
+
+var array<HtfFvgZone> activeFvgs = array.new<HtfFvgZone>()
+var array<box> fvg_boxes = array.new<box>()
+var array<label> fvg_labels = array.new<label>()
+var int lastChartTf = na
+
+if chartTfSeconds != lastChartTf
+    array.clear(activeFvgs)
+    lastChartTf := chartTfSeconds
+
+daily_key = f_cme_daily_session_key()
+if ta.change(daily_key) != 0
+    activeFvgs := f_filter_fvgs_by_pd(activeFvgs, pdh, pdl)
+
+if showFvgs
+    activeFvgs := f_try_add_fvg(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel, pdh, pdl)
+    activeFvgs := f_mitigate_fvgs(activeFvgs)
+
+fvgZonesToDraw = showFvgs ? activeFvgs : array.new<HtfFvgZone>()
+[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEnd)
+fvg_boxes := _fvg_boxes
+fvg_labels := _fvg_labels
