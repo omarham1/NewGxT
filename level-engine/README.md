@@ -14,7 +14,7 @@ npm run test:watch
 - **Session Calendar** — CME daily (18:00–17:00 ET) and weekly (Sun 18:00–Fri 17:00 ET) session grouping
 - **Session Rails** — PDH, PDL, PWH, PWL, and 18:00 Daily Open from session-grouped bars
 - **Session Context** — ADR band (open ± ADR, consumption %), PD Equilibrium Range (25%–75% of PD wick-to-wick)
-- **HTF FVG** — body-based three-candle gaps on 4H and 1H; PD-range overlap filter; mitigation on zone entry
+- **HTF FVG** — body-based three-candle gaps on 4H and 1H; mitigation on zone entry; only gaps formed during the current or immediately previous CME week are eligible (Sunday 18:00 ET through Friday 17:00 ET, expiring at each Sunday 18:00 ET roll)
 - **Level Snapshot** — session context plus unmitigated HTF FVGs for renderer consumption
 
 ## Public API
@@ -25,6 +25,7 @@ import {
   computeSessionContext,
   computeSessionRails,
   computeHtfFvgs,
+  isWithinHtfFvgLookback,
   type Bar,
 } from "@gxt/level-engine";
 
@@ -40,5 +41,8 @@ const snapshot = computeLevelSnapshot({
   bars1h,
   mitigationBars,
 });
-// SessionContext + { htfFvgs: [...] }
+// SessionContext + { htfFvgs: [...] } — htfFvgs filtered to current + previous CME week
+
+const fvgs = computeHtfFvgs({ bars4h, bars1h, mitigationBars, asOf: latestBarTime });
+// asOf anchors the two-week formation lookback (typically the latest supplied bar time)
 ```

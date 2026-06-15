@@ -1,4 +1,5 @@
 import type { Bar } from "./types.js";
+import { isWithinHtfFvgLookback } from "./session-calendar.js";
 
 export type HtfTimeframe = "4H" | "1H";
 
@@ -13,9 +14,8 @@ export type HtfFvg = {
 export type ComputeHtfFvgsInput = {
   bars4h: Bar[];
   bars1h: Bar[];
-  pdh: number;
-  pdl: number;
   mitigationBars: Bar[];
+  asOf: number;
 };
 
 function bodyHigh(bar: Bar): number {
@@ -24,15 +24,6 @@ function bodyHigh(bar: Bar): number {
 
 function bodyLow(bar: Bar): number {
   return Math.min(bar.open, bar.close);
-}
-
-function overlapsPdRange(
-  zoneLow: number,
-  zoneHigh: number,
-  pdh: number,
-  pdl: number,
-): boolean {
-  return zoneHigh >= pdl && zoneLow <= pdh;
 }
 
 function barEntersZone(bar: Bar, zoneLow: number, zoneHigh: number): boolean {
@@ -73,8 +64,6 @@ function detectFvgAt(
 function detectFvgsOnTimeframe(
   bars: Bar[],
   timeframe: HtfTimeframe,
-  pdh: number,
-  pdl: number,
   mitigationBars: Bar[],
 ): HtfFvg[] {
   const fvgs: HtfFvg[] = [];
@@ -82,10 +71,6 @@ function detectFvgsOnTimeframe(
   for (let i = 2; i < bars.length; i++) {
     const detected = detectFvgAt(bars[i - 2]!, bars[i - 1]!, bars[i]!);
     if (detected === null) {
-      continue;
-    }
-
-    if (!overlapsPdRange(detected.zoneLow, detected.zoneHigh, pdh, pdl)) {
       continue;
     }
 
@@ -108,17 +93,15 @@ export function computeHtfFvgs(input: ComputeHtfFvgsInput): HtfFvg[] {
   const fvgs4h = detectFvgsOnTimeframe(
     input.bars4h,
     "4H",
-    input.pdh,
-    input.pdl,
     input.mitigationBars,
   );
   const fvgs1h = detectFvgsOnTimeframe(
     input.bars1h,
     "1H",
-    input.pdh,
-    input.pdl,
     input.mitigationBars,
   );
 
-  return [...fvgs4h, ...fvgs1h];
+  return [...fvgs4h, ...fvgs1h].filter((fvg) =>
+    isWithinHtfFvgLookback(fvg.formedAt, input.asOf),
+  );
 }

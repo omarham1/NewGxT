@@ -8,6 +8,7 @@ export { computeLevelSnapshot } from "./level-snapshot.js";
 export {
   getDailySessionKey,
   getWeeklySessionKey,
+  isWithinHtfFvgLookback,
   groupBarsByDailySession,
   groupBarsByWeeklySession,
 } from "./session-calendar.js";

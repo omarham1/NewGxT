@@ -46,14 +46,61 @@ f_in_cme_week() =>
     fri_close = dow == dayofweek.friday and (et_hour < WEEKLY_END_HOUR or (et_hour == WEEKLY_END_HOUR and et_minute == 0))
     sun_evening or mid_week or fri_close
 
-f_cme_week_session_key() =>
-    dow = dayofweek(time, TZ)
-    y = year(time, TZ)
-    m = month(time, TZ)
-    d = dayofmonth(time, TZ)
+f_in_cme_week_for(int t) =>
+    dow = dayofweek(t, TZ)
+    et_hour = hour(t, TZ)
+    et_minute = minute(t, TZ)
+    sun_evening = dow == dayofweek.sunday and et_hour >= SESSION_HOUR
+    mid_week = dow > dayofweek.sunday and dow < dayofweek.friday
+    fri_close = dow == dayofweek.friday and (et_hour < WEEKLY_END_HOUR or (et_hour == WEEKLY_END_HOUR and et_minute == 0))
+    sun_evening or mid_week or fri_close
+
+f_cme_week_session_key_for(int t) =>
+    dow = dayofweek(t, TZ)
+    y = year(t, TZ)
+    m = month(t, TZ)
+    d = dayofmonth(t, TZ)
     offset = dow - 1
     sun_day = d - offset
-    f_in_cme_week() ? timestamp(TZ, y, m, sun_day, SESSION_HOUR, 0) : na
+    f_in_cme_week_for(t) ? timestamp(TZ, y, m, sun_day, SESSION_HOUR, 0) : na
+
+f_cme_week_session_key() =>
+    f_cme_week_session_key_for(time)
+
+f_week_start_for(int t) =>
+    dow = dayofweek(t, TZ)
+    y = year(t, TZ)
+    m = month(t, TZ)
+    d = dayofmonth(t, TZ)
+    offset = dow - 1
+    sun_day = d - offset
+    timestamp(TZ, y, m, sun_day, SESSION_HOUR, 0)
+
+f_week_end_for(int week_start) =>
+    y = year(week_start, TZ)
+    m = month(week_start, TZ)
+    d = dayofmonth(week_start, TZ)
+    timestamp(TZ, y, m, d + 5, WEEKLY_END_HOUR, 0)
+
+f_resolve_week_session_key(int t) =>
+    int direct = f_cme_week_session_key_for(t)
+    if not na(direct)
+        direct
+    else
+        int week_start = f_week_start_for(t)
+        int week_end = f_week_end_for(week_start)
+        t > week_end ? week_start : week_start - 7 * 86400000
+
+f_previous_week_session_key(int week_key) =>
+    week_key - 7 * 86400000
+
+f_within_htf_fvg_lookback(int formedTime) =>
+    int formedWeek = f_resolve_week_session_key(formedTime)
+    int asOfWeek = f_resolve_week_session_key(time)
+    if na(formedWeek) or na(asOfWeek)
+        false
+    else
+        formedWeek == asOfWeek or formedWeek == f_previous_week_session_key(asOfWeek)
 
 f_track_extreme(float cur_extreme, int cur_time, float candidate, int candidate_time) =>
     if na(cur_extreme) or candidate > cur_extreme
@@ -91,7 +138,8 @@ f_session_rails() =>
     daily_key = f_cme_daily_session_key()
     week_key = f_cme_week_session_key()
     new_daily = ta.change(daily_key) != 0
-    new_week = not na(week_key) and ta.change(week_key) != 0
+    week_key_change = ta.change(week_key)
+    new_week = not na(week_key) and week_key_change != 0
 
     if new_daily
         if not na(cur_daily_high)
@@ -197,9 +245,6 @@ f_detect_fvg() =>
     bool formed = bullish or bearish
     [formed, zoneLow, zoneHigh, time]
 
-f_overlaps_pd(float zoneLow, float zoneHigh, float pdLow, float pdHigh) =>
-    not na(zoneLow) and not na(zoneHigh) and zoneHigh >= pdLow and zoneLow <= pdHigh
-
 f_price_enters_zone(float zoneLow, float zoneHigh) =>
     low <= zoneHigh and high >= zoneLow
 
@@ -219,11 +264,9 @@ f_try_add_fvg(
      float zoneLow,
      float zoneHigh,
      int formedTime,
-     string txt,
-     float pdHigh,
-     float pdLow
+     string txt
  ) =>
-    if formed and f_overlaps_pd(zoneLow, zoneHigh, pdLow, pdHigh) and not f_fvg_exists(zones, formedTime, txt)
+    if formed and not f_fvg_exists(zones, formedTime, txt)
         array.push(zones, HtfFvgZone.new(zoneLow, zoneHigh, formedTime, txt))
     zones
 
@@ -236,11 +279,11 @@ f_mitigate_fvgs(array<HtfFvgZone> zones) =>
         i -= 1
     zones
 
-f_filter_fvgs_by_pd(array<HtfFvgZone> zones, float pdHigh, float pdLow) =>
+f_prune_expired_fvgs(array<HtfFvgZone> zones) =>
     int i = array.size(zones) - 1
     while i >= 0
         HtfFvgZone zone = array.get(zones, i)
-        if not f_overlaps_pd(zone.zoneLow, zone.zoneHigh, pdLow, pdHigh)
+        if not f_within_htf_fvg_lookback(zone.formedTime)
             array.remove(zones, i)
         i -= 1
     zones
@@ -417,13 +460,10 @@ if chartTfSeconds != lastChartTf
     array.clear(activeFvgs)
     lastChartTf := chartTfSeconds
 
-daily_key = f_cme_daily_session_key()
-if ta.change(daily_key) != 0
-    activeFvgs := f_filter_fvgs_by_pd(activeFvgs, pdh, pdl)
-
 if showFvgs
-    activeFvgs := f_try_add_fvg(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel, pdh, pdl)
+    activeFvgs := f_try_add_fvg(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel)
     activeFvgs := f_mitigate_fvgs(activeFvgs)
+    activeFvgs := f_prune_expired_fvgs(activeFvgs)
 
 fvgZonesToDraw = showFvgs ? activeFvgs : array.new<HtfFvgZone>()
 [_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEnd)

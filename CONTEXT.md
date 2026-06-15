@@ -38,7 +38,7 @@ A market imbalance identified by a three-candle sequence where the range of the 
 _Avoid_: Imbalance zone, liquidity void, gap
 
 **HTF FVG (Relevant Level)**:
-An unmitigated 4H or 1H Fair Value Gap that overlaps the Previous Day's high-low range. Only these FVGs are drawn on the Structural Canvas. Once price enters the gap, it is mitigated and removed from the canvas.
+An unmitigated 4H or 1H Fair Value Gap shown on the Structural Canvas. All unmitigated gaps qualify regardless of position relative to the Previous Day range; no liquidity sweep is required for display. Eligibility uses the gap's formation time (middle candle of the three-candle sequence) and the CME week calendar: only gaps formed during the current or immediately previous CME week are drawn; older unmitigated gaps expire from the canvas at each Sunday 18:00 ET week roll. Rendered on native timeframe charts only — 4H gaps on the 4H chart, 1H gaps on the 1H chart; not projected to other timeframes. Uniform teal shading unless promoted to Session POI, which receives POI emphasis. Once price enters the gap, it is mitigated and removed from the canvas.
 _Avoid_: ITF imbalance, displacement zone
 
 **SMT Divergence**:
@@ -127,7 +127,7 @@ A build layer for the TradingView indicator ordered by what must exist on-chart 
 _Avoid_: Playbook phase, workflow step
 
 **Structural Canvas**:
-The always-visible foundation layer of the indicator: all Relevant Levels projected onto every monitored chart timeframe (Daily through 1m) at the same prices, with Session POI visually emphasized. PDH/PDL, PWH/PWL, and HTF Swing Points render as labeled solid lines. HTF FVGs render as shaded zones between gap boundaries.
+The always-visible foundation layer of the indicator: Relevant Levels at the same prices across monitored chart timeframes (Daily through 1m), with Session POI visually emphasized. PDH/PDL, PWH/PWL, and HTF Swing Points render as labeled solid lines on every timeframe. HTF FVGs render as shaded zones on their native 4H and 1H charts only.
 _Avoid_: Background levels, static overlay
 
 **Session Context**:

@@ -17,16 +17,29 @@ export function computeLevelSnapshot(
   input: ComputeLevelSnapshotInput,
 ): LevelSnapshot {
   const context = computeSessionContext(input.bars);
+  const asOf = latestBarTime([
+    ...input.bars,
+    ...input.bars4h,
+    ...input.bars1h,
+    ...input.mitigationBars,
+  ]);
   const htfFvgs = computeHtfFvgs({
     bars4h: input.bars4h,
     bars1h: input.bars1h,
-    pdh: context.pdh,
-    pdl: context.pdl,
     mitigationBars: input.mitigationBars,
+    asOf,
   });
 
   return {
     ...context,
     htfFvgs,
   };
+}
+
+function latestBarTime(bars: Bar[]): number {
+  if (bars.length === 0) {
+    return 0;
+  }
+
+  return bars.reduce((latest, bar) => Math.max(latest, bar.time), bars[0]!.time);
 }

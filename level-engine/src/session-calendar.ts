@@ -23,18 +23,7 @@ export function getDailySessionKey(timeMs: number): string {
 
 export function getWeeklySessionKey(timeMs: number): string | null {
   const et = toEt(timeMs);
-
-  let sunday = et.set({ weekday: 7 }).startOf("day");
-  if (sunday > et.startOf("day")) {
-    sunday = sunday.minus({ weeks: 1 });
-  }
-
-  const weekStart = sunday.set({
-    hour: SESSION_START_HOUR,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
+  const weekStart = weekStartForEt(et);
   const weekEnd = weekStart
     .plus({ days: WEEKLY_END_DAY })
     .set({ hour: WEEKLY_END_HOUR, minute: 0, second: 0, millisecond: 0 });
@@ -44,6 +33,60 @@ export function getWeeklySessionKey(timeMs: number): string | null {
   }
 
   return weekStart.toISODate()!;
+}
+
+function weekStartForEt(et: DateTime): DateTime {
+  let sunday = et.set({ weekday: 7 }).startOf("day");
+  if (sunday > et.startOf("day")) {
+    sunday = sunday.minus({ weeks: 1 });
+  }
+
+  return sunday.set({
+    hour: SESSION_START_HOUR,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+}
+
+function resolveWeeklySessionKey(timeMs: number): string | null {
+  const direct = getWeeklySessionKey(timeMs);
+  if (direct !== null) {
+    return direct;
+  }
+
+  const et = toEt(timeMs);
+  const weekStart = weekStartForEt(et);
+  const weekEnd = weekStart
+    .plus({ days: WEEKLY_END_DAY })
+    .set({ hour: WEEKLY_END_HOUR, minute: 0, second: 0, millisecond: 0 });
+
+  if (et > weekEnd) {
+    return weekStart.toISODate()!;
+  }
+
+  const previousWeekStart = weekStart.minus({ weeks: 1 });
+  return previousWeekStart.toISODate()!;
+}
+
+function previousWeeklySessionKey(weekKey: string): string {
+  return DateTime.fromISO(weekKey, { zone: ET })
+    .minus({ weeks: 1 })
+    .toISODate()!;
+}
+
+export function isWithinHtfFvgLookback(formedAt: number, asOf: number): boolean {
+  const formedWeek = resolveWeeklySessionKey(formedAt);
+  const asOfWeek = resolveWeeklySessionKey(asOf);
+  if (formedWeek === null || asOfWeek === null) {
+    return false;
+  }
+
+  if (formedWeek === asOfWeek) {
+    return true;
+  }
+
+  return formedWeek === previousWeeklySessionKey(asOfWeek);
 }
 
 export function groupBarsByDailySession(bars: Bar[]): Map<string, Bar[]> {
