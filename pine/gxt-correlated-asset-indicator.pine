@@ -468,7 +468,8 @@ if chartTfSeconds != lastChartTf
     lastChartTf := chartTfSeconds
 
 if showFvgs
-    activeFvgs := f_try_add_fvg(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel)
+    if barstate.isconfirmed
+        activeFvgs := f_try_add_fvg(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel)
     activeFvgs := f_mitigate_fvgs(activeFvgs)
     activeFvgs := f_prune_expired_fvgs(activeFvgs)
 

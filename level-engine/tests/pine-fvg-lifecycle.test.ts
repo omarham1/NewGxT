@@ -12,7 +12,9 @@ const SUN_JAN_12_OPEN = 1736722800000;
 /** Mirrors Pine indicator bar-by-bar FVG state machine. */
 function simulatePineFvgLifecycle(
   bars: Bar[],
-  options: { skipMitigationOnFormationBar: boolean },
+  options: {
+    isBarConfirmed?: (barIndex: number) => boolean;
+  } = {},
   evalAt?: number,
 ): number {
   type Zone = { zoneLow: number; zoneHigh: number; formedAt: number };
@@ -53,44 +55,41 @@ function simulatePineFvgLifecycle(
     }
   };
 
+  const isBarConfirmed = options.isBarConfirmed ?? (() => true);
+
   for (let i = 2; i < bars.length; i++) {
     const first = bars[i - 2]!;
     const third = bars[i]!;
+    const bar = bars[i]!;
 
     const bullish = third.low > first.high;
     const bearish = third.high < first.low;
-    if (!bullish && !bearish) {
-      continue;
-    }
 
-    if (
-      rangeFullyOverlappedByPair(
+    if (bullish || bearish) {
+      const middleOverlapped = rangeFullyOverlappedByPair(
         bars[i - 1]!.low,
         bars[i - 1]!.high,
         first.low,
         first.high,
         third.low,
         third.high,
-      )
-    ) {
-      continue;
+      );
+
+      if (!middleOverlapped) {
+        const zoneLow = bullish ? first.high : third.high;
+        const zoneHigh = bullish ? third.low : first.low;
+        const formedAt = third.time;
+
+        const exists = active.some((z) => z.formedAt === formedAt);
+        if (!exists && isBarConfirmed(i)) {
+          active.push({ zoneLow, zoneHigh, formedAt });
+        }
+      }
     }
 
-    const zoneLow = bullish ? first.high : third.high;
-    const zoneHigh = bullish ? third.low : first.low;
-    const formedAt = third.time;
-
-    const exists = active.some((z) => z.formedAt === formedAt);
-    if (!exists) {
-      active.push({ zoneLow, zoneHigh, formedAt });
-    }
-
-    const bar = bars[i]!;
     for (let j = active.length - 1; j >= 0; j--) {
       const zone = active[j]!;
-      const skipFormationBar =
-        options.skipMitigationOnFormationBar && bar.time === zone.formedAt;
-      if (!skipFormationBar && entersZone(bar, zone.zoneLow, zone.zoneHigh)) {
+      if (bar.time > zone.formedAt && entersZone(bar, zone.zoneLow, zone.zoneHigh)) {
         active.splice(j, 1);
       }
     }
@@ -126,20 +125,21 @@ function bullishGapAt(time: number): Bar[] {
 describe("Pine FVG lifecycle simulation", () => {
   const bullishGap = bullishGapAt(1);
 
-  it("reproduces missing gaps when the formation bar immediately mitigates", () => {
-    const surviving = simulatePineFvgLifecycle(bullishGap, {
-      skipMitigationOnFormationBar: false,
-    });
-
-    expect(surviving).toBe(0);
-  });
-
-  it("keeps gaps visible when mitigation waits until after formation", () => {
-    const surviving = simulatePineFvgLifecycle(bullishGap, {
-      skipMitigationOnFormationBar: true,
-    });
+  it("does not mitigate an FVG on its formation bar", () => {
+    const surviving = simulatePineFvgLifecycle(bullishGap);
 
     expect(surviving).toBe(1);
+  });
+
+  it("mitigates an FVG when price enters the zone on a later bar", () => {
+    const bars = [
+      ...bullishGap,
+      bar(1 + 3 * HOUR_MS, 107, 108, 105, 107),
+    ];
+
+    const surviving = simulatePineFvgLifecycle(bars);
+
+    expect(surviving).toBe(0);
   });
 
   it("rejects gaps when the middle candle range is fully inside the first candle", () => {
@@ -149,9 +149,7 @@ describe("Pine FVG lifecycle simulation", () => {
       bar(3, 106, 108, 106, 107),
     ];
 
-    const surviving = simulatePineFvgLifecycle(grindUp, {
-      skipMitigationOnFormationBar: true,
-    });
+    const surviving = simulatePineFvgLifecycle(grindUp);
 
     expect(surviving).toBe(0);
   });
@@ -159,7 +157,7 @@ describe("Pine FVG lifecycle simulation", () => {
   it("prunes gaps older than two CME weeks even when unmitigated", () => {
     const surviving = simulatePineFvgLifecycle(
       bullishGapAt(SUN_DEC_22_OPEN),
-      { skipMitigationOnFormationBar: true },
+      {},
       MON_JAN_6_EVAL,
     );
 
@@ -169,7 +167,7 @@ describe("Pine FVG lifecycle simulation", () => {
   it("keeps prior-week gaps visible through the current CME week", () => {
     const surviving = simulatePineFvgLifecycle(
       bullishGapAt(FRI_JAN_3_CLOSE),
-      { skipMitigationOnFormationBar: true },
+      {},
       MON_JAN_6_EVAL,
     );
 
@@ -179,7 +177,7 @@ describe("Pine FVG lifecycle simulation", () => {
   it("drops prior-week gaps at the Sunday 18:00 ET week roll", () => {
     const surviving = simulatePineFvgLifecycle(
       bullishGapAt(FRI_JAN_3_CLOSE),
-      { skipMitigationOnFormationBar: true },
+      {},
       SUN_JAN_12_OPEN,
     );
 
@@ -189,10 +187,34 @@ describe("Pine FVG lifecycle simulation", () => {
   it("keeps current-week gaps visible as the immediately previous week after roll", () => {
     const surviving = simulatePineFvgLifecycle(
       bullishGapAt(SUN_JAN_5_OPEN),
-      { skipMitigationOnFormationBar: true },
+      {},
       SUN_JAN_12_OPEN,
     );
 
     expect(surviving).toBe(1);
+  });
+
+  it("does not form an FVG when FVG C3 closes without a gap", () => {
+    const bars = [
+      bar(1, 100, 105, 98, 102),
+      bar(2, 102, 110, 101, 108),
+      bar(3, 108, 115, 104, 112),
+    ];
+
+    expect(simulatePineFvgLifecycle(bars)).toBe(0);
+  });
+
+  it("does not add an FVG until FVG C3 bar is confirmed", () => {
+    const bars = bullishGapAt(1);
+
+    const whileForming = simulatePineFvgLifecycle(bars, {
+      isBarConfirmed: (barIndex) => barIndex < bars.length - 1,
+    });
+
+    expect(whileForming).toBe(0);
+
+    const afterClose = simulatePineFvgLifecycle(bars);
+
+    expect(afterClose).toBe(1);
   });
 });

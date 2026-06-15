@@ -183,6 +183,23 @@ describe("HTF FVG", () => {
     expect(fvgs).toEqual([]);
   });
 
+  it("does not detect an FVG when FVG C3 closes without a gap", () => {
+    const bars1h = [
+      bar(SUN_JAN_5_OPEN, 100, 105, 98, 102),
+      bar(SUN_JAN_5_OPEN + HOUR_MS, 102, 110, 101, 108),
+      bar(SUN_JAN_5_OPEN + 2 * HOUR_MS, 108, 115, 104, 112),
+    ];
+
+    const fvgs = computeHtfFvgs({
+      bars4h: [],
+      bars1h,
+      mitigationBars: [],
+      asOf: MON_JAN_6_EVAL,
+    });
+
+    expect(fvgs).toEqual([]);
+  });
+
   it("excludes an unmitigated gap outside the two-week lookback window", () => {
     const bars4h = [
       bar(SUN_DEC_22_OPEN, 100, 105, 98, 102),

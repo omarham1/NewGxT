@@ -34,11 +34,15 @@ High and low of the completed CME weekly session (Sunday 18:00 ET to Friday 17:0
 _Avoid_: Weekly extremes, range boundaries
 
 **Fair Value Gap (FVG)**:
-A market imbalance identified by a three-candle sequence where the range of the second candle is not fully overlapped by the first and third candles. Bullish zone: candle 1 high wick to candle 3 low wick. Bearish zone: candle 3 high wick to candle 1 low wick. Mitigated when price enters the gap zone.
+A market imbalance identified by a three-candle sequence where the range of the middle candle is not fully overlapped by the outer two candles. Bullish zone: FVG C1 high wick to FVG C3 low wick. Bearish zone: FVG C3 high wick to FVG C1 low wick. The pattern is confirmed only when FVG C3 closes as a complete bar; until then no FVG exists — nothing is drawn, tracked, or eligible for downstream logic. Applies to every gap type in GxT — HTF, ITF, LTF, and Expansion FVG. Mitigated when price enters the gap zone on a bar after formation.
 _Avoid_: Imbalance zone, liquidity void, gap
 
+**FVG C1 / FVG C2 / FVG C3**:
+The three bars of a Fair Value Gap pattern. FVG C1 and FVG C3 are the outer candles that define the gap zone; FVG C2 is the middle candle whose range must not be fully overlapped. Confirmation waits for FVG C3 bar close — wick conditions met intrabar on a forming bar do not count.
+_Avoid_: C1, C2, C3 alone (those terms refer to the reversal sequence)
+
 **HTF FVG (Relevant Level)**:
-An unmitigated 4H or 1H Fair Value Gap shown on the Structural Canvas. All unmitigated gaps qualify regardless of position relative to the Previous Day range; no liquidity sweep is required for display. Eligibility uses the gap's formation time (middle candle of the three-candle sequence) and the CME week calendar: only gaps formed during the current or immediately previous CME week are drawn; older unmitigated gaps expire from the canvas at each Sunday 18:00 ET week roll. Rendered on native timeframe charts only — 4H gaps on the 4H chart, 1H gaps on the 1H chart; not projected to other timeframes. Uniform teal shading unless promoted to Session POI, which receives POI emphasis. Once price enters the gap, it is mitigated and removed from the canvas.
+An unmitigated 4H or 1H Fair Value Gap shown on the Structural Canvas. All unmitigated gaps qualify regardless of position relative to the Previous Day range; no liquidity sweep is required for display. Eligibility uses the gap's formation time (FVG C3 bar open, at bar-close confirmation) and the CME week calendar: only gaps formed during the current or immediately previous CME week are drawn; older unmitigated gaps expire from the canvas at each Sunday 18:00 ET week roll. Rendered on native timeframe charts only — 4H gaps on the 4H chart, 1H gaps on the 1H chart; not projected to other timeframes. Uniform teal shading unless promoted to Session POI, which receives POI emphasis. Once price enters the gap on a bar after formation, it is mitigated and removed from the canvas.
 _Avoid_: ITF imbalance, displacement zone
 
 **SMT Divergence**:
