@@ -166,6 +166,19 @@ describe("HTF Swing Points", () => {
     expect(swings[0]?.price).toBe(5150);
   });
 
+  it("includes a swing below PDL when it remains inside the weekly range", () => {
+    const bars4h = fractalSwingLowSequence(SUN_JAN_5_OPEN).map((b) =>
+      b.low === 5000 ? { ...b, low: 4750, close: 4760 } : b,
+    );
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars4h }),
+    );
+
+    expect(swings).toHaveLength(1);
+    expect(swings[0]?.price).toBe(4750);
+  });
+
   it("adds intraday swings inside the weekly range", () => {
     const bars1h = fractalSwingHighSequence(MON_JAN_6_SESSION_OPEN).map((b) =>
       b.high === 5100 ? { ...b, high: 5150, close: 5140 } : b,
