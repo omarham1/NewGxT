@@ -10,7 +10,7 @@ export { computeHtfFvgs } from "./htf-fvg.js";
 export { computeHtfSwingPoints } from "./htf-swing.js";
 export { computeSessionRailMitigation } from "./session-rail-mitigation.js";
 export { computeLevelSnapshot } from "./level-snapshot.js";
-export { selectDirectionalSessionPoi } from "./session-poi.js";
+export { selectDirectionalSessionPoi, selectNeutralSessionPoi, selectSessionPoi } from "./session-poi.js";
 export {
   getDailySessionKey,
   getDailySessionOpenTime,

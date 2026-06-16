@@ -8,7 +8,9 @@ export type SessionPoi =
       timeframe: HtfTimeframe;
       formedAt: number;
       swingKind: HtfSwingKind;
-    };
+    }
+  | { kind: "pdh"; sweptAt: number }
+  | { kind: "pdl"; sweptAt: number };
 
 export type DailyBias = "directional" | "neutral";
 
@@ -120,4 +122,80 @@ export function selectDirectionalSessionPoi(
   }
 
   return null;
+}
+
+export type SelectNeutralSessionPoiInput = {
+  asOf: number;
+  sessionOpenTime: number;
+  pdhMitigatedAt?: number;
+  pdlMitigatedAt?: number;
+};
+
+export function selectNeutralSessionPoi(
+  input: SelectNeutralSessionPoiInput,
+): SessionPoi | null {
+  if (input.asOf < input.sessionOpenTime) {
+    return null;
+  }
+
+  const pdhSwept =
+    input.pdhMitigatedAt !== undefined &&
+    input.pdhMitigatedAt >= input.sessionOpenTime &&
+    input.pdhMitigatedAt <= input.asOf;
+  const pdlSwept =
+    input.pdlMitigatedAt !== undefined &&
+    input.pdlMitigatedAt >= input.sessionOpenTime &&
+    input.pdlMitigatedAt <= input.asOf;
+
+  if (pdhSwept && pdlSwept) {
+    return input.pdhMitigatedAt! <= input.pdlMitigatedAt!
+      ? { kind: "pdh", sweptAt: input.pdhMitigatedAt! }
+      : { kind: "pdl", sweptAt: input.pdlMitigatedAt! };
+  }
+
+  if (pdhSwept) {
+    return { kind: "pdh", sweptAt: input.pdhMitigatedAt! };
+  }
+
+  if (pdlSwept) {
+    return { kind: "pdl", sweptAt: input.pdlMitigatedAt! };
+  }
+
+  return null;
+}
+
+export type SelectSessionPoiInput = {
+  dailyBias: DailyBias;
+  asOf: number;
+  sessionOpenTime: number;
+  currentPrice: number;
+  pdEquilibriumLow: number;
+  pdEquilibriumHigh: number;
+  pdhMitigatedAt?: number;
+  pdlMitigatedAt?: number;
+  htfFvgs: HtfFvg[];
+  htfSwingPoints: HtfSwingPoint[];
+};
+
+export function selectSessionPoi(
+  input: SelectSessionPoiInput,
+): SessionPoi | null {
+  if (input.dailyBias === "neutral") {
+    return selectNeutralSessionPoi({
+      asOf: input.asOf,
+      sessionOpenTime: input.sessionOpenTime,
+      pdhMitigatedAt: input.pdhMitigatedAt,
+      pdlMitigatedAt: input.pdlMitigatedAt,
+    });
+  }
+
+  return selectDirectionalSessionPoi({
+    asOf: input.asOf,
+    sessionOpenTime: input.sessionOpenTime,
+    currentPrice: input.currentPrice,
+    pdEquilibriumLow: input.pdEquilibriumLow,
+    pdEquilibriumHigh: input.pdEquilibriumHigh,
+    htfFvgs: input.htfFvgs,
+    htfSwingPoints: input.htfSwingPoints,
+  });
 }

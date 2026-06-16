@@ -200,4 +200,69 @@ describe("Level Snapshot", () => {
       formedAt,
     });
   });
+
+  it("does not select Session POI at the session open on neutral days", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
+    const bars4h = equilibriumBullishGap(SUN_JAN_5_OPEN, 5040, 5045);
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h,
+      bars1h: [],
+      mitigationBars: [],
+      dailyBias: "neutral",
+    });
+
+    expect(snapshot.sessionPoi).toBeNull();
+    expect(snapshot.htfFvgs).toEqual([
+      {
+        timeframe: "4H",
+        direction: "bullish",
+        zoneLow: 5040,
+        zoneHigh: 5045,
+        formedAt,
+      },
+    ]);
+  });
+
+  it("promotes PDH to Session POI after a neutral-day sweep", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const sweptAt = MON_JAN_6_EVAL + HOUR_MS;
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h: [],
+      bars1h: [],
+      mitigationBars: [bar(sweptAt, 5095, 5101, 5090, 5098)],
+      dailyBias: "neutral",
+    });
+
+    expect(snapshot.pdh).toBe(5100);
+    expect(snapshot.pdhMitigatedAt).toBe(sweptAt);
+    expect(snapshot.sessionPoi).toEqual({
+      kind: "pdh",
+      sweptAt,
+    });
+  });
+
+  it("promotes PDL to Session POI after a neutral-day sweep", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const sweptAt = MON_JAN_6_EVAL + HOUR_MS;
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h: [],
+      bars1h: [],
+      mitigationBars: [bar(sweptAt, 5005, 5010, 4995, 5000)],
+      dailyBias: "neutral",
+    });
+
+    expect(snapshot.pdl).toBe(5000);
+    expect(snapshot.pdlMitigatedAt).toBe(sweptAt);
+    expect(snapshot.sessionPoi).toEqual({
+      kind: "pdl",
+      sweptAt,
+    });
+  });
 });

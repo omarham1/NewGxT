@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { selectDirectionalSessionPoi } from "../src/session-poi.js";
+import {
+  selectDirectionalSessionPoi,
+  selectNeutralSessionPoi,
+  selectSessionPoi,
+} from "../src/session-poi.js";
 import type { HtfFvg } from "../src/htf-fvg.js";
 import type { HtfSwingPoint } from "../src/htf-swing.js";
 
@@ -184,6 +188,86 @@ describe("Directional Session POI", () => {
           price: 5100,
           formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
           confirmedAt: SUN_JAN_5_OPEN + 6 * HOUR_MS,
+        },
+      ],
+    });
+
+    expect(sessionPoi).toBeNull();
+  });
+});
+
+describe("Neutral Session POI", () => {
+  it("does not select Session POI at the 18:00 session open before a PDH or PDL sweep", () => {
+    const sessionPoi = selectNeutralSessionPoi({
+      asOf: MON_JAN_6_SESSION_OPEN,
+      sessionOpenTime: MON_JAN_6_SESSION_OPEN,
+    });
+
+    expect(sessionPoi).toBeNull();
+  });
+
+  it("promotes PDH to Session POI after a sweep during the current session", () => {
+    const sweptAt = MON_JAN_6_SESSION_OPEN + 2 * HOUR_MS;
+
+    const sessionPoi = selectNeutralSessionPoi({
+      asOf: sweptAt,
+      sessionOpenTime: MON_JAN_6_SESSION_OPEN,
+      pdhMitigatedAt: sweptAt,
+    });
+
+    expect(sessionPoi).toEqual({
+      kind: "pdh",
+      sweptAt,
+    });
+  });
+
+  it("promotes PDL to Session POI after a sweep during the current session", () => {
+    const sweptAt = MON_JAN_6_SESSION_OPEN + 3 * HOUR_MS;
+
+    const sessionPoi = selectNeutralSessionPoi({
+      asOf: sweptAt,
+      sessionOpenTime: MON_JAN_6_SESSION_OPEN,
+      pdlMitigatedAt: sweptAt,
+    });
+
+    expect(sessionPoi).toEqual({
+      kind: "pdl",
+      sweptAt,
+    });
+  });
+
+  it("ignores PDH sweeps from a prior CME session", () => {
+    const priorSessionSweep = SUN_JAN_5_OPEN + 6 * HOUR_MS;
+
+    const sessionPoi = selectNeutralSessionPoi({
+      asOf: MON_JAN_6_SESSION_OPEN,
+      sessionOpenTime: MON_JAN_6_SESSION_OPEN,
+      pdhMitigatedAt: priorSessionSweep,
+    });
+
+    expect(sessionPoi).toBeNull();
+  });
+});
+
+describe("Session POI selection", () => {
+  it("does not defer to an intraday HTF swing on neutral days before a PDH or PDL sweep", () => {
+    const swingConfirmedAt = MON_JAN_6_SESSION_OPEN + 4 * HOUR_MS;
+
+    const sessionPoi = selectSessionPoi({
+      dailyBias: "neutral",
+      asOf: swingConfirmedAt,
+      sessionOpenTime: MON_JAN_6_SESSION_OPEN,
+      currentPrice: 5050,
+      pdEquilibriumLow: PD_EQUILIBRIUM_LOW,
+      pdEquilibriumHigh: PD_EQUILIBRIUM_HIGH,
+      htfFvgs: [],
+      htfSwingPoints: [
+        {
+          timeframe: "4H",
+          kind: "low",
+          price: 5035,
+          formedAt: MON_JAN_6_SESSION_OPEN + HOUR_MS,
+          confirmedAt: swingConfirmedAt,
         },
       ],
     });

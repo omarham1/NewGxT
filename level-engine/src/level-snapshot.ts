@@ -6,7 +6,7 @@ import { computeCurrentWeekRange } from "./session-rails.js";
 import { computeSessionRailMitigation } from "./session-rail-mitigation.js";
 import { getDailySessionOpenTime } from "./session-calendar.js";
 import {
-  selectDirectionalSessionPoi,
+  selectSessionPoi,
   type DailyBias,
   type SessionPoi,
 } from "./session-poi.js";
@@ -64,17 +64,20 @@ export function computeLevelSnapshot(
   const currentPrice = latestBarClose(input.bars);
   const sessionOpenTime = getDailySessionOpenTime(asOf);
   const sessionPoi =
-    input.dailyBias === "directional"
-      ? selectDirectionalSessionPoi({
+    input.dailyBias === undefined
+      ? null
+      : selectSessionPoi({
+          dailyBias: input.dailyBias,
           asOf,
           sessionOpenTime,
           currentPrice,
           pdEquilibriumLow: context.pdEquilibriumLow,
           pdEquilibriumHigh: context.pdEquilibriumHigh,
+          pdhMitigatedAt: railMitigation.pdhMitigatedAt,
+          pdlMitigatedAt: railMitigation.pdlMitigatedAt,
           htfFvgs,
           htfSwingPoints,
-        })
-      : null;
+        });
 
   return {
     ...context,

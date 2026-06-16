@@ -285,7 +285,8 @@ f_timeframe_rank(string txt) =>
     str.contains(txt, "4H") ? 2 : 1
 
 f_is_session_poi(SessionPoiTarget poi, string kind, int formedTime, string txt) =>
-    not na(poi) and poi.kind == kind and poi.formedTime == formedTime and poi.txt == txt
+    bool matches = not na(poi) and poi.kind == kind and poi.txt == txt
+    kind == "pdh" or kind == "pdl" ? matches : matches and poi.formedTime == formedTime
 
 f_select_directional_fvg_poi(
      array<HtfFvgZone> zones,
@@ -552,7 +553,8 @@ f_draw_level(
      string label_placement,
      color line_color,
      bool mitigated = false,
-     int mitigated_time = na
+     int mitigated_time = na,
+     bool is_poi = false
  ) =>
     line next_line = na
     label next_label = na
@@ -565,7 +567,8 @@ f_draw_level(
             origin_bi = f_bar_index_for_time(origin_time)
             int end_time = mitigated ? mitigated_time : session_end_time
             end_bi = math.max(origin_bi, f_bar_index_for_time(end_time))
-            color draw_color = mitigated ? SWING_MITIGATED_COLOR : line_color
+            color draw_color = is_poi ? POI_COLOR : mitigated ? SWING_MITIGATED_COLOR : line_color
+            int line_width = is_poi ? POI_LINE_WIDTH : 1
             next_line := line.new(
                  origin_bi,
                  price,
@@ -574,14 +577,15 @@ f_draw_level(
                  xloc = xloc.bar_index,
                  extend = extend.none,
                  color = draw_color,
-                 width = 1,
+                 width = line_width,
                  style = dashed ? line.style_dashed : line.style_solid
              )
             if txt != ""
+                string label_txt = is_poi ? txt + " · POI" : txt
                 next_label := label.new(
                      end_bi,
                      f_label_y(price, label_placement),
-                     txt,
+                     label_txt,
                      xloc = xloc.bar_index,
                      style = f_label_style(label_placement),
                      color = color(na),
@@ -610,6 +614,8 @@ var bool pdhMitigated = false
 var int pdhMitigatedTime = na
 var bool pdlMitigated = false
 var int pdlMitigatedTime = na
+var SessionPoiTarget sessionPoi = na
+var bool directionalFvgPoiAttempted = false
 var bool pwhMitigated = false
 var int pwhMitigatedTime = na
 var bool pwlMitigated = false
@@ -631,6 +637,8 @@ if sessionRolled
     pdhMitigatedTime := na
     pdlMitigated := false
     pdlMitigatedTime := na
+    sessionPoi := na
+    directionalFvgPoiAttempted := false
 
 if newRailWeek
     pwhMitigated := false
@@ -654,11 +662,21 @@ if not pwlMitigated and not na(pwl) and not na(weekKey) and oneMinTime >= weekKe
     pwlMitigated := true
     pwlMitigatedTime := oneMinTime
 
-[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhTime, sessionEnd, "PDH", false, "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedTime)
+if dailyBias == "Neutral" and na(sessionPoi)
+    if pdhMitigated and pdlMitigated
+        sessionPoi := pdhMitigatedTime <= pdlMitigatedTime ? SessionPoiTarget.new("pdh", pdhMitigatedTime, "PDH") : SessionPoiTarget.new("pdl", pdlMitigatedTime, "PDL")
+    else if pdhMitigated
+        sessionPoi := SessionPoiTarget.new("pdh", pdhMitigatedTime, "PDH")
+    else if pdlMitigated
+        sessionPoi := SessionPoiTarget.new("pdl", pdlMitigatedTime, "PDL")
+
+bool pdhIsPoi = f_is_session_poi(sessionPoi, "pdh", pdhMitigatedTime, "PDH")
+[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhTime, sessionEnd, "PDH", false, "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedTime, pdhIsPoi)
 pdh_line := _pdh_line
 pdh_label := _pdh_label
 
-[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlTime, sessionEnd, "PDL", false, "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedTime)
+bool pdlIsPoi = f_is_session_poi(sessionPoi, "pdl", pdlMitigatedTime, "PDL")
+[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlTime, sessionEnd, "PDL", false, "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedTime, pdlIsPoi)
 pdl_line := _pdl_line
 pdl_label := _pdl_label
 
@@ -697,8 +715,6 @@ fvgLabel = on4hChart ? "4H FVG" : on1hChart ? "1H FVG" : ""
 var array<HtfFvgZone> activeFvgs = array.new<HtfFvgZone>()
 var array<box> fvg_boxes = array.new<box>()
 var array<label> fvg_labels = array.new<label>()
-var SessionPoiTarget sessionPoi = na
-var bool directionalFvgPoiAttempted = false
 var int lastChartTf = na
 
 if chartTfSeconds != lastChartTf
@@ -948,10 +964,6 @@ activeSwings := f_prune_invisible_swings(activeSwings, pwh, pwl, currentWeekHigh
 poiFvgs4h := f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", sessionRolled, oneMinLow, oneMinHigh, oneMinTime, barstate.isconfirmed)
 poiFvgs1h := f_advance_fvg_lifecycle(poiFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", sessionRolled, oneMinLow, oneMinHigh, oneMinTime, barstate.isconfirmed)
 allPoiFvgs = f_concat_fvg_arrays(poiFvgs4h, poiFvgs1h)
-
-if sessionRolled
-    sessionPoi := na
-    directionalFvgPoiAttempted := false
 
 if dailyBias == "Directional" and not directionalFvgPoiAttempted and time >= sessionOpenTime and not na(pdEqLow) and not na(pdEqHigh)
     sessionPoi := f_select_directional_fvg_poi(allPoiFvgs, pdEqLow, pdEqHigh, sessionOpenTime, close)
