@@ -10,13 +10,20 @@ import {
   type DailyBias,
   type SessionPoi,
 } from "./session-poi.js";
+import {
+  resolveActiveDol,
+  type ActiveDol,
+  type BiasDirection,
+} from "./active-dol.js";
 
 export type { DailyBias, SessionPoi } from "./session-poi.js";
+export type { ActiveDol, ActiveDolTarget, BiasDirection } from "./active-dol.js";
 
 export type LevelSnapshot = SessionContext & {
   htfFvgs: HtfFvg[];
   htfSwingPoints: HtfSwingPoint[];
   sessionPoi: SessionPoi | null;
+  activeDol: ActiveDol | null;
 };
 
 export type ComputeLevelSnapshotInput = {
@@ -25,6 +32,7 @@ export type ComputeLevelSnapshotInput = {
   bars1h: Bar[];
   mitigationBars: Bar[];
   dailyBias?: DailyBias;
+  biasDirection?: BiasDirection;
 };
 
 export function computeLevelSnapshot(
@@ -79,12 +87,33 @@ export function computeLevelSnapshot(
           htfSwingPoints,
         });
 
+  const activeDol =
+    input.dailyBias === undefined || input.biasDirection === undefined
+      ? null
+      : resolveActiveDol({
+          biasDirection: input.biasDirection,
+          currentPrice,
+          openPlusAdr: context.openPlusAdr,
+          openMinusAdr: context.openMinusAdr,
+          pdh: context.pdh,
+          pdl: context.pdl,
+          pwh: context.pwh,
+          pwl: context.pwl,
+          pdhMitigatedAt: railMitigation.pdhMitigatedAt,
+          pdlMitigatedAt: railMitigation.pdlMitigatedAt,
+          pwhMitigatedAt: railMitigation.pwhMitigatedAt,
+          pwlMitigatedAt: railMitigation.pwlMitigatedAt,
+          htfFvgs,
+          htfSwingPoints,
+        });
+
   return {
     ...context,
     ...railMitigation,
     htfFvgs,
     htfSwingPoints,
     sessionPoi,
+    activeDol,
   };
 }
 

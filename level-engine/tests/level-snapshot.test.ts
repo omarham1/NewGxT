@@ -265,4 +265,37 @@ describe("Level Snapshot", () => {
       sweptAt,
     });
   });
+
+  it("resolves bullish Active DOL TP1 and TP2 from the level snapshot", () => {
+    const bars = loadFixture("adr-rolling-average");
+    const bars4h = abovePdhDisplacementGap(SUN_JAN_5_OPEN);
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h,
+      bars1h: [],
+      mitigationBars: [],
+      dailyBias: "directional",
+      biasDirection: "bullish",
+    });
+
+    expect(snapshot.activeDol).toEqual({
+      tp1: { kind: "pdh" },
+      tp2: { kind: "pwh" },
+    });
+  });
+
+  it("returns null Active DOL when bias direction is not supplied", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h: [],
+      bars1h: [],
+      mitigationBars: [],
+      dailyBias: "directional",
+    });
+
+    expect(snapshot.activeDol).toBeNull();
+  });
 });
