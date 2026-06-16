@@ -4,10 +4,19 @@ import { computeHtfFvgs, type HtfFvg } from "./htf-fvg.js";
 import { computeHtfSwingPoints, type HtfSwingPoint } from "./htf-swing.js";
 import { computeCurrentWeekRange } from "./session-rails.js";
 import { computeSessionRailMitigation } from "./session-rail-mitigation.js";
+import { getDailySessionOpenTime } from "./session-calendar.js";
+import {
+  selectDirectionalSessionPoi,
+  type DailyBias,
+  type SessionPoi,
+} from "./session-poi.js";
+
+export type { DailyBias, SessionPoi } from "./session-poi.js";
 
 export type LevelSnapshot = SessionContext & {
   htfFvgs: HtfFvg[];
   htfSwingPoints: HtfSwingPoint[];
+  sessionPoi: SessionPoi | null;
 };
 
 export type ComputeLevelSnapshotInput = {
@@ -15,6 +24,7 @@ export type ComputeLevelSnapshotInput = {
   bars4h: Bar[];
   bars1h: Bar[];
   mitigationBars: Bar[];
+  dailyBias?: DailyBias;
 };
 
 export function computeLevelSnapshot(
@@ -51,12 +61,37 @@ export function computeLevelSnapshot(
     asOf,
   });
 
+  const currentPrice = latestBarClose(input.bars);
+  const sessionOpenTime = getDailySessionOpenTime(asOf);
+  const sessionPoi =
+    input.dailyBias === "directional"
+      ? selectDirectionalSessionPoi({
+          asOf,
+          sessionOpenTime,
+          currentPrice,
+          pdEquilibriumLow: context.pdEquilibriumLow,
+          pdEquilibriumHigh: context.pdEquilibriumHigh,
+          htfFvgs,
+          htfSwingPoints,
+        })
+      : null;
+
   return {
     ...context,
     ...railMitigation,
     htfFvgs,
     htfSwingPoints,
+    sessionPoi,
   };
+}
+
+function latestBarClose(bars: Bar[]): number {
+  if (bars.length === 0) {
+    return 0;
+  }
+
+  const latest = bars.reduce((best, bar) => (bar.time > best.time ? bar : best), bars[0]!);
+  return latest.close;
 }
 
 function latestBarTime(bars: Bar[]): number {

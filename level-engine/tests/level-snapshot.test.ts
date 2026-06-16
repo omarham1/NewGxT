@@ -27,6 +27,14 @@ function abovePdhDisplacementGap(time: number): Bar[] {
   ];
 }
 
+function equilibriumBullishGap(time: number, zoneLow: number, zoneHigh: number): Bar[] {
+  return [
+    bar(time, zoneLow - 5, zoneLow, zoneLow - 10, zoneLow - 2),
+    bar(time + HOUR_MS, zoneLow + 2, zoneHigh + 5, zoneLow, zoneHigh + 2),
+    bar(time + 2 * HOUR_MS, zoneHigh + 2, zoneHigh + 10, zoneHigh, zoneHigh + 2),
+  ];
+}
+
 describe("Level Snapshot", () => {
   it("excludes mitigated HTF FVGs from the snapshot", () => {
     const bars = loadFixture("mid-week-daily-boundary");
@@ -169,5 +177,27 @@ describe("Level Snapshot", () => {
     expect(snapshot.pdh).toBe(5100);
     expect(snapshot.pdhMitigatedAt).toBe(mitigatedAt);
     expect(snapshot.pdlMitigatedAt).toBeUndefined();
+  });
+
+  it("selects Session POI from a directional 4H equilibrium FVG at the current session open", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
+    const bars4h = equilibriumBullishGap(SUN_JAN_5_OPEN, 5040, 5045);
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h,
+      bars1h: [],
+      mitigationBars: [],
+      dailyBias: "directional",
+    });
+
+    expect(snapshot.pdEquilibriumLow).toBe(5025);
+    expect(snapshot.pdEquilibriumHigh).toBe(5075);
+    expect(snapshot.sessionPoi).toEqual({
+      kind: "htf-fvg",
+      timeframe: "4H",
+      formedAt,
+    });
   });
 });

@@ -11,14 +11,27 @@ export function toEt(timeMs: number): DateTime {
 }
 
 export function getDailySessionKey(timeMs: number): string {
+  return dailySessionStartEt(timeMs).toISODate()!;
+}
+
+export function getDailySessionOpenTime(timeMs: number): number {
+  return dailySessionStartEt(timeMs).toMillis()!;
+}
+
+function dailySessionStartEt(timeMs: number): DateTime {
   const et = toEt(timeMs);
-  const sessionStart =
+  const sessionStartDay =
     et.hour > SESSION_START_HOUR ||
     (et.hour === SESSION_START_HOUR && et.minute >= 0)
       ? et.startOf("day")
       : et.minus({ days: 1 }).startOf("day");
 
-  return sessionStart.toISODate()!;
+  return sessionStartDay.set({
+    hour: SESSION_START_HOUR,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
 }
 
 export function getWeeklySessionKey(timeMs: number): string | null {

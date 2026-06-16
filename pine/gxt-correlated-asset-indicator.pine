@@ -17,11 +17,21 @@ SESSION_CONTEXT_COLOR = color.new(color.gray, 30)
 FVG_COLOR = color.new(color.teal, 85)
 FVG_MITIGATED_COLOR = color.new(color.gray, 88)
 FVG_MITIGATED_BORDER = color.new(color.gray, 55)
+POI_COLOR = color.new(color.orange, 0)
+POI_FVG_COLOR = color.new(color.orange, 70)
+POI_FVG_BORDER = color.new(color.orange, 15)
+POI_LINE_WIDTH = 2
 LABEL_SIZE = size.small
 LABEL_GAP_TICKS = 2
 ADR_LOOKBACK = 14
+BAR_TIME_SEARCH_MAX = 4999
+
+// f_bar_index_for_time scans time[] on barstate.islast (realtime). Without an explicit
+// buffer, Pine auto-sizes too small on the last bar and throws CE overflow errors.
+max_bars_back(time, BAR_TIME_SEARCH_MAX + 1)
 
 showPdEquilibrium50 = input.bool(true, "Show PD 50% Equilibrium", group = "Session Context")
+dailyBias = input.string("Directional", "Daily Bias", options = ["Directional", "Neutral"], group = "Session POI")
 
 f_cme_daily_session_key_for(int t) =>
     et_hour = hour(t, TZ)
@@ -35,6 +45,13 @@ f_cme_daily_session_key_for(int t) =>
 
 f_cme_daily_session_key() =>
     f_cme_daily_session_key_for(time)
+
+f_daily_session_open_time() =>
+    int session_day = f_cme_daily_session_key()
+    y = year(session_day, TZ)
+    m = month(session_day, TZ)
+    d = dayofmonth(session_day, TZ)
+    timestamp(TZ, y, m, d, SESSION_HOUR, 0)
 
 f_current_daily_session_end() =>
     session_start_day = f_cme_daily_session_key()
@@ -256,6 +273,89 @@ type HtfSwingLevel
     bool mitigated
     int mitigatedTime
 
+type SessionPoiTarget
+    string kind
+    int formedTime
+    string txt
+
+f_fvg_overlaps_equilibrium(float zoneLow, float zoneHigh, float eqLow, float eqHigh) =>
+    zoneLow <= eqHigh and zoneHigh >= eqLow
+
+f_timeframe_rank(string txt) =>
+    str.contains(txt, "4H") ? 2 : 1
+
+f_is_session_poi(SessionPoiTarget poi, string kind, int formedTime, string txt) =>
+    not na(poi) and poi.kind == kind and poi.formedTime == formedTime and poi.txt == txt
+
+f_select_directional_fvg_poi(
+     array<HtfFvgZone> zones,
+     float eqLow,
+     float eqHigh,
+     int sessionOpenTime,
+     float currentPrice
+ ) =>
+    SessionPoiTarget best = na
+    float bestRank = na
+    float bestDistance = na
+    int count = array.size(zones)
+    if count > 0
+        for i = 0 to count - 1
+            HtfFvgZone zone = array.get(zones, i)
+            bool eligible = not zone.mitigated and zone.formedTime <= sessionOpenTime and f_fvg_overlaps_equilibrium(zone.zoneLow, zone.zoneHigh, eqLow, eqHigh)
+            if eligible
+                float mid = (zone.zoneLow + zone.zoneHigh) / 2.0
+                float dist = math.abs(currentPrice - mid)
+                float rank = f_timeframe_rank(zone.txt)
+                bool take = na(best) or rank > bestRank or (rank == bestRank and dist < bestDistance)
+                if take
+                    best := SessionPoiTarget.new("fvg", zone.formedTime, zone.txt)
+                    bestRank := rank
+                    bestDistance := dist
+    best
+
+f_select_defer_swing_poi(
+     array<HtfSwingLevel> swings,
+     int sessionOpenTime,
+     float currentPrice,
+     int asOfTime
+ ) =>
+    SessionPoiTarget best = na
+    float bestRank = na
+    float bestDistance = na
+    int count = array.size(swings)
+    if count > 0
+        for i = 0 to count - 1
+            HtfSwingLevel swing = array.get(swings, i)
+            bool eligible = not swing.mitigated and swing.confirmedTime >= sessionOpenTime and swing.confirmedTime <= asOfTime
+            if eligible
+                float dist = math.abs(currentPrice - swing.price)
+                float rank = f_timeframe_rank(swing.txt)
+                bool take = na(best) or rank > bestRank or (rank == bestRank and dist < bestDistance)
+                if take
+                    best := SessionPoiTarget.new("swing", swing.formedTime, swing.txt)
+                    bestRank := rank
+                    bestDistance := dist
+    best
+
+f_poi_target_mitigated(SessionPoiTarget poi, array<HtfFvgZone> zones, array<HtfSwingLevel> swings) =>
+    bool mitigated = false
+    if not na(poi)
+        if poi.kind == "fvg"
+            int zone_count = array.size(zones)
+            if zone_count > 0
+                for i = 0 to zone_count - 1
+                    HtfFvgZone zone = array.get(zones, i)
+                    if zone.formedTime == poi.formedTime and zone.txt == poi.txt
+                        mitigated := zone.mitigated
+        else if poi.kind == "swing"
+            int swing_count = array.size(swings)
+            if swing_count > 0
+                for i = 0 to swing_count - 1
+                    HtfSwingLevel swing = array.get(swings, i)
+                    if swing.formedTime == poi.formedTime and swing.txt == poi.txt
+                        mitigated := swing.mitigated
+    mitigated
+
 f_range_fully_in(float innerLow, float innerHigh, float outerLow, float outerHigh) =>
     innerLow >= outerLow and innerHigh <= outerHigh
 
@@ -342,23 +442,57 @@ f_prune_expired_fvgs(array<HtfFvgZone> zones) =>
         i -= 1
     zones
 
+f_advance_fvg_lifecycle(
+     array<HtfFvgZone> zones,
+     bool formed,
+     float zoneLow,
+     float zoneHigh,
+     int formedTime,
+     string txt,
+     bool session_rolled,
+     float checkLow,
+     float checkHigh,
+     int checkTime,
+     bool bar_confirmed
+ ) =>
+    array<HtfFvgZone> result = zones
+    if session_rolled
+        result := f_remove_all_mitigated_fvgs(result)
+    if bar_confirmed
+        result := f_try_add_fvg(result, formed, zoneLow, zoneHigh, formedTime, txt)
+    result := f_mitigate_fvgs(result, checkLow, checkHigh, checkTime)
+    result := f_prune_stale_mitigated_fvgs(result)
+    result := f_prune_expired_fvgs(result)
+    result
+
+f_concat_fvg_arrays(array<HtfFvgZone> left, array<HtfFvgZone> right) =>
+    array<HtfFvgZone> combined = array.copy(left)
+    int right_count = array.size(right)
+    if right_count > 0
+        for i = 0 to right_count - 1
+            array.push(combined, array.get(right, i))
+    combined
+
 // Map a 1m origin timestamp to the chart bar that contains it (avoids bar_time rounding forward).
 f_bar_index_for_time(int target_time) =>
     int result = bar_index
     if not na(target_time)
-        int max_i = math.min(bar_index, 4999)
+        int max_i = math.min(bar_index, BAR_TIME_SEARCH_MAX)
         for i = 0 to max_i
             bool in_bar = time[i] <= target_time and (i == 0 or target_time < time[i - 1])
             if in_bar
                 result := bar_index - i
                 break
+        if result == bar_index and time[max_i] > target_time
+            result := bar_index - max_i
     result
 
 f_draw_fvg_zones(
      array<box> existing_boxes,
      array<label> existing_labels,
      array<HtfFvgZone> zones,
-     int session_end_time
+     int session_end_time,
+     SessionPoiTarget session_poi
  ) =>
     array<box> next_boxes = array.new<box>()
     array<label> next_labels = array.new<label>()
@@ -377,8 +511,9 @@ f_draw_fvg_zones(
                 HtfFvgZone zone = array.get(zones, i)
                 int origin_bi = f_bar_index_for_time(zone.formedTime)
                 int end_bi = math.max(origin_bi, f_bar_index_for_time(session_end_time))
-                color box_bg = zone.mitigated ? FVG_MITIGATED_COLOR : FVG_COLOR
-                color box_border = zone.mitigated ? FVG_MITIGATED_BORDER : color.new(color.teal, 40)
+                bool is_poi = f_is_session_poi(session_poi, "fvg", zone.formedTime, zone.txt)
+                color box_bg = zone.mitigated ? FVG_MITIGATED_COLOR : is_poi ? POI_FVG_COLOR : FVG_COLOR
+                color box_border = zone.mitigated ? FVG_MITIGATED_BORDER : is_poi ? POI_FVG_BORDER : color.new(color.teal, 40)
                 box next_box = box.new(
                      origin_bi,
                      zone.zoneHigh,
@@ -386,18 +521,21 @@ f_draw_fvg_zones(
                      zone.zoneLow,
                      xloc = xloc.bar_index,
                      bgcolor = box_bg,
-                     border_color = box_border
+                     border_color = box_border,
+                     border_width = is_poi ? POI_LINE_WIDTH : 1
                  )
                 array.push(next_boxes, next_box)
                 if not zone.mitigated
+                    string label_txt = is_poi ? zone.txt + " · POI" : zone.txt
+                    color label_color = is_poi ? POI_COLOR : color.teal
                     label next_label = label.new(
                          end_bi,
                          zone.zoneHigh,
-                         zone.txt,
+                         label_txt,
                          xloc = xloc.bar_index,
                          style = label.style_label_down,
                          color = color(na),
-                         textcolor = color.teal,
+                         textcolor = label_color,
                          size = LABEL_SIZE
                      )
                     array.push(next_labels, next_label)
@@ -478,8 +616,12 @@ var bool pwlMitigated = false
 var int pwlMitigatedTime = na
 
 open_near_pwl = not na(dailyOpen) and not na(pwl) and math.abs(dailyOpen - pwl) <= syminfo.mintick * LABEL_GAP_TICKS * 4
+pdRange = not na(pdh) and not na(pdl) ? pdh - pdl : na
+pdEqLow = not na(pdRange) ? pdl + pdRange * 0.25 : na
+pdEqHigh = not na(pdRange) ? pdl + pdRange * 0.75 : na
 pdEq50 = not na(pdh) and not na(pdl) ? (pdh + pdl) / 2 : na
 pd_eq_price = showPdEquilibrium50 ? pdEq50 : na
+sessionOpenTime = f_daily_session_open_time()
 
 weekKey = f_cme_week_session_key()
 newRailWeek = not na(weekKey) and ta.change(weekKey) != 0
@@ -555,6 +697,8 @@ fvgLabel = on4hChart ? "4H FVG" : on1hChart ? "1H FVG" : ""
 var array<HtfFvgZone> activeFvgs = array.new<HtfFvgZone>()
 var array<box> fvg_boxes = array.new<box>()
 var array<label> fvg_labels = array.new<label>()
+var SessionPoiTarget sessionPoi = na
+var bool directionalFvgPoiAttempted = false
 var int lastChartTf = na
 
 if chartTfSeconds != lastChartTf
@@ -562,18 +706,9 @@ if chartTfSeconds != lastChartTf
     lastChartTf := chartTfSeconds
 
 if showFvgs
-    if sessionRolled
-        activeFvgs := f_remove_all_mitigated_fvgs(activeFvgs)
-    if barstate.isconfirmed
-        activeFvgs := f_try_add_fvg(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel)
-    activeFvgs := f_mitigate_fvgs(activeFvgs, oneMinLow, oneMinHigh, oneMinTime)
-    activeFvgs := f_prune_stale_mitigated_fvgs(activeFvgs)
-    activeFvgs := f_prune_expired_fvgs(activeFvgs)
+    activeFvgs := f_advance_fvg_lifecycle(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel, sessionRolled, oneMinLow, oneMinHigh, oneMinTime, barstate.isconfirmed)
 
 fvgZonesToDraw = showFvgs ? activeFvgs : array.new<HtfFvgZone>()
-[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEnd)
-fvg_boxes := _fvg_boxes
-fvg_labels := _fvg_labels
 
 f_strict_fractal_high_confirmed(int pivot) =>
     float pivotHigh = high[pivot]
@@ -688,7 +823,8 @@ f_draw_swing_levels(
      array<line> existing_lines,
      array<label> existing_labels,
      array<HtfSwingLevel> swings,
-     int session_end_time
+     int session_end_time,
+     SessionPoiTarget session_poi
  ) =>
     array<line> next_lines = array.new<line>()
     array<label> next_labels = array.new<label>()
@@ -708,7 +844,9 @@ f_draw_swing_levels(
                 int origin_bi = f_bar_index_for_time(swing.formedTime)
                 int end_time = swing.mitigated ? swing.mitigatedTime : session_end_time
                 int end_bi = math.max(origin_bi, f_bar_index_for_time(end_time))
-                color line_color = swing.mitigated ? SWING_MITIGATED_COLOR : LEVEL_COLOR
+                bool is_poi = f_is_session_poi(session_poi, "swing", swing.formedTime, swing.txt)
+                color line_color = swing.mitigated ? SWING_MITIGATED_COLOR : is_poi ? POI_COLOR : LEVEL_COLOR
+                int line_width = is_poi ? POI_LINE_WIDTH : 1
                 line next_line = line.new(
                      origin_bi,
                      swing.price,
@@ -717,15 +855,16 @@ f_draw_swing_levels(
                      xloc = xloc.bar_index,
                      extend = extend.none,
                      color = line_color,
-                     width = 1,
+                     width = line_width,
                      style = line.style_solid
                  )
                 array.push(next_lines, next_line)
                 if not swing.mitigated
+                    string label_txt = is_poi ? swing.txt + " · POI" : swing.txt
                     label next_label = label.new(
                          end_bi,
                          f_label_y(swing.price, "on"),
-                         swing.txt,
+                         label_txt,
                          xloc = xloc.bar_index,
                          style = label.style_label_left,
                          color = color(na),
@@ -769,6 +908,25 @@ f_draw_swing_levels(
      lookahead = barmerge.lookahead_off
  )
 
+[formed4h, zoneLow4h, zoneHigh4h, formedTime4h] = request.security(
+     syminfo.tickerid,
+     "240",
+     f_detect_fvg(),
+     gaps = barmerge.gaps_off,
+     lookahead = barmerge.lookahead_off
+ )
+
+[formed1h, zoneLow1h, zoneHigh1h, formedTime1h] = request.security(
+     syminfo.tickerid,
+     "60",
+     f_detect_fvg(),
+     gaps = barmerge.gaps_off,
+     lookahead = barmerge.lookahead_off
+ )
+
+var array<HtfFvgZone> poiFvgs4h = array.new<HtfFvgZone>()
+var array<HtfFvgZone> poiFvgs1h = array.new<HtfFvgZone>()
+
 var array<HtfSwingLevel> activeSwings = array.new<HtfSwingLevel>()
 var array<line> swing_lines = array.new<line>()
 var array<label> swing_labels = array.new<label>()
@@ -787,6 +945,28 @@ activeSwings := f_sweep_swings(activeSwings, oneMinLow, oneMinHigh, oneMinTime)
 activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 activeSwings := f_prune_invisible_swings(activeSwings, pwh, pwl, currentWeekHigh, currentWeekLow)
 
-[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, activeSwings, sessionEnd)
+poiFvgs4h := f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", sessionRolled, oneMinLow, oneMinHigh, oneMinTime, barstate.isconfirmed)
+poiFvgs1h := f_advance_fvg_lifecycle(poiFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", sessionRolled, oneMinLow, oneMinHigh, oneMinTime, barstate.isconfirmed)
+allPoiFvgs = f_concat_fvg_arrays(poiFvgs4h, poiFvgs1h)
+
+if sessionRolled
+    sessionPoi := na
+    directionalFvgPoiAttempted := false
+
+if dailyBias == "Directional" and not directionalFvgPoiAttempted and time >= sessionOpenTime and not na(pdEqLow) and not na(pdEqHigh)
+    sessionPoi := f_select_directional_fvg_poi(allPoiFvgs, pdEqLow, pdEqHigh, sessionOpenTime, close)
+    directionalFvgPoiAttempted := true
+
+if dailyBias == "Directional" and directionalFvgPoiAttempted and na(sessionPoi)
+    sessionPoi := f_select_defer_swing_poi(activeSwings, sessionOpenTime, close, time)
+
+if not na(sessionPoi) and f_poi_target_mitigated(sessionPoi, allPoiFvgs, activeSwings)
+    sessionPoi := na
+
+[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEnd, sessionPoi)
+fvg_boxes := _fvg_boxes
+fvg_labels := _fvg_labels
+
+[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, activeSwings, sessionEnd, sessionPoi)
 swing_lines := _swing_lines
 swing_labels := _swing_labels
