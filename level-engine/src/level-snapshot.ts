@@ -33,6 +33,7 @@ export type ComputeLevelSnapshotInput = {
   mitigationBars: Bar[];
   dailyBias?: DailyBias;
   biasDirection?: BiasDirection;
+  reversalDayTp1?: boolean;
 };
 
 export function computeLevelSnapshot(
@@ -103,6 +104,9 @@ export function computeLevelSnapshot(
           pdlMitigatedAt: railMitigation.pdlMitigatedAt,
           pwhMitigatedAt: railMitigation.pwhMitigatedAt,
           pwlMitigatedAt: railMitigation.pwlMitigatedAt,
+          dailyOpen: context.dailyOpen,
+          adrConsumptionPct: context.adrConsumptionPct,
+          reversalDayTp1: input.reversalDayTp1,
           htfFvgs,
           htfSwingPoints,
         });

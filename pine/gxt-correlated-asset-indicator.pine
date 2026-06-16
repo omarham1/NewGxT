@@ -37,6 +37,7 @@ max_bars_back(time, BAR_TIME_SEARCH_MAX + 1)
 showPdEquilibrium50 = input.bool(true, "Show PD 50% Equilibrium", group = "Session Context")
 dailyBias = input.string("Directional", "Daily Bias", options = ["Directional", "Neutral"], group = "Session POI")
 biasDirection = input.string("Bullish", "Bias Direction", options = ["Bullish", "Bearish"], group = "Active DOL")
+reversalDayTp1 = input.bool(false, "Reversal Day TP1", group = "Active DOL")
 
 f_cme_daily_session_key_for(int t) =>
     et_hour = hour(t, TZ)
@@ -354,7 +355,8 @@ f_format_level_label(string txt, bool is_poi, bool is_tp1, bool is_tp2) =>
     label_txt
 
 f_is_active_dol(SessionPoiTarget target, string kind, int formedTime, string txt) =>
-    f_is_session_poi(target, kind, formedTime, txt)
+    bool matches = not na(target) and target.kind == kind and target.txt == txt
+    kind == "daily-open" or kind == "pdh" or kind == "pdl" or kind == "pwh" or kind == "pwl" ? matches : matches and target.formedTime == formedTime
 
 f_dol_in_bias_direction(bool bullish, float currentPrice, float levelPrice) =>
     bullish ? levelPrice > currentPrice : levelPrice < currentPrice
@@ -395,6 +397,9 @@ f_update_furthest_dol(
 f_resolve_active_dol(
      bool bullish,
      float currentPrice,
+     float dailyOpen,
+     float adrConsumptionPct,
+     bool reversalDayTp1Enabled,
      float openPlusAdr,
      float openMinusAdr,
      float pdh,
@@ -492,6 +497,10 @@ f_resolve_active_dol(
                     furthest := nextFurthest
                     furthestDistance := nextFurthestDistance
                     furthestTier := nextFurthestTier
+
+    bool useDailyOpenTp1 = reversalDayTp1Enabled and adrConsumptionPct >= 80 and not na(dailyOpen) and f_dol_in_bias_direction(bullish, currentPrice, dailyOpen)
+    if useDailyOpenTp1
+        nearest := SessionPoiTarget.new("daily-open", na, "Daily Open")
 
     [nearest, furthest]
 
@@ -718,7 +727,8 @@ f_draw_level(
      int mitigated_time = na,
      bool is_poi = false,
      bool is_tp1 = false,
-     bool is_tp2 = false
+     bool is_tp2 = false,
+     bool session_context = false
  ) =>
     line next_line = na
     label next_label = na
@@ -731,8 +741,8 @@ f_draw_level(
             origin_bi = f_bar_index_for_time(origin_time)
             int end_time = mitigated ? mitigated_time : session_end_time
             end_bi = math.max(origin_bi, f_bar_index_for_time(end_time))
-            color draw_color = is_poi ? POI_COLOR : (is_tp1 or is_tp2) ? DOL_COLOR : mitigated ? SWING_MITIGATED_COLOR : line_color
-            int line_width = is_poi ? POI_LINE_WIDTH : (is_tp1 or is_tp2) ? DOL_LINE_WIDTH : 1
+            color draw_color = is_poi ? POI_COLOR : (not session_context and (is_tp1 or is_tp2)) ? DOL_COLOR : mitigated ? SWING_MITIGATED_COLOR : line_color
+            int line_width = is_poi ? POI_LINE_WIDTH : (not session_context and (is_tp1 or is_tp2)) ? DOL_LINE_WIDTH : 1
             next_line := line.new(
                  origin_bi,
                  price,
@@ -836,10 +846,6 @@ if dailyBias == "Neutral" and na(sessionPoi)
 
 bool pdhIsPoi = f_is_session_poi(sessionPoi, "pdh", pdhMitigatedTime, "PDH")
 bool pdlIsPoi = f_is_session_poi(sessionPoi, "pdl", pdlMitigatedTime, "PDL")
-
-[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, dailyOpen, dailyOpenTime, sessionEnd, "Daily Open", true, "above", SESSION_CONTEXT_COLOR)
-daily_open_line := _daily_open_line
-daily_open_label := _daily_open_label
 
 adr_consumption_txt = not na(adrConsumptionPct) ? str.format("ADR {0,number,#.#}%", adrConsumptionPct) : "ADR"
 [_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, openPlusAdr, dailyOpenTime, sessionEnd, adr_consumption_txt, true, "above", SESSION_CONTEXT_COLOR)
@@ -1130,7 +1136,12 @@ if not na(sessionPoi) and f_poi_target_mitigated(sessionPoi, allPoiFvgs, activeS
     sessionPoi := na
 
 bool bullishBias = biasDirection == "Bullish"
-[activeDolTp1, activeDolTp2] = f_resolve_active_dol(bullishBias, close, openPlusAdr, openMinusAdr, pdh, pdl, pwh, pwl, pdhMitigated, pdlMitigated, pwhMitigated, pwlMitigated, allPoiFvgs, activeSwings)
+[activeDolTp1, activeDolTp2] = f_resolve_active_dol(bullishBias, close, dailyOpen, adrConsumptionPct, reversalDayTp1, openPlusAdr, openMinusAdr, pdh, pdl, pwh, pwl, pdhMitigated, pdlMitigated, pwhMitigated, pwlMitigated, allPoiFvgs, activeSwings)
+
+bool dailyOpenIsTp1 = f_is_active_dol(activeDolTp1, "daily-open", na, "Daily Open")
+[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, dailyOpen, dailyOpenTime, sessionEnd, "Daily Open", true, "above", SESSION_CONTEXT_COLOR, false, na, false, dailyOpenIsTp1, false, true)
+daily_open_line := _daily_open_line
+daily_open_label := _daily_open_label
 
 bool pdhIsTp1 = f_is_active_dol(activeDolTp1, "pdh", pdhMitigatedTime, "PDH")
 bool pdhIsTp2 = f_is_active_dol(activeDolTp2, "pdh", pdhMitigatedTime, "PDH")

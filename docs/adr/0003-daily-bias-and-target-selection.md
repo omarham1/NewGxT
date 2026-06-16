@@ -25,10 +25,10 @@ We establish the following rules for establishing daily bias and selecting targe
    - **Invalidation**: The bias is invalidated if price closes past the absolute swing extreme of the sweep leg. If this occurs, the bias flips to a **Continuation Bias** in the direction of the break.
 
 3. **Target Selection Protocol (Draw on Liquidity)**:
-   - **TP1 (Conservative Target)**: **The 18:00 Daily Open**
-     - *Condition*: Default target. Especially critical if price has already expanded significantly (approaching the Average Daily Range) before sweeping, creating a long-wick reversal candle. Price is expected to pull back to the open to cap the daily wick.
-   - **TP2 (Extended Target)**: **The Opposite Extreme ([PDH/PDL](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L11))**
-     - *Condition*: Seek this target if the reversal occurs early in the session and the daily range is small (well below ADR), indicating ample statistical room for a complete range expansion to the opposite side.
+   - **TP1 (Primary Target)**: **Nearest Relevant Level** in bias direction (unmitigated HTF structure → PDH/PDL → PWH/PWL).
+     - *Default*: The closest structural magnet ahead of current price.
+   - **TP1 Reversal-Day Override**: **18:00 Daily Open** per [ADR-0008](0008-reversal-day-tp1-override.md) when reversal is confirmed, ADR consumption ≥ 80%, and Daily Open lies in bias direction. Caps the daily wick on large-range reversal sessions.
+   - **TP2 (Extended Target)**: **Furthest Relevant Level within the ADR band** via HTF hierarchy walk (same tier order as TP1 candidates, gated by open ± ADR).
 
 ## Consequences
 - Reversals are validated with higher statistical confidence by enforcing a 2-stage verification process.

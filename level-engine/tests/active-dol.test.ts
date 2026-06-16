@@ -10,6 +10,8 @@ function baseInput(overrides: Partial<Parameters<typeof resolveActiveDol>[0]> = 
   return {
     biasDirection: "bullish" as const,
     currentPrice: 5065,
+    dailyOpen: 5055,
+    adrConsumptionPct: 40,
     openPlusAdr: 5155,
     openMinusAdr: 4955,
     pdh: 5100,
@@ -120,6 +122,45 @@ describe("Active DOL", () => {
       swingKind: "high",
     });
     expect(activeDol.tp2).toEqual({ kind: "pwh" });
+  });
+
+  it("selects Daily Open as TP1 on reversal days when ADR consumption exceeds the threshold", () => {
+    const activeDol = resolveActiveDol(
+      baseInput({
+        currentPrice: 5040,
+        dailyOpen: 5055,
+        adrConsumptionPct: 85,
+        reversalDayTp1: true,
+      }),
+    );
+
+    expect(activeDol.tp1).toEqual({ kind: "daily-open" });
+  });
+
+  it("keeps the nearest Relevant Level as TP1 when reversal-day override is not enabled", () => {
+    const activeDol = resolveActiveDol(
+      baseInput({
+        currentPrice: 5040,
+        dailyOpen: 5055,
+        adrConsumptionPct: 85,
+        reversalDayTp1: false,
+      }),
+    );
+
+    expect(activeDol.tp1).toEqual({ kind: "pdh" });
+  });
+
+  it("keeps the nearest Relevant Level as TP1 when ADR consumption is below the reversal threshold", () => {
+    const activeDol = resolveActiveDol(
+      baseInput({
+        currentPrice: 5040,
+        dailyOpen: 5055,
+        adrConsumptionPct: 79,
+        reversalDayTp1: true,
+      }),
+    );
+
+    expect(activeDol.tp1).toEqual({ kind: "pdh" });
   });
 
   it("uses the HTF FVG top as a bullish TP1 when it is nearer than PDH", () => {

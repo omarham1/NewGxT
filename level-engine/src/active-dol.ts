@@ -4,6 +4,7 @@ import type { HtfSwingKind, HtfSwingPoint } from "./htf-swing.js";
 export type BiasDirection = "bullish" | "bearish";
 
 export type ActiveDolTarget =
+  | { kind: "daily-open" }
   | { kind: "pdh" }
   | { kind: "pdl" }
   | { kind: "pwh" }
@@ -24,6 +25,9 @@ export type ActiveDol = {
 export type ResolveActiveDolInput = {
   biasDirection: BiasDirection;
   currentPrice: number;
+  dailyOpen: number;
+  adrConsumptionPct: number;
+  reversalDayTp1?: boolean;
   openPlusAdr: number;
   openMinusAdr: number;
   pdh: number;
@@ -187,11 +191,30 @@ function pickFurthestWithinAdr(
   return furthest.target;
 }
 
+const REVERSAL_DAY_ADR_CONSUMPTION_THRESHOLD_PCT = 80;
+
+function shouldUseDailyOpenTp1(input: ResolveActiveDolInput): boolean {
+  if (!input.reversalDayTp1) {
+    return false;
+  }
+
+  if (input.adrConsumptionPct < REVERSAL_DAY_ADR_CONSUMPTION_THRESHOLD_PCT) {
+    return false;
+  }
+
+  return isInBiasDirection(input.biasDirection, input.currentPrice, input.dailyOpen);
+}
+
 export function resolveActiveDol(input: ResolveActiveDolInput): ActiveDol {
   const candidates = collectCandidates(input);
 
+  const nearestTp1 = pickNearest(candidates, input.currentPrice);
+  const tp1 = shouldUseDailyOpenTp1(input)
+    ? { kind: "daily-open" as const }
+    : nearestTp1;
+
   return {
-    tp1: pickNearest(candidates, input.currentPrice),
+    tp1,
     tp2: pickFurthestWithinAdr(candidates, input),
   };
 }

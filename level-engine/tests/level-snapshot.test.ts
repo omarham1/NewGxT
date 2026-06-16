@@ -285,6 +285,51 @@ describe("Level Snapshot", () => {
     });
   });
 
+  it("switches Active DOL TP1 to Daily Open on reversal days with high ADR consumption", () => {
+    const fixtureBars = loadFixture("adr-rolling-average");
+    const bars = [
+      ...fixtureBars.slice(0, -2),
+      bar(MON_JAN_6_SESSION_OPEN, 5055, 5065, 5035, 5045),
+      bar(MON_JAN_6_EVAL, 5045, 5115, 5035, 5040),
+    ];
+    const bars4h = abovePdhDisplacementGap(SUN_JAN_5_OPEN);
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h,
+      bars1h: [],
+      mitigationBars: [],
+      dailyBias: "directional",
+      biasDirection: "bullish",
+      reversalDayTp1: true,
+    });
+
+    expect(snapshot.adrConsumptionPct).toBe(80);
+    expect(snapshot.activeDol?.tp1).toEqual({ kind: "daily-open" });
+  });
+
+  it("keeps nearest Relevant Level as TP1 when reversal-day override is not enabled", () => {
+    const fixtureBars = loadFixture("adr-rolling-average");
+    const bars = [
+      ...fixtureBars.slice(0, -2),
+      bar(MON_JAN_6_SESSION_OPEN, 5055, 5065, 5035, 5045),
+      bar(MON_JAN_6_EVAL, 5045, 5115, 5035, 5040),
+    ];
+    const bars4h = abovePdhDisplacementGap(SUN_JAN_5_OPEN);
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h,
+      bars1h: [],
+      mitigationBars: [],
+      dailyBias: "directional",
+      biasDirection: "bullish",
+      reversalDayTp1: false,
+    });
+
+    expect(snapshot.activeDol?.tp1).toEqual({ kind: "pdh" });
+  });
+
   it("returns null Active DOL when bias direction is not supplied", () => {
     const bars = loadFixture("mid-week-daily-boundary");
 
