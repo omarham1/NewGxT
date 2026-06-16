@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isWithinHtfFvgLookback } from "../src/session-calendar.js";
 import type { Bar } from "../src/types.js";
+import { simulatePineFvgLifecycle } from "./helpers/pine-fvg-lifecycle.js";
 
 const HOUR_MS = 60 * 60 * 1000;
 const SUN_DEC_22_OPEN = 1734908400000;
@@ -8,101 +8,6 @@ const FRI_JAN_3_CLOSE = 1735927200000;
 const SUN_JAN_5_OPEN = 1736118000000;
 const MON_JAN_6_EVAL = 1736208000000;
 const SUN_JAN_12_OPEN = 1736722800000;
-
-/** Mirrors Pine indicator bar-by-bar FVG state machine. */
-function simulatePineFvgLifecycle(
-  bars: Bar[],
-  options: {
-    isBarConfirmed?: (barIndex: number) => boolean;
-  } = {},
-  evalAt?: number,
-): number {
-  type Zone = { zoneLow: number; zoneHigh: number; formedAt: number };
-
-  const active: Zone[] = [];
-
-  const entersZone = (bar: Bar, low: number, high: number) =>
-    bar.low <= high && bar.high >= low;
-
-  const rangeFullyOverlappedByPair = (
-    innerLow: number,
-    innerHigh: number,
-    aLow: number,
-    aHigh: number,
-    bLow: number,
-    bHigh: number,
-  ): boolean => {
-    const inFirst = innerLow >= aLow && innerHigh <= aHigh;
-    const inThird = innerLow >= bLow && innerHigh <= bHigh;
-    const spansFirstThenThird =
-      innerLow >= aLow &&
-      aHigh >= innerLow &&
-      innerHigh <= bHigh &&
-      bLow <= aHigh;
-    const spansThirdThenFirst =
-      innerLow >= bLow &&
-      bHigh >= innerLow &&
-      innerHigh <= aHigh &&
-      aLow <= bHigh;
-    return inFirst || inThird || spansFirstThenThird || spansThirdThenFirst;
-  };
-
-  const pruneExpired = (asOf: number) => {
-    for (let j = active.length - 1; j >= 0; j--) {
-      if (!isWithinHtfFvgLookback(active[j]!.formedAt, asOf)) {
-        active.splice(j, 1);
-      }
-    }
-  };
-
-  const isBarConfirmed = options.isBarConfirmed ?? (() => true);
-
-  for (let i = 2; i < bars.length; i++) {
-    const first = bars[i - 2]!;
-    const third = bars[i]!;
-    const bar = bars[i]!;
-
-    const bullish = third.low > first.high;
-    const bearish = third.high < first.low;
-
-    if (bullish || bearish) {
-      const middleOverlapped = rangeFullyOverlappedByPair(
-        bars[i - 1]!.low,
-        bars[i - 1]!.high,
-        first.low,
-        first.high,
-        third.low,
-        third.high,
-      );
-
-      if (!middleOverlapped) {
-        const zoneLow = bullish ? first.high : third.high;
-        const zoneHigh = bullish ? third.low : first.low;
-        const formedAt = third.time;
-
-        const exists = active.some((z) => z.formedAt === formedAt);
-        if (!exists && isBarConfirmed(i)) {
-          active.push({ zoneLow, zoneHigh, formedAt });
-        }
-      }
-    }
-
-    for (let j = active.length - 1; j >= 0; j--) {
-      const zone = active[j]!;
-      if (bar.time > zone.formedAt && entersZone(bar, zone.zoneLow, zone.zoneHigh)) {
-        active.splice(j, 1);
-      }
-    }
-
-    pruneExpired(bar.time);
-  }
-
-  if (evalAt !== undefined) {
-    pruneExpired(evalAt);
-  }
-
-  return active.length;
-}
 
 function bar(
   time: number,
@@ -139,7 +44,24 @@ describe("Pine FVG lifecycle simulation", () => {
 
     const surviving = simulatePineFvgLifecycle(bars);
 
-    expect(surviving).toBe(0);
+    expect(surviving).toBe(1);
+  });
+
+  it("removes a mitigated FVG after the CME daily session rolls", () => {
+    const formedAt = SUN_JAN_5_OPEN;
+    const mitigatedAt = formedAt + 3 * HOUR_MS;
+    const bars = [
+      ...bullishGapAt(formedAt),
+      bar(mitigatedAt, 107, 108, 105, 107),
+    ];
+
+    const sameSession = simulatePineFvgLifecycle(bars, {}, mitigatedAt);
+
+    expect(sameSession).toBe(1);
+
+    const nextSession = simulatePineFvgLifecycle(bars, {}, MON_JAN_6_EVAL);
+
+    expect(nextSession).toBe(0);
   });
 
   it("rejects gaps when the middle candle range is fully inside the first candle", () => {

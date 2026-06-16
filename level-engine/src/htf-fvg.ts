@@ -102,6 +102,19 @@ function detectFvgAt(
   return null;
 }
 
+function isMitigated(
+  zoneLow: number,
+  zoneHigh: number,
+  formedAt: number,
+  barsAfterFormation: Bar[],
+  mitigationBars: Bar[],
+): boolean {
+  return [...barsAfterFormation, ...mitigationBars].some(
+    (bar) =>
+      bar.time > formedAt && barEntersZone(bar, zoneLow, zoneHigh),
+  );
+}
+
 function detectFvgsOnTimeframe(
   bars: Bar[],
   timeframe: HtfTimeframe,
@@ -115,12 +128,15 @@ function detectFvgsOnTimeframe(
       continue;
     }
 
-    const mitigated = mitigationBars.some(
-      (bar) =>
-        bar.time > detected.formedAt &&
-        barEntersZone(bar, detected.zoneLow, detected.zoneHigh),
-    );
-    if (mitigated) {
+    if (
+      isMitigated(
+        detected.zoneLow,
+        detected.zoneHigh,
+        detected.formedAt,
+        bars.slice(i + 1),
+        mitigationBars,
+      )
+    ) {
       continue;
     }
 

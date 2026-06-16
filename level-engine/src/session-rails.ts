@@ -4,6 +4,22 @@ import {
   groupBarsByWeeklySession,
 } from "./session-calendar.js";
 
+export type CurrentWeekRange = {
+  high: number;
+  low: number;
+};
+
+export function computeCurrentWeekRange(bars: Bar[]): CurrentWeekRange {
+  const weeklyGroups = groupBarsByWeeklySession(bars);
+  const weeklyKeys = [...weeklyGroups.keys()].sort();
+  const currentWeekly = weeklyGroups.get(weeklyKeys[weeklyKeys.length - 1]!)!;
+
+  return {
+    high: Math.max(...currentWeekly.map((b) => b.high)),
+    low: Math.min(...currentWeekly.map((b) => b.low)),
+  };
+}
+
 export function computeSessionRails(bars: Bar[]): SessionRails {
   const dailyGroups = groupBarsByDailySession(bars);
   const weeklyGroups = groupBarsByWeeklySession(bars);

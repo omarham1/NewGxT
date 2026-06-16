@@ -22,4 +22,8 @@ export type SessionContext = SessionRails & {
   adrConsumptionPct: number;
   pdEquilibriumLow: number;
   pdEquilibriumHigh: number;
+  pdhMitigatedAt?: number;
+  pdlMitigatedAt?: number;
+  pwhMitigatedAt?: number;
+  pwlMitigatedAt?: number;
 };

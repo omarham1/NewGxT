@@ -49,7 +49,7 @@ function weekStartForEt(et: DateTime): DateTime {
   });
 }
 
-function resolveWeeklySessionKey(timeMs: number): string | null {
+export function resolveWeeklySessionKey(timeMs: number): string | null {
   const direct = getWeeklySessionKey(timeMs);
   if (direct !== null) {
     return direct;

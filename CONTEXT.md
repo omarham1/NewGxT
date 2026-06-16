@@ -6,7 +6,7 @@ Domain glossary for GxT - a TradingView indicator system designed for high-preci
 
 **Relevant Levels**:
 Any price projected from higher timeframes onto the execution chart where a market reaction is expected.
-_Includes_: PDH/PDL, PWH/PWL, unmitigated 4H and 1H FVGs, and HTF swing points.
+_Includes_: unmitigated PDH/PDL, unmitigated PWH/PWL, unmitigated 4H and 1H FVGs, and unmitigated HTF swing points.
 _Avoid_: Key zones, target lines
 
 **Point of Interest (POI)**:
@@ -14,23 +14,23 @@ A Relevant Level where price interaction is expected to produce a tradeable reac
 _Avoid_: Setup zone, watch area
 
 **Session POI**:
-The single Relevant Level selected as today's primary manipulation watch. On directional days: auto-selected at 18:00 ET per daily bias rules (4H FVG in PD Equilibrium Range, else 1H, else deferred until a live swing forms). Tie-break among candidates: highest timeframe first, then nearest to current price. On neutral days: no highlight until PDH or PDL is swept, then the swept level is promoted. Visually emphasized with distinct color, increased line weight or zone opacity, and a POI badge on the label.
+The single Relevant Level selected as today's primary manipulation watch. On directional days: auto-selected at 18:00 ET per daily bias rules (4H FVG in PD Equilibrium Range, else 1H, else deferred until a live swing forms). Tie-break among candidates: highest timeframe first, then nearest to current price. On neutral days: no highlight until PDH or PDL is swept, then the swept level is promoted. Visually emphasized with distinct color, increased line weight or zone opacity, and a POI badge on the label. Mitigation relinquishes Session POI immediately — the level reverts to standard mitigated styling and is no longer eligible as Session POI, Active DOL, or setup logic for the remainder of the session. No automatic re-selection after mitigation; the session continues without a highlighted POI unless the trader promotes another level manually.
 _Avoid_: Active POI, trade level, today's target
 
 **HTF Swing Point**:
-A 4H or 1H swing high or low confirmed by a strict fractal — the extreme must exceed the 3 bars before and after it. Pre-session: only swings inside the Previous Day's range are drawn. Intraday: newly formed swings that become the active manipulation level are added dynamically and may become Session POI.
-_Avoid_: Pivot, fractal
+A 4H or 1H swing high or low confirmed by a strict fractal — the extreme must exceed the 3 bars before and after it. Only swings whose price lies within the combined previous-week (PWH/PWL) and current-week range and whose formation falls in the current or immediately previous CME week are drawn. Intraday: newly formed swings that qualify may become Session POI. Mitigated when price crosses the swing extreme on a bar after fractal confirmation — at or above a swing high, at or below a swing low. A body close through the level is not required; wick contact counts. While mitigated within the current CME session, the swing stays on the Structural Canvas in muted styling, truncated at the crossing bar where price first crosses the extreme rather than projected to session end; it is cleared at the next 18:00 ET session roll.
+_Avoid_: Pivot, fractal, relative swing point
 
 **PD Equilibrium Range**:
 The middle 50% of the Previous Day's wick-to-wick range — from 25% to 75% between PDL and PDH. Used to filter Session POI candidates on directional days. Drawn as a faint band in Session Context; toggleable in indicator settings.
 _Avoid_: Equilibrium zone, 50% level, fair value
 
 **Previous Day High / Low (PDH/PDL)**:
-High and low of the completed CME daily session (18:00 ET to 17:00 ET next day).
+High and low of the completed CME daily session (18:00 ET to 17:00 ET next day). Mitigated when price crosses the level on a 1m bar after the current session open — at or above PDH, at or below PDL. Wick contact counts; a body close is not required. While mitigated within the current CME session, the rail stays on the Structural Canvas in muted styling, truncated at the crossing bar rather than projected to session end; PDH/PDL values refresh at the next 18:00 ET session roll.
 _Avoid_: Daily high/low, session extremes
 
 **Previous Week High / Low (PWH/PWL)**:
-High and low of the completed CME weekly session (Sunday 18:00 ET to Friday 17:00 ET).
+High and low of the completed CME weekly session (Sunday 18:00 ET to Friday 17:00 ET). Mitigated when price crosses the level on a 1m bar after the current CME week open — at or above PWH, at or below PWL. Wick contact counts; a body close is not required. While mitigated within the current CME week, the rail stays on the Structural Canvas in muted styling, truncated at the crossing bar rather than projected to session end; PWH/PWL values refresh at the next Sunday 18:00 ET week roll.
 _Avoid_: Weekly extremes, range boundaries
 
 **Fair Value Gap (FVG)**:

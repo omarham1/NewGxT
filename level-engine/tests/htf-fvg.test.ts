@@ -136,6 +136,22 @@ describe("HTF FVG", () => {
     expect(fvgs).toEqual([]);
   });
 
+  it("mitigates an FVG when a later bar on the same HTF series enters the zone", () => {
+    const bars4h = [
+      ...currentWeekBullishGap(),
+      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 105, 107),
+    ];
+
+    const fvgs = computeHtfFvgs({
+      bars4h,
+      bars1h: [],
+      mitigationBars: [],
+      asOf: MON_JAN_6_EVAL,
+    });
+
+    expect(fvgs).toEqual([]);
+  });
+
   it("does not mitigate an FVG on its own formation bar", () => {
     const bars4h = currentWeekBullishGap();
 
