@@ -318,6 +318,55 @@ f_fvg_overlaps_equilibrium(float zoneLow, float zoneHigh, float eqLow, float eqH
 f_timeframe_rank(string txt) =>
     str.contains(txt, "4H") ? 2 : 1
 
+f_same_level_price(float left, float right) =>
+    math.abs(left - right) <= syminfo.mintick / 2
+
+f_swing_label_suppressed_by_higher_tf(array<HtfSwingLevel> swings, HtfSwingLevel swing) =>
+    bool suppressed = false
+    float swingRank = f_timeframe_rank(swing.txt)
+    int count = array.size(swings)
+    if count > 0
+        for i = 0 to count - 1
+            HtfSwingLevel other = array.get(swings, i)
+            if not other.mitigated and f_timeframe_rank(other.txt) > swingRank and f_same_level_price(other.price, swing.price)
+                suppressed := true
+                break
+    suppressed
+
+f_daily_rail_label_suppressed(string kind, float price, float pwh, float pwl, bool pwhMitigated, bool pwlMitigated) =>
+    bool suppressed = false
+    if kind == "pdh" and not pwhMitigated and not na(pwh) and f_same_level_price(price, pwh)
+        suppressed := true
+    if kind == "pdl" and not pwlMitigated and not na(pwl) and f_same_level_price(price, pwl)
+        suppressed := true
+    suppressed
+
+f_swing_label_suppressed_by_liquidity_rail(
+     HtfSwingLevel swing,
+     float pdh,
+     float pdl,
+     bool pdhMitigated,
+     bool pdlMitigated,
+     float pwh,
+     float pwl,
+     bool pwhMitigated,
+     bool pwlMitigated
+ ) =>
+    bool isHigh = str.contains(swing.txt, "High")
+    bool isLow = str.contains(swing.txt, "Low")
+    bool suppressed = false
+    if isHigh
+        if not pdhMitigated and not na(pdh) and f_same_level_price(swing.price, pdh)
+            suppressed := true
+        if not pwhMitigated and not na(pwh) and f_same_level_price(swing.price, pwh)
+            suppressed := true
+    if isLow
+        if not pdlMitigated and not na(pdl) and f_same_level_price(swing.price, pdl)
+            suppressed := true
+        if not pwlMitigated and not na(pwl) and f_same_level_price(swing.price, pwl)
+            suppressed := true
+    suppressed
+
 f_is_session_poi(SessionPoiTarget poi, string kind, int formedTime, string txt) =>
     bool matches = not na(poi) and poi.kind == kind and poi.txt == txt
     kind == "pdh" or kind == "pdl" or kind == "pwh" or kind == "pwl" ? matches : matches and poi.formedTime == formedTime
@@ -747,7 +796,8 @@ f_draw_level(
      bool is_poi = false,
      bool is_tp1 = false,
      bool is_tp2 = false,
-     bool session_context = false
+     bool session_context = false,
+     bool suppress_label = false
  ) =>
     line next_line = na
     label next_label = na
@@ -773,7 +823,7 @@ f_draw_level(
                  width = line_width,
                  style = dashed ? line.style_dashed : line.style_solid
              )
-            if txt != ""
+            if txt != "" and not suppress_label
                 string label_txt = f_format_level_label(txt, is_poi, is_tp1, is_tp2)
                 next_label := label.new(
                      end_bi,
@@ -1016,7 +1066,15 @@ f_draw_swing_levels(
      int session_end_time,
      SessionPoiTarget session_poi,
      SessionPoiTarget tp1_target,
-     SessionPoiTarget tp2_target
+     SessionPoiTarget tp2_target,
+     float pdh,
+     float pdl,
+     bool pdhMitigated,
+     bool pdlMitigated,
+     float pwh,
+     float pwl,
+     bool pwhMitigated,
+     bool pwlMitigated
  ) =>
     array<line> next_lines = array.new<line>()
     array<label> next_labels = array.new<label>()
@@ -1031,42 +1089,45 @@ f_draw_swing_levels(
                 label.delete(array.get(existing_labels, i))
         int swing_count = array.size(swings)
         if swing_count > 0
-            for i = 0 to swing_count - 1
-                HtfSwingLevel swing = array.get(swings, i)
-                int origin_bi = f_bar_index_for_time(swing.formedTime)
-                int end_time = swing.mitigated ? swing.mitigatedTime : session_end_time
-                int end_bi = math.max(origin_bi, f_bar_index_for_time(end_time))
-                bool is_poi = f_is_session_poi(session_poi, "swing", swing.formedTime, swing.txt)
-                bool is_tp1 = f_is_active_dol(tp1_target, "swing", swing.formedTime, swing.txt)
-                bool is_tp2 = f_is_active_dol(tp2_target, "swing", swing.formedTime, swing.txt)
-                bool is_dol = is_tp1 or is_tp2
-                color line_color = swing.mitigated ? SWING_MITIGATED_COLOR : is_poi ? POI_COLOR : is_dol ? DOL_COLOR : LEVEL_COLOR
-                int line_width = is_poi or is_dol ? POI_LINE_WIDTH : 1
-                line next_line = line.new(
-                     origin_bi,
-                     swing.price,
-                     end_bi,
-                     swing.price,
-                     xloc = xloc.bar_index,
-                     extend = extend.none,
-                     color = line_color,
-                     width = line_width,
-                     style = line.style_solid
-                 )
-                array.push(next_lines, next_line)
-                if not swing.mitigated
-                    string label_txt = f_format_level_label(swing.txt, is_poi, is_tp1, is_tp2)
-                    label next_label = label.new(
+            for drawRank = 1 to 2
+                for i = 0 to swing_count - 1
+                    HtfSwingLevel swing = array.get(swings, i)
+                    if f_timeframe_rank(swing.txt) != drawRank
+                        continue
+                    int origin_bi = f_bar_index_for_time(swing.formedTime)
+                    int end_time = swing.mitigated ? swing.mitigatedTime : session_end_time
+                    int end_bi = math.max(origin_bi, f_bar_index_for_time(end_time))
+                    bool is_poi = f_is_session_poi(session_poi, "swing", swing.formedTime, swing.txt)
+                    bool is_tp1 = f_is_active_dol(tp1_target, "swing", swing.formedTime, swing.txt)
+                    bool is_tp2 = f_is_active_dol(tp2_target, "swing", swing.formedTime, swing.txt)
+                    bool is_dol = is_tp1 or is_tp2
+                    color line_color = swing.mitigated ? SWING_MITIGATED_COLOR : is_poi ? POI_COLOR : is_dol ? DOL_COLOR : LEVEL_COLOR
+                    int line_width = is_poi or is_dol ? POI_LINE_WIDTH : 1
+                    line next_line = line.new(
+                         origin_bi,
+                         swing.price,
                          end_bi,
-                         f_label_y(swing.price, "on"),
-                         label_txt,
+                         swing.price,
                          xloc = xloc.bar_index,
-                         style = label.style_label_left,
-                         color = color(na),
-                         textcolor = line_color,
-                         size = LABEL_SIZE
+                         extend = extend.none,
+                         color = line_color,
+                         width = line_width,
+                         style = line.style_solid
                      )
-                    array.push(next_labels, next_label)
+                    array.push(next_lines, next_line)
+                    if not swing.mitigated and not f_swing_label_suppressed_by_higher_tf(swings, swing) and not f_swing_label_suppressed_by_liquidity_rail(swing, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated)
+                        string label_txt = f_format_level_label(swing.txt, is_poi, is_tp1, is_tp2)
+                        label next_label = label.new(
+                             end_bi,
+                             f_label_y(swing.price, "on"),
+                             label_txt,
+                             xloc = xloc.bar_index,
+                             style = label.style_label_left,
+                             color = color(na),
+                             textcolor = line_color,
+                             size = LABEL_SIZE
+                         )
+                        array.push(next_labels, next_label)
     [next_lines, next_labels]
 
 [
@@ -1164,13 +1225,15 @@ daily_open_label := _daily_open_label
 
 bool pdhIsTp1 = f_is_active_dol(activeDolTp1, "pdh", pdhMitigatedTime, "PDH")
 bool pdhIsTp2 = f_is_active_dol(activeDolTp2, "pdh", pdhMitigatedTime, "PDH")
-[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhTime, sessionEnd, "PDH", false, "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedTime, pdhIsPoi, pdhIsTp1, pdhIsTp2)
+bool pdhLabelSuppressed = f_daily_rail_label_suppressed("pdh", pdh, pwh, pwl, pwhMitigated, pwlMitigated)
+[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhTime, sessionEnd, "PDH", false, "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedTime, pdhIsPoi, pdhIsTp1, pdhIsTp2, false, pdhLabelSuppressed)
 pdh_line := _pdh_line
 pdh_label := _pdh_label
 
 bool pdlIsTp1 = f_is_active_dol(activeDolTp1, "pdl", pdlMitigatedTime, "PDL")
 bool pdlIsTp2 = f_is_active_dol(activeDolTp2, "pdl", pdlMitigatedTime, "PDL")
-[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlTime, sessionEnd, "PDL", false, "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedTime, pdlIsPoi, pdlIsTp1, pdlIsTp2)
+bool pdlLabelSuppressed = f_daily_rail_label_suppressed("pdl", pdl, pwh, pwl, pwhMitigated, pwlMitigated)
+[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlTime, sessionEnd, "PDL", false, "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedTime, pdlIsPoi, pdlIsTp1, pdlIsTp2, false, pdlLabelSuppressed)
 pdl_line := _pdl_line
 pdl_label := _pdl_label
 
@@ -1190,6 +1253,6 @@ pwl_label := _pwl_label
 fvg_boxes := _fvg_boxes
 fvg_labels := _fvg_labels
 
-[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, activeSwings, sessionEnd, sessionPoi, activeDolTp1, activeDolTp2)
+[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, activeSwings, sessionEnd, sessionPoi, activeDolTp1, activeDolTp2, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated)
 swing_lines := _swing_lines
 swing_labels := _swing_labels
