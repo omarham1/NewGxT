@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest";
 import { computeHtfSwingPoints } from "../src/htf-swing.js";
 import { getDailySessionCloseTime } from "../src/session-calendar.js";
 import type { Bar } from "../src/types.js";
+import {
+  chained4hSwingHighSequences,
+  chainedSwingHighSequences,
+  chainedSwingLowSequences,
+  FOUR_HOUR_MS,
+  fractalSwingHighSequence,
+  fractalSwingLowSequence,
+  HOUR_MS,
+} from "./helpers/swing-bars.js";
 
-const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const SUN_DEC_22_OPEN = 1734908400000;
 const SUN_JAN_5_OPEN = 1736118000000;
@@ -51,98 +59,6 @@ function bar(
   return { time, open, high, low, close };
 }
 
-/** Seven 1H bars with a strict fractal(3) swing high at the pivot (index 3). */
-function fractalSwingHighSequence(
-  startTime: number,
-  peak = 5100,
-): Bar[] {
-  const plateau = peak - 5;
-  return [
-    bar(startTime, 5084, 5088, 5083, 5085),
-    bar(startTime + HOUR_MS, 5085, 5089, 5083, 5087),
-    bar(startTime + 2 * HOUR_MS, 5087, 5089, 5085, 5088),
-    bar(startTime + 3 * HOUR_MS, 5088, peak, 5085, 5089),
-    bar(startTime + 4 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
-    bar(startTime + 5 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
-    bar(startTime + 6 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
-  ];
-}
-
-/** Seven 1H bars with a strict fractal(3) swing low at the pivot (index 3). */
-function fractalSwingLowSequenceAt(
-  startTime: number,
-  trough: number,
-): Bar[] {
-  const plateau = trough + 5;
-  return [
-    bar(startTime, 5016, 5017, 5015, 5016),
-    bar(startTime + HOUR_MS, 5016, 5017, 5015, 5016),
-    bar(startTime + 2 * HOUR_MS, 5016, 5017, 5015, 5016),
-    bar(startTime + 3 * HOUR_MS, 5016, 5017, trough, 5016),
-    bar(startTime + 4 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
-    bar(startTime + 5 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
-    bar(startTime + 6 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
-  ];
-}
-
-/** Flat bars so chained fractal sequences do not create boundary pivots. */
-function neutralHighPadding(startTime: number, count: number): Bar[] {
-  return Array.from({ length: count }, (_, index) =>
-    bar(
-      startTime + index * HOUR_MS,
-      5085,
-      5087,
-      5083,
-      5085,
-    ),
-  );
-}
-
-function neutralLowPadding(startTime: number, count: number): Bar[] {
-  return Array.from({ length: count }, (_, index) =>
-    bar(
-      startTime + index * HOUR_MS,
-      5015,
-      5017,
-      5015,
-      5015,
-    ),
-  );
-}
-
-function chainedSwingHighSequences(
-  firstStart: number,
-  firstPeak: number,
-  secondPeak: number,
-): Bar[] {
-  const first = fractalSwingHighSequence(firstStart, firstPeak);
-  const paddingStart = firstStart + first.length * HOUR_MS;
-  const secondStart = paddingStart + 7 * HOUR_MS;
-  return [
-    ...first,
-    ...neutralHighPadding(paddingStart, 7),
-    ...fractalSwingHighSequence(secondStart, secondPeak),
-  ];
-}
-
-function chainedSwingLowSequences(
-  firstStart: number,
-  firstTrough: number,
-  secondTrough: number,
-): Bar[] {
-  const first = fractalSwingLowSequenceAt(firstStart, firstTrough);
-  const paddingStart = firstStart + first.length * HOUR_MS;
-  const secondStart = paddingStart + 7 * HOUR_MS;
-  return [
-    ...first,
-    ...neutralLowPadding(paddingStart, 7),
-    ...fractalSwingLowSequenceAt(secondStart, secondTrough),
-  ];
-}
-
-function fractalSwingLowSequence(startTime: number): Bar[] {
-  return fractalSwingLowSequenceAt(startTime, 5000);
-}
 
 describe("HTF Swing Points", () => {
   it("detects a strict fractal(3) swing high on 4H", () => {
@@ -437,6 +353,26 @@ describe("HTF Swing Points", () => {
         price: 5100,
         formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
         confirmedAt,
+      }),
+    ]);
+  });
+
+  it("collapses nearby 4H swing highs within ADR proximity to the higher peak", () => {
+    const bars4h = chained4hSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5100);
+    const secondStart = SUN_JAN_5_OPEN + 14 * FOUR_HOUR_MS;
+    const higherConfirmedAt = secondStart + 6 * FOUR_HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars4h, asOf: higherConfirmedAt }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(higherConfirmedAt, {
+        timeframe: "4H",
+        kind: "high",
+        price: 5100,
+        formedAt: secondStart + 3 * FOUR_HOUR_MS,
+        confirmedAt: higherConfirmedAt,
       }),
     ]);
   });
