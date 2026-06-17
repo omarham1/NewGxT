@@ -199,9 +199,17 @@ describe("Level Snapshot", () => {
       biasDirection: "bullish",
     });
 
+    const innerFormedAt = SUN_JAN_5_OPEN + 3 * HOUR_MS;
+
     expect(snapshot.htfSwingPoints).toHaveLength(1);
     expect(snapshot.htfSwingPoints[0]?.price).toBe(5100);
     expect(snapshot.sessionPoi?.kind).not.toBe("htf-swing");
+    expect(snapshot.activeDol?.tp1).not.toEqual({
+      kind: "htf-swing",
+      timeframe: "1H",
+      formedAt: innerFormedAt,
+      swingKind: "high",
+    });
   });
 
   it("includes PDH mitigation metadata when price crosses during the current session", () => {

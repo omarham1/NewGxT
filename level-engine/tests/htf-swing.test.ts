@@ -4,6 +4,7 @@ import { getDailySessionCloseTime } from "../src/session-calendar.js";
 import type { Bar } from "../src/types.js";
 
 const HOUR_MS = 60 * 60 * 1000;
+const FOUR_HOUR_MS = 4 * HOUR_MS;
 const MINUTE_MS = 60 * 1000;
 const SUN_DEC_22_OPEN = 1734908400000;
 const SUN_JAN_5_OPEN = 1736118000000;
@@ -122,6 +123,30 @@ function chainedSwingHighSequences(
     ...first,
     ...neutralHighPadding(paddingStart, 7),
     ...fractalSwingHighSequence(secondStart, secondPeak),
+  ];
+}
+
+function chained4hSwingHighSequences(
+  firstStart: number,
+  firstPeak: number,
+  secondPeak: number,
+): Bar[] {
+  const first = fractalSwingHighSequence(firstStart, firstPeak).map((b, index) => ({
+    ...b,
+    time: firstStart + index * FOUR_HOUR_MS,
+  }));
+  const paddingStart = firstStart + first.length * FOUR_HOUR_MS;
+  const secondStart = paddingStart + 7 * FOUR_HOUR_MS;
+  return [
+    ...first,
+    ...neutralHighPadding(paddingStart, 7).map((b, index) => ({
+      ...b,
+      time: paddingStart + index * FOUR_HOUR_MS,
+    })),
+    ...fractalSwingHighSequence(secondStart, secondPeak).map((b, index) => ({
+      ...b,
+      time: secondStart + index * FOUR_HOUR_MS,
+    })),
   ];
 }
 
@@ -437,6 +462,26 @@ describe("HTF Swing Points", () => {
         price: 5100,
         formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
         confirmedAt,
+      }),
+    ]);
+  });
+
+  it("collapses nearby 4H swing highs within ADR proximity to the higher peak", () => {
+    const bars4h = chained4hSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5100);
+    const secondStart = SUN_JAN_5_OPEN + 14 * FOUR_HOUR_MS;
+    const higherConfirmedAt = secondStart + 6 * FOUR_HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars4h, asOf: higherConfirmedAt }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(higherConfirmedAt, {
+        timeframe: "4H",
+        kind: "high",
+        price: 5100,
+        formedAt: secondStart + 3 * FOUR_HOUR_MS,
+        confirmedAt: higherConfirmedAt,
       }),
     ]);
   });
