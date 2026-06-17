@@ -179,6 +179,28 @@ export function isWithinHtfSwingLookback(
   return formedWeek === previousWeeklySessionKey(asOfWeek);
 }
 
+/** Four CME weeks — used for Failure Swing comparison pool (display lookback stays two weeks). */
+export function isWithinHtfSwingComparisonLookback(
+  formedAt: number,
+  asOf: number,
+): boolean {
+  const formedWeek = resolveWeeklySessionKey(formedAt);
+  const asOfWeek = resolveWeeklySessionKey(asOf);
+  if (formedWeek === null || asOfWeek === null) {
+    return false;
+  }
+
+  let weekKey = asOfWeek;
+  for (let i = 0; i < 4; i++) {
+    if (formedWeek === weekKey) {
+      return true;
+    }
+    weekKey = previousWeeklySessionKey(weekKey);
+  }
+
+  return false;
+}
+
 export function groupBarsByDailySession(bars: Bar[]): Map<string, Bar[]> {
   const groups = new Map<string, Bar[]>();
 

@@ -36,6 +36,7 @@ showPdEquilibrium50 = input.bool(true, "Show PD 50% Equilibrium", group = "Sessi
 dailyBias = input.string("Directional", "Daily Bias", options = ["Directional", "Neutral"], group = "Session POI")
 biasDirection = input.string("Bullish", "Bias Direction", options = ["Bullish", "Bearish"], group = "Active DOL")
 reversalDayTp1 = input.bool(false, "Reversal Day TP1", group = "Active DOL")
+failureSwingAdrPct = input.float(12.5, "Failure Swing ADR %", minval = 0, step = 0.1, group = "HTF Swings")
 
 f_cme_daily_session_key_for(int t) =>
     et_hour = hour(t, TZ)
@@ -157,6 +158,21 @@ f_within_htf_swing_lookback(int formedTime) =>
         false
     else
         formedWeek == asOfWeek or formedWeek == f_previous_week_session_key(asOfWeek)
+
+f_within_htf_swing_comparison_lookback(int formedTime) =>
+    int formedWeek = f_resolve_week_session_key(formedTime)
+    int asOfWeek = f_resolve_week_session_key(time)
+    if na(formedWeek) or na(asOfWeek)
+        false
+    else
+        int weekKey = asOfWeek
+        bool within = false
+        for i = 0 to 3
+            if formedWeek == weekKey
+                within := true
+                break
+            weekKey := f_previous_week_session_key(weekKey)
+        within
 
 f_track_extreme(float cur_extreme, int cur_time, float candidate, int candidate_time) =>
     if na(cur_extreme) or candidate > cur_extreme
@@ -304,6 +320,7 @@ type HtfSwingLevel
     string txt
     bool mitigated
     int mitigatedTime
+    bool isFailureSwing
 
 type SessionPoiTarget
     string kind
@@ -408,7 +425,7 @@ f_select_defer_swing_poi(
     if count > 0
         for i = 0 to count - 1
             HtfSwingLevel swing = array.get(swings, i)
-            bool eligible = not swing.mitigated and swing.confirmedTime >= sessionOpenTime and swing.confirmedTime <= asOfTime
+            bool eligible = not swing.mitigated and not swing.isFailureSwing and swing.confirmedTime >= sessionOpenTime and swing.confirmedTime <= asOfTime
             if eligible
                 float dist = math.abs(currentPrice - swing.price)
                 float rank = f_timeframe_rank(swing.txt)
@@ -562,7 +579,7 @@ f_resolve_active_dol(
             bool bullishSwing = str.contains(swing.txt, "High")
             bool bearishSwing = str.contains(swing.txt, "Low")
             bool directionMatch = bullish ? bullishSwing : bearishSwing
-            if not swing.mitigated and directionMatch and f_dol_in_bias_direction(bullish, currentPrice, swing.price)
+            if not swing.mitigated and not swing.isFailureSwing and directionMatch and f_dol_in_bias_direction(bullish, currentPrice, swing.price)
                 SessionPoiTarget candidate = SessionPoiTarget.new("swing", swing.formedTime, swing.txt)
                 [nextNearest, nextNearestDistance] = f_update_nearest_dol(nearest, nearestDistance, candidate, swing.price, currentPrice)
                 nearest := nextNearest
@@ -990,6 +1007,52 @@ f_swing_visible(float price, int formedTime, float pwh, float pwl, float curWeek
         float rangeHigh = math.max(pwh, curWeekHigh)
         price >= rangeLow and price <= rangeHigh
 
+f_swing_in_comparison_pool(HtfSwingLevel swing, int atTime, float pwh, float pwl, float curWeekHigh, float curWeekLow) =>
+    if swing.confirmedTime > atTime or not f_within_htf_swing_comparison_lookback(swing.formedTime)
+        false
+    else
+        float rangeLow = math.min(pwl, curWeekLow)
+        float rangeHigh = math.max(pwh, curWeekHigh)
+        swing.price >= rangeLow and swing.price <= rangeHigh
+
+f_failure_swing_proximity(float adrVal, float adrPct) =>
+    adrVal * (adrPct / 100.0)
+
+f_same_swing_kind(string left, string right) =>
+    (str.contains(left, "High") and str.contains(right, "High")) or (str.contains(left, "Low") and str.contains(right, "Low"))
+
+f_is_more_extreme_swing(HtfSwingLevel swing, HtfSwingLevel other) =>
+    bool isHigh = str.contains(swing.txt, "High")
+    isHigh ? swing.price > other.price : swing.price < other.price
+
+f_stamp_failure_swings(
+     array<HtfSwingLevel> swings,
+     int newIndex,
+     float adrVal,
+     float adrPct,
+     float pwh,
+     float pwl,
+     float curWeekHigh,
+     float curWeekLow
+ ) =>
+    HtfSwingLevel swing = array.get(swings, newIndex)
+    if swing.isFailureSwing
+        swings
+    else
+        float threshold = f_failure_swing_proximity(adrVal, adrPct)
+        int count = array.size(swings)
+        if count > 0
+            for i = 0 to count - 1
+                HtfSwingLevel peer = array.get(swings, i)
+                bool inPool = f_same_swing_kind(swing.txt, peer.txt) and f_swing_in_comparison_pool(peer, swing.confirmedTime, pwh, pwl, curWeekHigh, curWeekLow) and not peer.mitigated and math.abs(peer.price - swing.price) <= threshold
+                if inPool
+                    if i != newIndex and not peer.isFailureSwing and f_is_more_extreme_swing(peer, swing)
+                        array.set(swings, newIndex, HtfSwingLevel.new(swing.price, swing.formedTime, swing.confirmedTime, swing.txt, swing.mitigated, swing.mitigatedTime, true))
+                        break
+                    if f_is_more_extreme_swing(swing, peer)
+                        array.set(swings, i, HtfSwingLevel.new(peer.price, peer.formedTime, peer.confirmedTime, peer.txt, peer.mitigated, peer.mitigatedTime, true))
+        swings
+
 f_swing_exists(array<HtfSwingLevel> swings, int formedTime, string txt) =>
     bool found = false
     int count = array.size(swings)
@@ -1010,10 +1073,13 @@ f_try_add_swing(
      float pwh,
      float pwl,
      float curWeekHigh,
-     float curWeekLow
+     float curWeekLow,
+     float adrVal,
+     float adrPct
  ) =>
     if confirmed and not na(price) and not na(formedTime) and not na(confirmedTime) and f_swing_visible(price, formedTime, pwh, pwl, curWeekHigh, curWeekLow) and not f_swing_exists(swings, formedTime, txt)
-        array.push(swings, HtfSwingLevel.new(price, formedTime, confirmedTime, txt, false, na))
+        array.push(swings, HtfSwingLevel.new(price, formedTime, confirmedTime, txt, false, na, false))
+        f_stamp_failure_swings(swings, array.size(swings) - 1, adrVal, adrPct, pwh, pwl, curWeekHigh, curWeekLow)
     swings
 
 f_swing_swept(HtfSwingLevel swing, float checkLow, float checkHigh) =>
@@ -1026,7 +1092,7 @@ f_sweep_swings(array<HtfSwingLevel> swings, float checkLow, float checkHigh, int
     while i >= 0
         HtfSwingLevel swing = array.get(swings, i)
         if not swing.mitigated and checkTime > swing.confirmedTime and f_swing_swept(swing, checkLow, checkHigh)
-            array.set(swings, i, HtfSwingLevel.new(swing.price, swing.formedTime, swing.confirmedTime, swing.txt, true, checkTime))
+            array.set(swings, i, HtfSwingLevel.new(swing.price, swing.formedTime, swing.confirmedTime, swing.txt, true, checkTime, swing.isFailureSwing))
         i -= 1
     swings
 
@@ -1101,6 +1167,8 @@ f_draw_swing_levels(
             for drawRank = 1 to 2
                 for i = 0 to swing_count - 1
                     HtfSwingLevel swing = array.get(swings, i)
+                    if swing.isFailureSwing
+                        continue
                     if f_timeframe_rank(swing.txt) != drawRank
                         continue
                     int origin_bi = f_bar_index_for_time(swing.formedTime)
@@ -1202,10 +1270,10 @@ if newRailWeek
 if sessionRolled
     activeSwings := f_remove_all_mitigated_swings(activeSwings)
 
-activeSwings := f_try_add_swing(activeSwings, highConfirmed4h, highPrice4h, highPivotTime4h, highConfirmedTime4h, "4H Swing High", pwh, pwl, currentWeekHigh, currentWeekLow)
-activeSwings := f_try_add_swing(activeSwings, lowConfirmed4h, lowPrice4h, lowPivotTime4h, lowConfirmedTime4h, "4H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow)
-activeSwings := f_try_add_swing(activeSwings, highConfirmed1h, highPrice1h, highPivotTime1h, highConfirmedTime1h, "1H Swing High", pwh, pwl, currentWeekHigh, currentWeekLow)
-activeSwings := f_try_add_swing(activeSwings, lowConfirmed1h, lowPrice1h, lowPivotTime1h, lowConfirmedTime1h, "1H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow)
+activeSwings := f_try_add_swing(activeSwings, highConfirmed4h, highPrice4h, highPivotTime4h, highConfirmedTime4h, "4H Swing High", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
+activeSwings := f_try_add_swing(activeSwings, lowConfirmed4h, lowPrice4h, lowPivotTime4h, lowConfirmedTime4h, "4H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
+activeSwings := f_try_add_swing(activeSwings, highConfirmed1h, highPrice1h, highPivotTime1h, highConfirmedTime1h, "1H Swing High", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
+activeSwings := f_try_add_swing(activeSwings, lowConfirmed1h, lowPrice1h, lowPivotTime1h, lowConfirmedTime1h, "1H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
 activeSwings := f_sweep_swings_from_1m_bars(activeSwings, oneMinLows, oneMinHighs, oneMinTimes)
 activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 activeSwings := f_prune_invisible_swings(activeSwings, pwh, pwl, currentWeekHigh, currentWeekLow)

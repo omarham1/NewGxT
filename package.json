@@ -5,6 +5,7 @@
     "level-engine"
   ],
   "scripts": {
-    "test": "npm test --workspace=@gxt/level-engine"
+    "test": "npm test --workspace=@gxt/level-engine",
+    "typecheck": "npm run typecheck --workspace=@gxt/level-engine"
   }
 }

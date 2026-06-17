@@ -67,6 +67,7 @@ export function computeLevelSnapshot(
     pwl: context.pwl,
     currentWeekHigh: currentWeek.high,
     currentWeekLow: currentWeek.low,
+    adr: context.adr,
     asOf,
   });
 

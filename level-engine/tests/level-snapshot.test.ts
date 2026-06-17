@@ -165,6 +165,45 @@ describe("Level Snapshot", () => {
     ]);
   });
 
+  it("excludes failure swings from htfSwingPoints in the level snapshot", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const chainedHighs = (() => {
+      const seqHigh = (startTime: number, peak: number) => {
+        const plateau = peak - 5;
+        return [
+          bar(startTime, 5084, 5088, 5083, 5085),
+          bar(startTime + HOUR_MS, 5085, 5089, 5083, 5087),
+          bar(startTime + 2 * HOUR_MS, 5087, 5089, 5085, 5088),
+          bar(startTime + 3 * HOUR_MS, 5088, peak, 5085, 5089),
+          bar(startTime + 4 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
+          bar(startTime + 5 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
+          bar(startTime + 6 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
+        ];
+      };
+      const first = seqHigh(SUN_JAN_5_OPEN, 5090);
+      const paddingStart = SUN_JAN_5_OPEN + first.length * HOUR_MS;
+      const secondStart = paddingStart + 7 * HOUR_MS;
+      const padding = Array.from({ length: 7 }, (_, index) =>
+        bar(paddingStart + index * HOUR_MS, 5085, 5087, 5083, 5085),
+      );
+      return [...first, ...padding, ...seqHigh(secondStart, 5100)];
+    })();
+    const asOf = SUN_JAN_5_OPEN + 20 * HOUR_MS;
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h: [],
+      bars1h: chainedHighs,
+      mitigationBars: [],
+      dailyBias: "directional",
+      biasDirection: "bullish",
+    });
+
+    expect(snapshot.htfSwingPoints).toHaveLength(1);
+    expect(snapshot.htfSwingPoints[0]?.price).toBe(5100);
+    expect(snapshot.sessionPoi?.kind).not.toBe("htf-swing");
+  });
+
   it("includes PDH mitigation metadata when price crosses during the current session", () => {
     const bars = loadFixture("mid-week-daily-boundary");
     const mitigatedAt = MON_JAN_6_EVAL + HOUR_MS;
