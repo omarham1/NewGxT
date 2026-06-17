@@ -270,12 +270,10 @@ sessionEnd = request.security(
      lookahead = barmerge.lookahead_off
  )
 
-[oneMinLow, oneMinHigh, oneMinTime] = request.security(
+[oneMinLows, oneMinHighs, oneMinTimes] = request.security_lower_tf(
      syminfo.tickerid,
      "1",
-     [low, high, time],
-     gaps = barmerge.gaps_off,
-     lookahead = barmerge.lookahead_off
+     [low, high, time]
  )
 
 dailySessionKey = f_cme_daily_session_key()
@@ -889,21 +887,24 @@ if newRailWeek
     pwlMitigated := false
     pwlMitigatedTime := na
 
-if not pdhMitigated and not na(pdh) and not na(dailyOpenTime) and oneMinTime >= dailyOpenTime and oneMinHigh >= pdh
-    pdhMitigated := true
-    pdhMitigatedTime := oneMinTime
-
-if not pdlMitigated and not na(pdl) and not na(dailyOpenTime) and oneMinTime >= dailyOpenTime and oneMinLow <= pdl
-    pdlMitigated := true
-    pdlMitigatedTime := oneMinTime
-
-if not pwhMitigated and not na(pwh) and not na(weekKey) and oneMinTime >= weekKey and oneMinHigh >= pwh
-    pwhMitigated := true
-    pwhMitigatedTime := oneMinTime
-
-if not pwlMitigated and not na(pwl) and not na(weekKey) and oneMinTime >= weekKey and oneMinLow <= pwl
-    pwlMitigated := true
-    pwlMitigatedTime := oneMinTime
+int oneMinBarCount = array.size(oneMinTimes)
+if oneMinBarCount > 0
+    for mi = 0 to oneMinBarCount - 1
+        float checkLow = array.get(oneMinLows, mi)
+        float checkHigh = array.get(oneMinHighs, mi)
+        int checkTime = array.get(oneMinTimes, mi)
+        if not pdhMitigated and not na(pdh) and not na(dailyOpenTime) and checkTime >= dailyOpenTime and checkHigh >= pdh
+            pdhMitigated := true
+            pdhMitigatedTime := checkTime
+        if not pdlMitigated and not na(pdl) and not na(dailyOpenTime) and checkTime >= dailyOpenTime and checkLow <= pdl
+            pdlMitigated := true
+            pdlMitigatedTime := checkTime
+        if not pwhMitigated and not na(pwh) and not na(weekKey) and checkTime >= weekKey and checkHigh >= pwh
+            pwhMitigated := true
+            pwhMitigatedTime := checkTime
+        if not pwlMitigated and not na(pwl) and not na(weekKey) and checkTime >= weekKey and checkLow <= pwl
+            pwlMitigated := true
+            pwlMitigatedTime := checkTime
 
 if dailyBias == "Neutral" and na(sessionPoi)
     if pdhMitigated and pdlMitigated
@@ -1028,6 +1029,14 @@ f_sweep_swings(array<HtfSwingLevel> swings, float checkLow, float checkHigh, int
             array.set(swings, i, HtfSwingLevel.new(swing.price, swing.formedTime, swing.confirmedTime, swing.txt, true, checkTime))
         i -= 1
     swings
+
+f_sweep_swings_from_1m_bars(array<HtfSwingLevel> swings, array<float> checkLows, array<float> checkHighs, array<int> checkTimes) =>
+    array<HtfSwingLevel> result = swings
+    int count = array.size(checkTimes)
+    if count > 0
+        for j = 0 to count - 1
+            result := f_sweep_swings(result, array.get(checkLows, j), array.get(checkHighs, j), array.get(checkTimes, j))
+    result
 
 f_remove_all_mitigated_swings(array<HtfSwingLevel> swings) =>
     int i = array.size(swings) - 1
@@ -1197,7 +1206,7 @@ activeSwings := f_try_add_swing(activeSwings, highConfirmed4h, highPrice4h, high
 activeSwings := f_try_add_swing(activeSwings, lowConfirmed4h, lowPrice4h, lowPivotTime4h, lowConfirmedTime4h, "4H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow)
 activeSwings := f_try_add_swing(activeSwings, highConfirmed1h, highPrice1h, highPivotTime1h, highConfirmedTime1h, "1H Swing High", pwh, pwl, currentWeekHigh, currentWeekLow)
 activeSwings := f_try_add_swing(activeSwings, lowConfirmed1h, lowPrice1h, lowPivotTime1h, lowConfirmedTime1h, "1H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow)
-activeSwings := f_sweep_swings(activeSwings, oneMinLow, oneMinHigh, oneMinTime)
+activeSwings := f_sweep_swings_from_1m_bars(activeSwings, oneMinLows, oneMinHighs, oneMinTimes)
 activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 activeSwings := f_prune_invisible_swings(activeSwings, pwh, pwl, currentWeekHigh, currentWeekLow)
 

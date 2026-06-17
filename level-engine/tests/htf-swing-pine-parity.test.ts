@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { computeHtfSwingPoints } from "../src/htf-swing.js";
 import type { Bar } from "../src/types.js";
-import { simulatePineSwingLifecycle } from "./helpers/pine-swing-lifecycle.js";
+import {
+  pineUnmitigatedSwingCount,
+  simulatePineSwingLifecycle,
+  simulatePineSwingLifecycleSampledMitigation,
+} from "./helpers/pine-swing-lifecycle.js";
 
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
@@ -110,6 +114,30 @@ describe("HTF Swing / Pine parity", () => {
 
     expect(engineActiveCount(bars, mitigatedAt, mitigationBars)).toBe(1);
     expect(pineActiveCount(bars, mitigatedAt, mitigationBars)).toBe(1);
+  });
+
+  it("misses mitigation when only one 1m sample is checked per HTF chart bar", () => {
+    const bars = fractalSwingHighSequence(SUN_JAN_5_OPEN);
+    const confirmedAt = SUN_JAN_5_OPEN + 6 * HOUR_MS;
+    const sweptAt = confirmedAt + 15 * MINUTE_MS;
+    const nextHourSample = confirmedAt + HOUR_MS;
+    const mitigationBars = [
+      bar(sweptAt, 5095, 5101, 5090, 5098),
+      bar(nextHourSample, 5090, 5095, 5085, 5090),
+    ];
+
+    expect(
+      simulatePineSwingLifecycleSampledMitigation(
+        { htfBars: bars, mitigationBars, ...weeklyInput() },
+        nextHourSample,
+      ),
+    ).toBe(1);
+    expect(
+      pineUnmitigatedSwingCount(
+        { htfBars: bars, mitigationBars, ...weeklyInput() },
+        nextHourSample,
+      ),
+    ).toBe(0);
   });
 
   it("matches Pine active swing count across CME week lookback boundaries", () => {
