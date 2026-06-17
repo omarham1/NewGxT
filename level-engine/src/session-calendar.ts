@@ -181,7 +181,6 @@ export function isWithinHtfSwingLookback(
   return formedWeek === previousWeeklySessionKey(asOfWeek);
 }
 
-/** Four CME weeks — used for Failure Swing comparison pool (display lookback stays two weeks). */
 export function isWithinHtfSwingComparisonLookback(
   formedAt: number,
   asOf: number,

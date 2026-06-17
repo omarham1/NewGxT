@@ -95,6 +95,24 @@ function isMoreExtreme(candidate: Swing, other: Swing): boolean {
   return candidate.price < other.price;
 }
 
+function isInFailureSwingComparisonPool(
+  swing: Swing,
+  atTime: number,
+  weekly: { rangeLow: number; rangeHigh: number },
+): boolean {
+  if (swing.confirmedAt > atTime) {
+    return false;
+  }
+
+  if (!isWithinHtfSwingComparisonLookback(swing.formedAt, atTime)) {
+    return false;
+  }
+
+  return (
+    swing.price >= weekly.rangeLow && swing.price <= weekly.rangeHigh
+  );
+}
+
 function isFailureSwingPeer(
   peer: Swing,
   swing: Swing,
@@ -106,11 +124,7 @@ function isFailureSwingPeer(
     return false;
   }
 
-  if (
-    !isWithinHtfSwingComparisonLookback(peer.formedAt, swing.confirmedAt) ||
-    peer.price < weekly.rangeLow ||
-    peer.price > weekly.rangeHigh
-  ) {
+  if (!isInFailureSwingComparisonPool(peer, swing.confirmedAt, weekly)) {
     return false;
   }
 

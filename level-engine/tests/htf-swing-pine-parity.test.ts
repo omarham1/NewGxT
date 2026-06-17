@@ -6,8 +6,10 @@ import {
   simulatePineSwingLifecycle,
   simulatePineSwingLifecycleSampledMitigation,
 } from "./helpers/pine-swing-lifecycle.js";
-
-const HOUR_MS = 60 * 60 * 1000;
+import {
+  chainedSwingHighSequences,
+  HOUR_MS,
+} from "./helpers/swing-bars.js";
 const MINUTE_MS = 60 * 1000;
 const SUN_DEC_22_OPEN = 1734908400000;
 const SUN_JAN_5_OPEN = 1736118000000;
@@ -48,33 +50,6 @@ function weeklyInput() {
     currentWeekLow: CURRENT_WEEK_LOW,
     adr: 100,
   };
-}
-
-function chainedSwingHighSequences(
-  firstStart: number,
-  firstPeak: number,
-  secondPeak: number,
-): Bar[] {
-  const plateau = (peak: number) => peak - 5;
-  const seqHigh = (startTime: number, peak: number) => {
-    const p = plateau(peak);
-    return [
-      bar(startTime, 5084, 5088, 5083, 5085),
-      bar(startTime + HOUR_MS, 5085, 5089, 5083, 5087),
-      bar(startTime + 2 * HOUR_MS, 5087, 5089, 5085, 5088),
-      bar(startTime + 3 * HOUR_MS, 5088, peak, 5085, 5089),
-      bar(startTime + 4 * HOUR_MS, p, p + 2, p - 2, p),
-      bar(startTime + 5 * HOUR_MS, p, p + 2, p - 2, p),
-      bar(startTime + 6 * HOUR_MS, p, p + 2, p - 2, p),
-    ];
-  };
-  const first = seqHigh(firstStart, firstPeak);
-  const paddingStart = firstStart + first.length * HOUR_MS;
-  const secondStart = paddingStart + 7 * HOUR_MS;
-  const padding = Array.from({ length: 7 }, (_, index) =>
-    bar(paddingStart + index * HOUR_MS, 5085, 5087, 5083, 5085),
-  );
-  return [...first, ...padding, ...seqHigh(secondStart, secondPeak)];
 }
 
 function engineActiveCount(

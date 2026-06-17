@@ -149,6 +149,14 @@ function findMitigationTime(
   );
 }
 
+function isMitigatedAsOf(
+  swing: HtfSwingPoint,
+  mitigationBars: Bar[],
+  asOf: number,
+): boolean {
+  return findMitigationTime(swing, mitigationBars, asOf) !== undefined;
+}
+
 function failureSwingProximityThreshold(
   input: ComputeHtfSwingPointsInput,
 ): number {
@@ -158,19 +166,15 @@ function failureSwingProximityThreshold(
   );
 }
 
-function swingIdentity(
+/** Visible swing fields only — lifecycle flags are stripped from engine output. */
+function coreSwingFields(
   swing: HtfSwingPoint,
 ): Pick<
   HtfSwingPoint,
   "timeframe" | "kind" | "price" | "formedAt" | "confirmedAt"
 > {
-  return {
-    timeframe: swing.timeframe,
-    kind: swing.kind,
-    price: swing.price,
-    formedAt: swing.formedAt,
-    confirmedAt: swing.confirmedAt,
-  };
+  const { timeframe, kind, price, formedAt, confirmedAt } = swing;
+  return { timeframe, kind, price, formedAt, confirmedAt };
 }
 
 function isMoreExtreme(
@@ -213,10 +217,7 @@ function isFailureSwingPeer(
     return false;
   }
 
-  if (
-    findMitigationTime(peer, input.mitigationBars, swing.confirmedAt) !==
-    undefined
-  ) {
+  if (isMitigatedAsOf(peer, input.mitigationBars, swing.confirmedAt)) {
     return false;
   }
 
@@ -283,7 +284,7 @@ function withMitigation(
 
   if (mitigatedAt === undefined) {
     return {
-      ...swingIdentity(swing),
+      ...coreSwingFields(swing),
       displayUntil: getDailySessionCloseTime(input.asOf),
     };
   }
@@ -294,7 +295,7 @@ function withMitigation(
   }
 
   return {
-    ...swingIdentity(swing),
+    ...coreSwingFields(swing),
     mitigatedAt,
   };
 }
