@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeHtfSwingPoints } from "../src/htf-swing.js";
+import { getDailySessionCloseTime } from "../src/session-calendar.js";
 import type { Bar } from "../src/types.js";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -28,6 +29,13 @@ function swingInput(
     asOf: MON_JAN_6_EVAL,
     ...overrides,
   };
+}
+
+function unmitigatedSwing<T extends Record<string, unknown>>(
+  asOf: number,
+  swing: T,
+) {
+  return { ...swing, displayUntil: getDailySessionCloseTime(asOf) };
 }
 
 function bar(
@@ -75,13 +83,13 @@ describe("HTF Swing Points", () => {
     );
 
     expect(swings).toEqual([
-      {
+      unmitigatedSwing(MON_JAN_6_EVAL, {
         timeframe: "4H",
         kind: "high",
         price: 5100,
         formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
         confirmedAt: SUN_JAN_5_OPEN + 6 * HOUR_MS,
-      },
+      }),
     ]);
   });
 
@@ -93,13 +101,13 @@ describe("HTF Swing Points", () => {
     );
 
     expect(swings).toEqual([
-      {
+      unmitigatedSwing(MON_JAN_6_EVAL, {
         timeframe: "1H",
         kind: "low",
         price: 5000,
         formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
         confirmedAt: SUN_JAN_5_OPEN + 6 * HOUR_MS,
-      },
+      }),
     ]);
   });
 
@@ -143,13 +151,13 @@ describe("HTF Swing Points", () => {
     );
 
     expect(swings).toEqual([
-      {
+      unmitigatedSwing(MON_JAN_6_EVAL, {
         timeframe: "4H",
         kind: "high",
         price: 5150,
         formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
         confirmedAt: SUN_JAN_5_OPEN + 6 * HOUR_MS,
-      },
+      }),
     ]);
   });
 
@@ -184,21 +192,23 @@ describe("HTF Swing Points", () => {
       b.high === 5100 ? { ...b, high: 5150, close: 5140 } : b,
     );
 
+    const asOf = MON_JAN_6_SESSION_OPEN + 6 * HOUR_MS;
+
     const swings = computeHtfSwingPoints(
       swingInput({
         bars1h,
-        asOf: MON_JAN_6_SESSION_OPEN + 6 * HOUR_MS,
+        asOf,
       }),
     );
 
     expect(swings).toEqual([
-      {
+      unmitigatedSwing(asOf, {
         timeframe: "1H",
         kind: "high",
         price: 5150,
         formedAt: MON_JAN_6_SESSION_OPEN + 3 * HOUR_MS,
         confirmedAt: MON_JAN_6_SESSION_OPEN + 6 * HOUR_MS,
-      },
+      }),
     ]);
   });
 
@@ -267,13 +277,13 @@ describe("HTF Swing Points", () => {
     );
 
     expect(swings).toEqual([
-      {
+      unmitigatedSwing(confirmedAt, {
         timeframe: "1H",
         kind: "high",
         price: 5100,
         formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
         confirmedAt,
-      },
+      }),
     ]);
   });
 
@@ -322,10 +332,23 @@ describe("HTF Swing Points", () => {
     expect(swings).toEqual([]);
   });
 
+  it("sets displayUntil to the current CME daily session close for unmitigated swings", () => {
+    const bars1h = fractalSwingHighSequence(SUN_JAN_5_OPEN);
+
+    const swings = computeHtfSwingPoints(swingInput({ bars1h }));
+
+    expect(swings[0]?.displayUntil).toBe(
+      getDailySessionCloseTime(MON_JAN_6_EVAL),
+    );
+    expect(swings[0]?.mitigatedAt).toBeUndefined();
+  });
+
   it("keeps a swing unmitigated when asOf is before the crossing bar", () => {
     const bars1h = fractalSwingHighSequence(SUN_JAN_5_OPEN);
     const confirmedAt = SUN_JAN_5_OPEN + 6 * HOUR_MS;
     const mitigatedAt = confirmedAt + HOUR_MS;
+
+    const asOf = mitigatedAt - MINUTE_MS;
 
     const swings = computeHtfSwingPoints(
       swingInput({
@@ -333,18 +356,18 @@ describe("HTF Swing Points", () => {
         mitigationBars: [
           bar(mitigatedAt, 5095, 5101, 5090, 5098),
         ],
-        asOf: mitigatedAt - MINUTE_MS,
+        asOf,
       }),
     );
 
     expect(swings).toEqual([
-      {
+      unmitigatedSwing(asOf, {
         timeframe: "1H",
         kind: "high",
         price: 5100,
         formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
         confirmedAt,
-      },
+      }),
     ]);
   });
 });

@@ -18,6 +18,19 @@ export function getDailySessionOpenTime(timeMs: number): number {
   return dailySessionStartEt(timeMs).toMillis()!;
 }
 
+/** 17:00 ET on the calendar day after the current CME daily session open. */
+export function getDailySessionCloseTime(timeMs: number): number {
+  return dailySessionStartEt(timeMs)
+    .plus({ days: 1 })
+    .set({
+      hour: WEEKLY_END_HOUR,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+    })
+    .toMillis()!;
+}
+
 function dailySessionStartEt(timeMs: number): DateTime {
   const et = toEt(timeMs);
   const sessionStartDay =

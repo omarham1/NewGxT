@@ -120,10 +120,10 @@ describe("HTF FVG", () => {
     expect(fvgs[0]?.direction).toBe("bearish");
   });
 
-  it("mitigates an FVG when price enters the wick-based zone", () => {
+  it("mitigates a bullish FVG when a later bar closes below the lower extreme", () => {
     const bars4h = currentWeekBullishGap();
     const mitigationBars = [
-      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 105, 107),
+      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 104, 104),
     ];
 
     const fvgs = computeHtfFvgs({
@@ -136,10 +136,26 @@ describe("HTF FVG", () => {
     expect(fvgs).toEqual([]);
   });
 
-  it("mitigates an FVG when a later bar on the same HTF series enters the zone", () => {
+  it("does not mitigate a bullish FVG when price only wicks into the zone", () => {
     const bars4h = [
       ...currentWeekBullishGap(),
       bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 105, 107),
+    ];
+
+    const fvgs = computeHtfFvgs({
+      bars4h,
+      bars1h: [],
+      mitigationBars: [],
+      asOf: MON_JAN_6_EVAL,
+    });
+
+    expect(fvgs).toHaveLength(1);
+  });
+
+  it("mitigates an FVG when a later bar on the same HTF series closes through the extreme", () => {
+    const bars4h = [
+      ...currentWeekBullishGap(),
+      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 104, 104),
     ];
 
     const fvgs = computeHtfFvgs({

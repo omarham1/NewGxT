@@ -46,26 +46,26 @@ describe("HTF FVG / Pine parity", () => {
     );
   });
 
-  it("matches Pine active FVG count after same-series mitigation in a prior session", () => {
+  it("matches Pine active FVG count after same-series close through the extreme in a prior session", () => {
     const bars = [
       ...bullishGapAt(SUN_JAN_5_OPEN),
-      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 105, 107),
+      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 104, 104),
     ];
 
     expect(engineActiveCount(bars, MON_JAN_6_EVAL)).toBe(0);
     expect(simulatePineFvgLifecycle(bars, {}, MON_JAN_6_EVAL)).toBe(0);
   });
 
-  it("matches Pine visible FVG count when mitigation stays in the current session", () => {
+  it("matches Pine active FVG count when close through the extreme removes the gap in the current session", () => {
     const formedAt = SUN_JAN_5_OPEN;
     const mitigatedAt = formedAt + 3 * HOUR_MS;
     const bars = [
       ...bullishGapAt(formedAt),
-      bar(mitigatedAt, 107, 108, 105, 107),
+      bar(mitigatedAt, 107, 108, 104, 104),
     ];
 
     expect(engineActiveCount(bars, mitigatedAt)).toBe(0);
-    expect(simulatePineFvgLifecycle(bars, {}, mitigatedAt)).toBe(1);
+    expect(simulatePineFvgLifecycle(bars, {}, mitigatedAt)).toBe(0);
   });
 
   it("matches Pine active FVG count across daily session lookback boundaries", () => {

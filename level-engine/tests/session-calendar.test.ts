@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getDailySessionCloseTime,
   getDailySessionKey,
   getWeeklySessionKey,
   groupBarsByDailySession,
@@ -28,6 +29,25 @@ describe("Session Calendar", () => {
 
     expect(getDailySessionKey(sessionOpenBar.time)).toBe("2025-01-06");
     expect(sessionOpenBar.open).toBe(5055);
+  });
+
+  it("resolves the current CME daily session close at 17:00 ET the next calendar day", () => {
+    const monSessionOpen = 1736204400000; // Mon Jan 6 2025 18:00 ET
+    const monEval = 1736208000000; // Mon Jan 6 2025 19:00 ET
+    const sessionClose = getDailySessionCloseTime(monEval);
+
+    expect(getDailySessionCloseTime(monSessionOpen)).toBe(sessionClose);
+    expect(
+      new Date(sessionClose).toLocaleString("en-US", {
+        timeZone: "America/New_York",
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        hour12: false,
+      }),
+    ).toBe("Tue, Jan 7, 17:00");
   });
 
   it("groups bars into CME weekly sessions from Sun 18:00 through Fri 17:00 ET", () => {

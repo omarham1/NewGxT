@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeLevelSnapshot } from "../src/level-snapshot.js";
+import { getDailySessionCloseTime } from "../src/session-calendar.js";
 import { loadFixture } from "./helpers/load-fixture.js";
 import type { Bar } from "../src/types.js";
 
@@ -44,7 +45,7 @@ describe("Level Snapshot", () => {
       bar(SUN_JAN_5_OPEN + 2 * HOUR_MS, 108, 115, 106, 112),
     ];
     const mitigationBars = [
-      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 105, 107),
+      bar(SUN_JAN_5_OPEN + 3 * HOUR_MS, 107, 108, 104, 104),
     ];
 
     const snapshot = computeLevelSnapshot({
@@ -123,6 +124,7 @@ describe("Level Snapshot", () => {
         price: 5100,
         formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
         confirmedAt: SUN_JAN_5_OPEN + 6 * HOUR_MS,
+        displayUntil: getDailySessionCloseTime(MON_JAN_6_EVAL),
       },
     ]);
   });

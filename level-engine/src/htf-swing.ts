@@ -1,6 +1,10 @@
 import type { Bar } from "./types.js";
 import type { HtfTimeframe } from "./htf-fvg.js";
-import { getDailySessionKey, isWithinHtfSwingLookback } from "./session-calendar.js";
+import {
+  getDailySessionCloseTime,
+  getDailySessionKey,
+  isWithinHtfSwingLookback,
+} from "./session-calendar.js";
 import { findLevelCrossTime } from "./level-mitigation.js";
 
 export type HtfSwingKind = "high" | "low";
@@ -11,6 +15,8 @@ export type HtfSwingPoint = {
   price: number;
   formedAt: number;
   confirmedAt: number;
+  /** Unmitigated swings project through the current CME daily session close (17:00 ET). */
+  displayUntil?: number;
   mitigatedAt?: number;
 };
 
@@ -144,7 +150,10 @@ function withMitigation(
   );
 
   if (mitigatedAt === undefined) {
-    return swing;
+    return {
+      ...swing,
+      displayUntil: getDailySessionCloseTime(input.asOf),
+    };
   }
 
   const currentSession = getDailySessionKey(input.asOf);

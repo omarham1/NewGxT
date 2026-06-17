@@ -18,11 +18,32 @@ export type ComputeHtfFvgsInput = {
   asOf: number;
 };
 
-function barEntersZone(bar: Bar, zoneLow: number, zoneHigh: number): boolean {
-  return bar.low <= zoneHigh && bar.high >= zoneLow;
+function barClosedThroughFvgExtreme(
+  bar: Bar,
+  direction: "bullish" | "bearish",
+  zoneLow: number,
+  zoneHigh: number,
+): boolean {
+  return direction === "bullish"
+    ? bar.close < zoneLow
+    : bar.close > zoneHigh;
 }
 
-/** True when every price in [innerLow, innerHigh] lies in bar A or bar B range. */
+function isMitigated(
+  direction: "bullish" | "bearish",
+  zoneLow: number,
+  zoneHigh: number,
+  formedAt: number,
+  barsAfterFormation: Bar[],
+  mitigationBars: Bar[],
+): boolean {
+  return [...barsAfterFormation, ...mitigationBars].some(
+    (bar) =>
+      bar.time > formedAt &&
+      barClosedThroughFvgExtreme(bar, direction, zoneLow, zoneHigh),
+  );
+}
+
 function rangeFullyOverlappedByPair(
   innerLow: number,
   innerHigh: number,
@@ -102,19 +123,6 @@ function detectFvgAt(
   return null;
 }
 
-function isMitigated(
-  zoneLow: number,
-  zoneHigh: number,
-  formedAt: number,
-  barsAfterFormation: Bar[],
-  mitigationBars: Bar[],
-): boolean {
-  return [...barsAfterFormation, ...mitigationBars].some(
-    (bar) =>
-      bar.time > formedAt && barEntersZone(bar, zoneLow, zoneHigh),
-  );
-}
-
 function detectFvgsOnTimeframe(
   bars: Bar[],
   timeframe: HtfTimeframe,
@@ -130,6 +138,7 @@ function detectFvgsOnTimeframe(
 
     if (
       isMitigated(
+        detected.direction,
         detected.zoneLow,
         detected.zoneHigh,
         detected.formedAt,

@@ -14,6 +14,7 @@ export { computeLevelSnapshot } from "./level-snapshot.js";
 export { resolveActiveDol } from "./active-dol.js";
 export { selectDirectionalSessionPoi, selectNeutralSessionPoi, selectSessionPoi } from "./session-poi.js";
 export {
+  getDailySessionCloseTime,
   getDailySessionKey,
   getDailySessionOpenTime,
   getWeeklySessionKey,

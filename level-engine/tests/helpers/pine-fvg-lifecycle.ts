@@ -8,9 +8,17 @@ type Zone = {
   zoneLow: number;
   zoneHigh: number;
   formedAt: number;
-  mitigated: boolean;
-  mitigatedAt?: number;
+  bullish: boolean;
 };
+
+function barClosedThroughFvgExtreme(
+  bar: Bar,
+  zone: Zone,
+): boolean {
+  return zone.bullish
+    ? bar.close < zone.zoneLow
+    : bar.close > zone.zoneHigh;
+}
 
 /** Mirrors Pine indicator bar-by-bar FVG state machine. */
 export function simulatePineFvgLifecycle(
@@ -21,9 +29,6 @@ export function simulatePineFvgLifecycle(
   evalAt?: number,
 ): number {
   const active: Zone[] = [];
-
-  const entersZone = (bar: Bar, low: number, high: number) =>
-    bar.low <= high && bar.high >= low;
 
   const rangeFullyOverlappedByPair = (
     innerLow: number,
@@ -56,29 +61,17 @@ export function simulatePineFvgLifecycle(
     }
   };
 
-  const pruneStaleMitigated = (asOf: number) => {
-    const currentSession = getDailySessionKey(asOf);
+  const removeMitigated = (bar: Bar) => {
     for (let j = active.length - 1; j >= 0; j--) {
       const zone = active[j]!;
       if (
-        zone.mitigated &&
-        zone.mitigatedAt !== undefined &&
-        getDailySessionKey(zone.mitigatedAt) !== currentSession
+        bar.time > zone.formedAt &&
+        barClosedThroughFvgExtreme(bar, zone)
       ) {
         active.splice(j, 1);
       }
     }
   };
-
-  const removeAllMitigated = () => {
-    for (let j = active.length - 1; j >= 0; j--) {
-      if (active[j]!.mitigated) {
-        active.splice(j, 1);
-      }
-    }
-  };
-
-  let prevSessionKey: string | undefined;
 
   const isBarConfirmed = options.isBarConfirmed ?? (() => true);
 
@@ -86,12 +79,6 @@ export function simulatePineFvgLifecycle(
     const first = bars[i - 2]!;
     const third = bars[i]!;
     const bar = bars[i]!;
-
-    const sessionKey = getDailySessionKey(bar.time);
-    if (prevSessionKey !== undefined && sessionKey !== prevSessionKey) {
-      removeAllMitigated();
-    }
-    prevSessionKey = sessionKey;
 
     const bullish = third.low > first.high;
     const bearish = third.high < first.low;
@@ -113,29 +100,16 @@ export function simulatePineFvgLifecycle(
 
         const exists = active.some((z) => z.formedAt === formedAt);
         if (!exists && isBarConfirmed(i)) {
-          active.push({ zoneLow, zoneHigh, formedAt, mitigated: false });
+          active.push({ zoneLow, zoneHigh, formedAt, bullish });
         }
       }
     }
 
-    for (let j = active.length - 1; j >= 0; j--) {
-      const zone = active[j]!;
-      if (
-        !zone.mitigated &&
-        bar.time > zone.formedAt &&
-        entersZone(bar, zone.zoneLow, zone.zoneHigh)
-      ) {
-        zone.mitigated = true;
-        zone.mitigatedAt = bar.time;
-      }
-    }
-
-    pruneStaleMitigated(bar.time);
+    removeMitigated(bar);
     pruneExpired(bar.time);
   }
 
   const asOf = evalAt ?? bars[bars.length - 1]!.time;
-  pruneStaleMitigated(asOf);
   if (evalAt !== undefined) {
     pruneExpired(evalAt);
   }

@@ -37,7 +37,7 @@ describe("Pine FVG lifecycle simulation", () => {
     expect(surviving).toBe(1);
   });
 
-  it("mitigates an FVG when price enters the zone on a later bar", () => {
+  it("keeps an FVG when price only wicks into the zone on a later bar", () => {
     const bars = [
       ...bullishGap,
       bar(1 + 3 * HOUR_MS, 107, 108, 105, 107),
@@ -48,17 +48,28 @@ describe("Pine FVG lifecycle simulation", () => {
     expect(surviving).toBe(1);
   });
 
-  it("removes a mitigated FVG after the CME daily session rolls", () => {
+  it("removes an FVG when a later bar closes through the lower extreme", () => {
+    const bars = [
+      ...bullishGap,
+      bar(1 + 3 * HOUR_MS, 107, 108, 104, 104),
+    ];
+
+    const surviving = simulatePineFvgLifecycle(bars);
+
+    expect(surviving).toBe(0);
+  });
+
+  it("removes a mitigated FVG immediately rather than waiting for session roll", () => {
     const formedAt = SUN_JAN_5_OPEN;
     const mitigatedAt = formedAt + 3 * HOUR_MS;
     const bars = [
       ...bullishGapAt(formedAt),
-      bar(mitigatedAt, 107, 108, 105, 107),
+      bar(mitigatedAt, 107, 108, 104, 104),
     ];
 
     const sameSession = simulatePineFvgLifecycle(bars, {}, mitigatedAt);
 
-    expect(sameSession).toBe(1);
+    expect(sameSession).toBe(0);
 
     const nextSession = simulatePineFvgLifecycle(bars, {}, MON_JAN_6_EVAL);
 
