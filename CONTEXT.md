@@ -6,7 +6,7 @@ Domain glossary for GxT - a TradingView indicator system designed for high-preci
 
 **Relevant Levels**:
 Any price projected from higher timeframes onto the execution chart where a market reaction is expected.
-_Includes_: unmitigated PDH/PDL, unmitigated PWH/PWL, unmitigated 4H and 1H FVGs, and unmitigated HTF swing points.
+_Includes_: unmitigated PDH/PDL, unmitigated PWH/PWL, unmitigated 4H and 1H FVGs, and unmitigated HTF swing points that are not failure swings.
 _Avoid_: Key zones, target lines
 
 **Point of Interest (POI)**:
@@ -18,8 +18,12 @@ The single Relevant Level selected as today's primary manipulation watch. On dir
 _Avoid_: Active POI, trade level, today's target
 
 **HTF Swing Point**:
-A 4H or 1H swing high or low confirmed by a strict fractal — the extreme must exceed the 3 bars before and after it. Only swings whose price lies within the combined previous-week (PWH/PWL) and current-week range and whose formation falls in the current or immediately previous CME week are drawn. Intraday: newly formed swings that qualify may become Session POI. Unmitigated swings project as labeled solid lines from the fractal origin through the current CME daily session close (17:00 ET). Mitigated when price crosses the swing extreme on a bar after fractal confirmation — at or above a swing high, at or below a swing low. A body close through the level is not required; wick contact counts. While mitigated within the current CME session, the swing stays on the Structural Canvas in muted styling, truncated at the crossing bar where price first crosses the extreme rather than projected to session end; it is cleared at the next 18:00 ET session roll.
+A 4H or 1H swing high or low confirmed by a strict fractal — the extreme must exceed the 3 bars before and after it. Only swings whose price lies within the combined previous-week (PWH/PWL) and current-week range and whose formation falls in the current or immediately previous CME week are drawn. Failure swings are excluded — only the outermost extreme of each kind within proximity tolerance prints, compared across 4H and 1H. Intraday: newly formed swings that qualify may become Session POI. Unmitigated swings project as labeled solid lines from the fractal origin through the current CME daily session close (17:00 ET). Mitigated when price crosses the swing extreme on a bar after fractal confirmation — at or above a swing high, at or below a swing low. A body close through the level is not required; wick contact counts. While mitigated within the current CME session, the swing stays on the Structural Canvas in muted styling, truncated at the crossing bar where price first crosses the extreme rather than projected to session end; it is cleared at the next 18:00 ET session roll.
 _Avoid_: Pivot, fractal, relative swing point
+
+**Failure Swing**:
+A confirmed HTF swing high or low permanently suppressed from the Structural Canvas and excluded from all downstream logic (Session POI, Active DOL, setup triggers) because a more extreme swing of the same kind on any HTF timeframe (4H or 1H) already exists within a proximity threshold — for highs, a lower peak too close to a higher one; for lows, a higher trough too close to a lower one. Proximity is measured as a fraction of the 14-day ADR (default 12.5%, configurable in indicator settings). The outermost extreme is the Relevant Level; the inner swing is the failure swing. Comparison is across 4H and 1H but never mixes highs with lows. At confirmation, the comparison pool scans four CME weeks of unmitigated HTF swings of the same kind whose price lies within the combined PWH/PWL and current-week range — wider than the two-week display lookback — so aged-out outer extremes can still stamp nearby new swings as failure swings. Classification is stamped at confirmation or retroactively when a more extreme unmitigated peer later confirms within proximity — earlier inner swings in the cluster are then stamped and suppressed. Once a failure swing, always a failure swing; the stamp never reverses.
+_Avoid_: Subordinate swing, redundant swing, nested swing, relative swing point
 
 **PD Equilibrium Range**:
 The middle 50% of the Previous Day's wick-to-wick range — from 25% to 75% between PDL and PDH. Used to filter Session POI candidates on directional days. Drawn as a faint band in Session Context; toggleable in indicator settings.
@@ -97,7 +101,7 @@ A candle confirming the reversal when Candle 2 (C2) fails to form a C2 closure (
 _Avoid_: Confirmation bar, continuation candle
 
 **Daily Bias**:
-The session's directional stance: Directional (expansion/reversal) or Neutral (consolidation/failure swing). Set manually by the trader at 18:00 ET; gates Session POI auto-selection logic.
+The session's directional stance: Directional (expansion/reversal) or Neutral (consolidation). Set manually by the trader at 18:00 ET; gates Session POI auto-selection logic.
 _Avoid_: Day type, market bias, sentiment
 
 **Draw on Liquidity (DOL)**:
