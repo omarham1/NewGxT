@@ -7,6 +7,7 @@ const SUN_DEC_22_OPEN = 1734908400000;
 const FRI_JAN_3_CLOSE = 1735927200000;
 const SUN_JAN_5_OPEN = 1736118000000;
 const MON_JAN_6_EVAL = 1736208000000;
+const WED_JAN_8_EVENING = 1736380800000;
 const SUN_JAN_12_OPEN = 1736722800000;
 
 function bar(
@@ -76,7 +77,7 @@ describe("Pine FVG lifecycle simulation", () => {
     expect(surviving).toBe(0);
   });
 
-  it("prunes gaps older than two CME weeks even when unmitigated", () => {
+  it("prunes gaps older than two daily sessions even when unmitigated", () => {
     const surviving = simulatePineFvgLifecycle(
       bullishGapAt(SUN_DEC_22_OPEN),
       {},
@@ -86,7 +87,7 @@ describe("Pine FVG lifecycle simulation", () => {
     expect(surviving).toBe(0);
   });
 
-  it("keeps prior-week gaps visible through the current CME week", () => {
+  it("keeps prior Friday gaps visible on Monday 18:00 ET week-open", () => {
     const surviving = simulatePineFvgLifecycle(
       bullishGapAt(FRI_JAN_3_CLOSE),
       {},
@@ -96,24 +97,24 @@ describe("Pine FVG lifecycle simulation", () => {
     expect(surviving).toBe(1);
   });
 
-  it("drops prior-week gaps at the Sunday 18:00 ET week roll", () => {
+  it("drops the Friday bridge gap by Wednesday 18:00 ET", () => {
     const surviving = simulatePineFvgLifecycle(
       bullishGapAt(FRI_JAN_3_CLOSE),
       {},
-      SUN_JAN_12_OPEN,
+      WED_JAN_8_EVENING,
     );
 
     expect(surviving).toBe(0);
   });
 
-  it("keeps current-week gaps visible as the immediately previous week after roll", () => {
+  it("drops gaps older than two daily sessions even when unmitigated", () => {
     const surviving = simulatePineFvgLifecycle(
       bullishGapAt(SUN_JAN_5_OPEN),
       {},
       SUN_JAN_12_OPEN,
     );
 
-    expect(surviving).toBe(1);
+    expect(surviving).toBe(0);
   });
 
   it("does not form an FVG when FVG C3 closes without a gap", () => {

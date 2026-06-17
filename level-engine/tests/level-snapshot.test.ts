@@ -83,7 +83,7 @@ describe("Level Snapshot", () => {
     ]);
   });
 
-  it("excludes an unmitigated HTF FVG outside the two-week lookback window", () => {
+  it("excludes an unmitigated HTF FVG outside the daily session lookback window", () => {
     const bars = loadFixture("mid-week-daily-boundary");
     const bars4h = abovePdhDisplacementGap(SUN_DEC_22_OPEN);
 

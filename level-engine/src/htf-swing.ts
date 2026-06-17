@@ -1,6 +1,6 @@
 import type { Bar } from "./types.js";
 import type { HtfTimeframe } from "./htf-fvg.js";
-import { getDailySessionKey, isWithinHtfFvgLookback } from "./session-calendar.js";
+import { getDailySessionKey, isWithinHtfSwingLookback } from "./session-calendar.js";
 import { findLevelCrossTime } from "./level-mitigation.js";
 
 export type HtfSwingKind = "high" | "low";
@@ -112,7 +112,7 @@ function isVisibleSwing(
     return false;
   }
 
-  if (!isWithinHtfFvgLookback(swing.formedAt, input.asOf)) {
+  if (!isWithinHtfSwingLookback(swing.formedAt, input.asOf)) {
     return false;
   }
 

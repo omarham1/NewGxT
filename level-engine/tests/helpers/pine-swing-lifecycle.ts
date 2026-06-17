@@ -3,7 +3,7 @@ import {
 } from "../../src/htf-swing.js";
 import {
   getDailySessionKey,
-  isWithinHtfFvgLookback,
+  isWithinHtfSwingLookback,
 } from "../../src/session-calendar.js";
 import type { Bar } from "../../src/types.js";
 
@@ -48,7 +48,7 @@ function isSwingVisible(
   asOf: number,
   weekly: { rangeLow: number; rangeHigh: number },
 ): boolean {
-  if (!isWithinHtfFvgLookback(formedAt, asOf)) {
+  if (!isWithinHtfSwingLookback(formedAt, asOf)) {
     return false;
   }
   return price >= weekly.rangeLow && price <= weekly.rangeHigh;

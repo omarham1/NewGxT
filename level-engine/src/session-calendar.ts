@@ -88,7 +88,71 @@ function previousWeeklySessionKey(weekKey: string): string {
     .toISODate()!;
 }
 
+function previousDailySessionKey(sessionKey: string): string {
+  return DateTime.fromISO(sessionKey, { zone: ET })
+    .minus({ days: 1 })
+    .toISODate()!;
+}
+
+/** CME equity-index holidays when Monday session is skipped (Tuesday 18:00 ET week-open). */
+const CME_HOLIDAYS = new Set([
+  "2025-01-20", // MLK Day
+]);
+
+function isCmeHoliday(date: DateTime): boolean {
+  return CME_HOLIDAYS.has(date.toISODate()!);
+}
+
+function isFirstDailySessionOfCmeWeek(sessionKey: string): boolean {
+  const date = DateTime.fromISO(sessionKey, { zone: ET });
+  if (date.weekday === 1) {
+    return true;
+  }
+
+  if (date.weekday === 2) {
+    return isCmeHoliday(date.minus({ days: 1 }));
+  }
+
+  return false;
+}
+
+/** Thursday-keyed session containing Friday daytime (ends Fri 17:00 ET). */
+function priorFridayDailySessionKey(sessionKey: string): string {
+  const date = DateTime.fromISO(sessionKey, { zone: ET });
+  const weekSunday =
+    date.weekday === 1
+      ? date.minus({ days: 1 })
+      : date.minus({ days: 2 });
+  const friday = weekSunday.minus({ days: 2 });
+  return friday.minus({ days: 1 }).toISODate()!;
+}
+
 export function isWithinHtfFvgLookback(formedAt: number, asOf: number): boolean {
+  const formedSession = getDailySessionKey(formedAt);
+  const asOfSession = getDailySessionKey(asOf);
+
+  if (formedSession === asOfSession) {
+    return true;
+  }
+
+  if (formedSession === previousDailySessionKey(asOfSession)) {
+    return true;
+  }
+
+  if (
+    isFirstDailySessionOfCmeWeek(asOfSession) &&
+    formedSession === priorFridayDailySessionKey(asOfSession)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isWithinHtfSwingLookback(
+  formedAt: number,
+  asOf: number,
+): boolean {
   const formedWeek = resolveWeeklySessionKey(formedAt);
   const asOfWeek = resolveWeeklySessionKey(asOf);
   if (formedWeek === null || asOfWeek === null) {

@@ -123,7 +123,36 @@ f_resolve_week_session_key(int t) =>
 f_previous_week_session_key(int week_key) =>
     week_key - 7 * 86400000
 
+f_previous_daily_session_key(int session_key) =>
+    session_key - 86400000
+
+f_is_cme_holiday(int day_key) =>
+    day_key == timestamp(TZ, 2025, 1, 20, 0, 0)
+
+f_is_first_daily_session_of_cme_week(int session_key) =>
+    int dow = dayofweek(session_key, TZ)
+    bool is_monday = dow == dayofweek.monday
+    bool is_tuesday_after_holiday = dow == dayofweek.tuesday and f_is_cme_holiday(session_key - 86400000)
+    is_monday or is_tuesday_after_holiday
+
+f_prior_friday_daily_session_key(int session_key) =>
+    int dow = dayofweek(session_key, TZ)
+    int week_sunday = dow == dayofweek.monday ? session_key - 86400000 : session_key - 2 * 86400000
+    int friday = week_sunday - 2 * 86400000
+    friday - 86400000
+
 f_within_htf_fvg_lookback(int formedTime) =>
+    int formedSession = f_cme_daily_session_key_for(formedTime)
+    int asOfSession = f_cme_daily_session_key_for(time)
+    if na(formedSession) or na(asOfSession)
+        false
+    else
+        bool current = formedSession == asOfSession
+        bool previous = formedSession == f_previous_daily_session_key(asOfSession)
+        bool friday_bridge = f_is_first_daily_session_of_cme_week(asOfSession) and formedSession == f_prior_friday_daily_session_key(asOfSession)
+        current or previous or friday_bridge
+
+f_within_htf_swing_lookback(int formedTime) =>
     int formedWeek = f_resolve_week_session_key(formedTime)
     int asOfWeek = f_resolve_week_session_key(time)
     if na(formedWeek) or na(asOfWeek)
@@ -913,7 +942,7 @@ f_htf_swing_signals() =>
     [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime]
 
 f_swing_visible(float price, int formedTime, float pwh, float pwl, float curWeekHigh, float curWeekLow) =>
-    if not f_within_htf_fvg_lookback(formedTime)
+    if not f_within_htf_swing_lookback(formedTime)
         false
     else
         float rangeLow = math.min(pwl, curWeekLow)

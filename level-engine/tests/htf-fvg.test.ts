@@ -216,7 +216,7 @@ describe("HTF FVG", () => {
     expect(fvgs).toEqual([]);
   });
 
-  it("excludes an unmitigated gap outside the two-week lookback window", () => {
+  it("excludes an unmitigated gap outside the daily session lookback window", () => {
     const bars4h = [
       bar(SUN_DEC_22_OPEN, 100, 105, 98, 102),
       bar(SUN_DEC_22_OPEN + HOUR_MS, 102, 110, 101, 108),

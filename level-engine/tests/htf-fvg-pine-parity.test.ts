@@ -68,18 +68,19 @@ describe("HTF FVG / Pine parity", () => {
     expect(simulatePineFvgLifecycle(bars, {}, mitigatedAt)).toBe(1);
   });
 
-  it("matches Pine active FVG count across CME week lookback boundaries", () => {
+  it("matches Pine active FVG count across daily session lookback boundaries", () => {
     const expired = bullishGapAt(SUN_DEC_22_OPEN);
-    const priorWeek = bullishGapAt(FRI_JAN_3_CLOSE);
+    const priorFriday = bullishGapAt(FRI_JAN_3_CLOSE);
+    const WED_JAN_8_EVENING = 1736380800000;
 
     expect(engineActiveCount(expired, MON_JAN_6_EVAL)).toBe(
       simulatePineFvgLifecycle(expired, {}, MON_JAN_6_EVAL),
     );
-    expect(engineActiveCount(priorWeek, MON_JAN_6_EVAL)).toBe(
-      simulatePineFvgLifecycle(priorWeek, {}, MON_JAN_6_EVAL),
+    expect(engineActiveCount(priorFriday, MON_JAN_6_EVAL)).toBe(
+      simulatePineFvgLifecycle(priorFriday, {}, MON_JAN_6_EVAL),
     );
-    expect(engineActiveCount(priorWeek, SUN_JAN_12_OPEN)).toBe(
-      simulatePineFvgLifecycle(priorWeek, {}, SUN_JAN_12_OPEN),
+    expect(engineActiveCount(priorFriday, WED_JAN_8_EVENING)).toBe(
+      simulatePineFvgLifecycle(priorFriday, {}, WED_JAN_8_EVENING),
     );
   });
 });
