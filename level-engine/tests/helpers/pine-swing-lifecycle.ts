@@ -95,6 +95,49 @@ function isMoreExtreme(candidate: Swing, other: Swing): boolean {
   return candidate.price < other.price;
 }
 
+function isFailureSwingPeer(
+  peer: Swing,
+  swing: Swing,
+  weekly: { rangeLow: number; rangeHigh: number },
+  threshold: number,
+  mitigationBars: Bar[],
+): boolean {
+  if (peer.kind !== swing.kind || peer.confirmedAt > swing.confirmedAt) {
+    return false;
+  }
+
+  if (
+    !isWithinHtfSwingComparisonLookback(peer.formedAt, swing.confirmedAt) ||
+    peer.price < weekly.rangeLow ||
+    peer.price > weekly.rangeHigh
+  ) {
+    return false;
+  }
+
+  if (isMitigatedAsOf(peer, swing.confirmedAt, mitigationBars)) {
+    return false;
+  }
+
+  return Math.abs(peer.price - swing.price) <= threshold;
+}
+
+function stampFailureSwingAgainstPeers(swing: Swing, peers: Swing[]): void {
+  for (const peer of peers) {
+    if (peer === swing) {
+      continue;
+    }
+
+    if (!peer.isFailureSwing && isMoreExtreme(peer, swing)) {
+      swing.isFailureSwing = true;
+      return;
+    }
+
+    if (isMoreExtreme(swing, peer)) {
+      peer.isFailureSwing = true;
+    }
+  }
+}
+
 function stampFailureSwingsForConfirmation(
   swings: Swing[],
   swing: Swing,
@@ -108,31 +151,10 @@ function stampFailureSwingsForConfirmation(
   }
 
   const threshold = adr * failureSwingAdrFraction;
-  const peers = swings.filter(
-    (peer) =>
-      peer.kind === swing.kind &&
-      peer.confirmedAt <= swing.confirmedAt &&
-      isWithinHtfSwingComparisonLookback(peer.formedAt, swing.confirmedAt) &&
-      peer.price >= weekly.rangeLow &&
-      peer.price <= weekly.rangeHigh &&
-      !isMitigatedAsOf(peer, swing.confirmedAt, mitigationBars) &&
-      Math.abs(peer.price - swing.price) <= threshold,
+  const peers = swings.filter((peer) =>
+    isFailureSwingPeer(peer, swing, weekly, threshold, mitigationBars),
   );
-
-  for (const peer of peers) {
-    if (peer === swing) {
-      continue;
-    }
-
-    if (!peer.isFailureSwing && isMoreExtreme(peer, swing)) {
-      swing.isFailureSwing = true;
-      break;
-    }
-
-    if (isMoreExtreme(swing, peer)) {
-      peer.isFailureSwing = true;
-    }
-  }
+  stampFailureSwingAgainstPeers(swing, peers);
 }
 
 function tryAddSwing(
@@ -228,6 +250,11 @@ function pruneInvisible(
 
 function visibleSwingCount(swings: Swing[]): number {
   return swings.filter((swing) => !swing.isFailureSwing).length;
+}
+
+function unmitigatedVisibleSwingCount(swings: Swing[]): number {
+  return swings.filter((swing) => !swing.mitigated && !swing.isFailureSwing)
+    .length;
 }
 
 export type PineSwingLifecycleInput = {
@@ -349,8 +376,7 @@ export function simulatePineSwingLifecycleSampledMitigation(
   pruneStaleMitigated(active, asOf);
   pruneInvisible(active, asOf, weekly);
 
-  return active.filter((swing) => !swing.mitigated && !swing.isFailureSwing)
-    .length;
+  return unmitigatedVisibleSwingCount(active);
 }
 
 /** Mirrors Pine indicator bar-by-bar HTF swing state machine. */
@@ -587,6 +613,5 @@ export function pineUnmitigatedSwingCount(
   pruneStaleMitigated(active, asOf);
   pruneInvisible(active, asOf, weekly);
 
-  return active.filter((swing) => !swing.mitigated && !swing.isFailureSwing)
-    .length;
+  return unmitigatedVisibleSwingCount(active);
 }

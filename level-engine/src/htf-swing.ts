@@ -149,17 +149,28 @@ function findMitigationTime(
   );
 }
 
-function isMitigatedAsOf(
-  swing: HtfSwingPoint,
-  atTime: number,
+function failureSwingProximityThreshold(
   input: ComputeHtfSwingPointsInput,
-): boolean {
-  const mitigatedAt = findMitigationTime(
-    swing,
-    input.mitigationBars,
-    atTime,
+): number {
+  return (
+    input.adr *
+    (input.failureSwingAdrFraction ?? DEFAULT_FAILURE_SWING_ADR_FRACTION)
   );
-  return mitigatedAt !== undefined;
+}
+
+function swingIdentity(
+  swing: HtfSwingPoint,
+): Pick<
+  HtfSwingPoint,
+  "timeframe" | "kind" | "price" | "formedAt" | "confirmedAt"
+> {
+  return {
+    timeframe: swing.timeframe,
+    kind: swing.kind,
+    price: swing.price,
+    formedAt: swing.formedAt,
+    confirmedAt: swing.confirmedAt,
+  };
 }
 
 function isMoreExtreme(
@@ -170,14 +181,6 @@ function isMoreExtreme(
     return candidate.price > other.price;
   }
   return candidate.price < other.price;
-}
-
-function isWithinFailureSwingProximity(
-  left: HtfSwingPoint,
-  right: HtfSwingPoint,
-  threshold: number,
-): boolean {
-  return Math.abs(left.price - right.price) <= threshold;
 }
 
 function isInFailureSwingComparisonPool(
@@ -196,12 +199,55 @@ function isInFailureSwingComparisonPool(
   return isInsideWeeklySwingRange(swing.price, input);
 }
 
+function isFailureSwingPeer(
+  peer: HtfSwingPoint,
+  swing: HtfSwingPoint,
+  input: ComputeHtfSwingPointsInput,
+  threshold: number,
+): boolean {
+  if (peer.kind !== swing.kind || peer.confirmedAt > swing.confirmedAt) {
+    return false;
+  }
+
+  if (!isInFailureSwingComparisonPool(peer, swing.confirmedAt, input)) {
+    return false;
+  }
+
+  if (
+    findMitigationTime(peer, input.mitigationBars, swing.confirmedAt) !==
+    undefined
+  ) {
+    return false;
+  }
+
+  return Math.abs(peer.price - swing.price) <= threshold;
+}
+
+function stampFailureSwingAgainstPeers(
+  swing: HtfSwingPoint,
+  peers: HtfSwingPoint[],
+): void {
+  for (const peer of peers) {
+    if (peer === swing) {
+      continue;
+    }
+
+    if (!peer.isFailureSwing && isMoreExtreme(peer, swing)) {
+      swing.isFailureSwing = true;
+      return;
+    }
+
+    if (isMoreExtreme(swing, peer)) {
+      peer.isFailureSwing = true;
+    }
+  }
+}
+
 export function stampFailureSwings(
   swings: HtfSwingPoint[],
   input: ComputeHtfSwingPointsInput,
 ): HtfSwingPoint[] {
-  const threshold =
-    input.adr * (input.failureSwingAdrFraction ?? DEFAULT_FAILURE_SWING_ADR_FRACTION);
+  const threshold = failureSwingProximityThreshold(input);
   const stamped = swings.map((swing) => ({
     ...swing,
     isFailureSwing: swing.isFailureSwing ?? false,
@@ -216,29 +262,10 @@ export function stampFailureSwings(
       continue;
     }
 
-    const peers = stamped.filter(
-      (peer) =>
-        peer.kind === swing.kind &&
-        peer.confirmedAt <= swing.confirmedAt &&
-        isInFailureSwingComparisonPool(peer, swing.confirmedAt, input) &&
-        !isMitigatedAsOf(peer, swing.confirmedAt, input) &&
-        isWithinFailureSwingProximity(peer, swing, threshold),
+    const peers = stamped.filter((peer) =>
+      isFailureSwingPeer(peer, swing, input, threshold),
     );
-
-    for (const peer of peers) {
-      if (peer === swing) {
-        continue;
-      }
-
-      if (!peer.isFailureSwing && isMoreExtreme(peer, swing)) {
-        swing.isFailureSwing = true;
-        break;
-      }
-
-      if (isMoreExtreme(swing, peer)) {
-        peer.isFailureSwing = true;
-      }
-    }
+    stampFailureSwingAgainstPeers(swing, peers);
   }
 
   return stamped;
@@ -256,11 +283,7 @@ function withMitigation(
 
   if (mitigatedAt === undefined) {
     return {
-      timeframe: swing.timeframe,
-      kind: swing.kind,
-      price: swing.price,
-      formedAt: swing.formedAt,
-      confirmedAt: swing.confirmedAt,
+      ...swingIdentity(swing),
       displayUntil: getDailySessionCloseTime(input.asOf),
     };
   }
@@ -271,11 +294,7 @@ function withMitigation(
   }
 
   return {
-    timeframe: swing.timeframe,
-    kind: swing.kind,
-    price: swing.price,
-    formedAt: swing.formedAt,
-    confirmedAt: swing.confirmedAt,
+    ...swingIdentity(swing),
     mitigatedAt,
   };
 }
