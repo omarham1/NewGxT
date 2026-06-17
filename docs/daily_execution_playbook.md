@@ -13,7 +13,7 @@ Pull up the **Daily chart** and classify the previous session:
 | Day Type | What It Looks Like | Bias It Produces |
 |---|---|---|
 | **Expansion / Reversal** | Large-range candle, strong directional close, one side's liquidity clearly swept | **Directional** — trade in the direction of the expansion/reversal |
-| **Consolidation / Failure Swing** | Tight range, wicks on both sides, body closes near middle of range | **Neutral** — wait for PDH/PDL sweep + Strength Switch before taking a side |
+| **Consolidation** | Tight range, wicks on both sides, body closes near middle of range | **Neutral** — wait for PDH/PDL sweep + Strength Switch before taking a side |
 
 > [!IMPORTANT]
 > This classification is the foundation of everything else. Get this wrong and every downstream decision is compromised.
@@ -41,7 +41,7 @@ Check for a 4H FVG within the 50% equilibrium range of the Previous Day
                        to create and manipulate a new Relevant Level
 ```
 
-**If Neutral Bias (Consolidation/Failure Swing Day):**
+**If Neutral Bias (Consolidation Day):**
 - No pre-set POI. You are waiting for price to sweep PDH or PDL first.
 - The sweep + 2-Stage SMT/SS will create your POI in real time.
 

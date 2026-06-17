@@ -3,6 +3,7 @@ import type { HtfTimeframe } from "./htf-fvg.js";
 import {
   getDailySessionCloseTime,
   getDailySessionKey,
+  isWithinHtfSwingComparisonLookback,
   isWithinHtfSwingLookback,
 } from "./session-calendar.js";
 import { findLevelCrossTime } from "./level-mitigation.js";
@@ -18,7 +19,10 @@ export type HtfSwingPoint = {
   /** Unmitigated swings project through the current CME daily session close (17:00 ET). */
   displayUntil?: number;
   mitigatedAt?: number;
+  isFailureSwing?: boolean;
 };
+
+export const DEFAULT_FAILURE_SWING_ADR_FRACTION = 0.125;
 
 export type ComputeHtfSwingPointsInput = {
   bars4h: Bar[];
@@ -28,6 +32,8 @@ export type ComputeHtfSwingPointsInput = {
   pwl: number;
   currentWeekHigh: number;
   currentWeekLow: number;
+  adr: number;
+  failureSwingAdrFraction?: number;
   asOf: number;
 };
 
@@ -114,6 +120,10 @@ function isVisibleSwing(
   swing: HtfSwingPoint,
   input: ComputeHtfSwingPointsInput,
 ): boolean {
+  if (swing.isFailureSwing) {
+    return false;
+  }
+
   if (swing.confirmedAt > input.asOf) {
     return false;
   }
@@ -139,6 +149,128 @@ function findMitigationTime(
   );
 }
 
+function failureSwingProximityThreshold(
+  input: ComputeHtfSwingPointsInput,
+): number {
+  return (
+    input.adr *
+    (input.failureSwingAdrFraction ?? DEFAULT_FAILURE_SWING_ADR_FRACTION)
+  );
+}
+
+function swingIdentity(
+  swing: HtfSwingPoint,
+): Pick<
+  HtfSwingPoint,
+  "timeframe" | "kind" | "price" | "formedAt" | "confirmedAt"
+> {
+  return {
+    timeframe: swing.timeframe,
+    kind: swing.kind,
+    price: swing.price,
+    formedAt: swing.formedAt,
+    confirmedAt: swing.confirmedAt,
+  };
+}
+
+function isMoreExtreme(
+  candidate: HtfSwingPoint,
+  other: HtfSwingPoint,
+): boolean {
+  if (candidate.kind === "high") {
+    return candidate.price > other.price;
+  }
+  return candidate.price < other.price;
+}
+
+function isInFailureSwingComparisonPool(
+  swing: HtfSwingPoint,
+  atTime: number,
+  input: ComputeHtfSwingPointsInput,
+): boolean {
+  if (swing.confirmedAt > atTime) {
+    return false;
+  }
+
+  if (!isWithinHtfSwingComparisonLookback(swing.formedAt, atTime)) {
+    return false;
+  }
+
+  return isInsideWeeklySwingRange(swing.price, input);
+}
+
+function isFailureSwingPeer(
+  peer: HtfSwingPoint,
+  swing: HtfSwingPoint,
+  input: ComputeHtfSwingPointsInput,
+  threshold: number,
+): boolean {
+  if (peer.kind !== swing.kind || peer.confirmedAt > swing.confirmedAt) {
+    return false;
+  }
+
+  if (!isInFailureSwingComparisonPool(peer, swing.confirmedAt, input)) {
+    return false;
+  }
+
+  if (
+    findMitigationTime(peer, input.mitigationBars, swing.confirmedAt) !==
+    undefined
+  ) {
+    return false;
+  }
+
+  return Math.abs(peer.price - swing.price) <= threshold;
+}
+
+function stampFailureSwingAgainstPeers(
+  swing: HtfSwingPoint,
+  peers: HtfSwingPoint[],
+): void {
+  for (const peer of peers) {
+    if (peer === swing) {
+      continue;
+    }
+
+    if (!peer.isFailureSwing && isMoreExtreme(peer, swing)) {
+      swing.isFailureSwing = true;
+      return;
+    }
+
+    if (isMoreExtreme(swing, peer)) {
+      peer.isFailureSwing = true;
+    }
+  }
+}
+
+export function stampFailureSwings(
+  swings: HtfSwingPoint[],
+  input: ComputeHtfSwingPointsInput,
+): HtfSwingPoint[] {
+  const threshold = failureSwingProximityThreshold(input);
+  const stamped = swings.map((swing) => ({
+    ...swing,
+    isFailureSwing: swing.isFailureSwing ?? false,
+  }));
+
+  const byConfirmation = [...stamped].sort(
+    (left, right) => left.confirmedAt - right.confirmedAt,
+  );
+
+  for (const swing of byConfirmation) {
+    if (swing.confirmedAt > input.asOf || swing.isFailureSwing) {
+      continue;
+    }
+
+    const peers = stamped.filter((peer) =>
+      isFailureSwingPeer(peer, swing, input, threshold),
+    );
+    stampFailureSwingAgainstPeers(swing, peers);
+  }
+
+  return stamped;
+}
+
 function withMitigation(
   swing: HtfSwingPoint,
   input: ComputeHtfSwingPointsInput,
@@ -151,7 +283,7 @@ function withMitigation(
 
   if (mitigatedAt === undefined) {
     return {
-      ...swing,
+      ...swingIdentity(swing),
       displayUntil: getDailySessionCloseTime(input.asOf),
     };
   }
@@ -161,16 +293,22 @@ function withMitigation(
     return null;
   }
 
-  return { ...swing, mitigatedAt };
+  return {
+    ...swingIdentity(swing),
+    mitigatedAt,
+  };
 }
 
 export function computeHtfSwingPoints(
   input: ComputeHtfSwingPointsInput,
 ): HtfSwingPoint[] {
-  const swings = [
-    ...detectSwingsOnTimeframe(input.bars4h, "4H"),
-    ...detectSwingsOnTimeframe(input.bars1h, "1H"),
-  ];
+  const swings = stampFailureSwings(
+    [
+      ...detectSwingsOnTimeframe(input.bars4h, "4H"),
+      ...detectSwingsOnTimeframe(input.bars1h, "1H"),
+    ],
+    input,
+  );
 
   return swings
     .filter((swing) => isVisibleSwing(swing, input))

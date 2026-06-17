@@ -15,6 +15,8 @@ const PWL = 4700;
 const CURRENT_WEEK_HIGH = 5100;
 const CURRENT_WEEK_LOW = 5000;
 
+const DEFAULT_ADR = 100;
+
 function swingInput(
   overrides: Partial<Parameters<typeof computeHtfSwingPoints>[0]> = {},
 ) {
@@ -26,6 +28,7 @@ function swingInput(
     pwl: PWL,
     currentWeekHigh: CURRENT_WEEK_HIGH,
     currentWeekLow: CURRENT_WEEK_LOW,
+    adr: DEFAULT_ADR,
     asOf: MON_JAN_6_EVAL,
     ...overrides,
   };
@@ -49,29 +52,96 @@ function bar(
 }
 
 /** Seven 1H bars with a strict fractal(3) swing high at the pivot (index 3). */
-function fractalSwingHighSequence(startTime: number): Bar[] {
+function fractalSwingHighSequence(
+  startTime: number,
+  peak = 5100,
+): Bar[] {
+  const plateau = peak - 5;
   return [
-    bar(startTime, 5010, 5020, 5005, 5015),
-    bar(startTime + HOUR_MS, 5015, 5030, 5010, 5025),
-    bar(startTime + 2 * HOUR_MS, 5025, 5040, 5020, 5035),
-    bar(startTime + 3 * HOUR_MS, 5035, 5100, 5030, 5090),
-    bar(startTime + 4 * HOUR_MS, 5090, 5050, 5045, 5048),
-    bar(startTime + 5 * HOUR_MS, 5048, 5045, 5035, 5040),
-    bar(startTime + 6 * HOUR_MS, 5040, 5035, 5025, 5030),
+    bar(startTime, 5084, 5088, 5083, 5085),
+    bar(startTime + HOUR_MS, 5085, 5089, 5083, 5087),
+    bar(startTime + 2 * HOUR_MS, 5087, 5089, 5085, 5088),
+    bar(startTime + 3 * HOUR_MS, 5088, peak, 5085, 5089),
+    bar(startTime + 4 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
+    bar(startTime + 5 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
+    bar(startTime + 6 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
   ];
 }
 
 /** Seven 1H bars with a strict fractal(3) swing low at the pivot (index 3). */
-function fractalSwingLowSequence(startTime: number): Bar[] {
+function fractalSwingLowSequenceAt(
+  startTime: number,
+  trough: number,
+): Bar[] {
+  const plateau = trough + 5;
   return [
-    bar(startTime, 5080, 5095, 5070, 5085),
-    bar(startTime + HOUR_MS, 5085, 5088, 5060, 5065),
-    bar(startTime + 2 * HOUR_MS, 5065, 5070, 5050, 5055),
-    bar(startTime + 3 * HOUR_MS, 5055, 5060, 5000, 5010),
-    bar(startTime + 4 * HOUR_MS, 5010, 5045, 5015, 5040),
-    bar(startTime + 5 * HOUR_MS, 5040, 5055, 5035, 5050),
-    bar(startTime + 6 * HOUR_MS, 5050, 5065, 5045, 5060),
+    bar(startTime, 5016, 5017, 5015, 5016),
+    bar(startTime + HOUR_MS, 5016, 5017, 5015, 5016),
+    bar(startTime + 2 * HOUR_MS, 5016, 5017, 5015, 5016),
+    bar(startTime + 3 * HOUR_MS, 5016, 5017, trough, 5016),
+    bar(startTime + 4 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
+    bar(startTime + 5 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
+    bar(startTime + 6 * HOUR_MS, plateau, plateau + 2, plateau - 2, plateau),
   ];
+}
+
+/** Flat bars so chained fractal sequences do not create boundary pivots. */
+function neutralHighPadding(startTime: number, count: number): Bar[] {
+  return Array.from({ length: count }, (_, index) =>
+    bar(
+      startTime + index * HOUR_MS,
+      5085,
+      5087,
+      5083,
+      5085,
+    ),
+  );
+}
+
+function neutralLowPadding(startTime: number, count: number): Bar[] {
+  return Array.from({ length: count }, (_, index) =>
+    bar(
+      startTime + index * HOUR_MS,
+      5015,
+      5017,
+      5015,
+      5015,
+    ),
+  );
+}
+
+function chainedSwingHighSequences(
+  firstStart: number,
+  firstPeak: number,
+  secondPeak: number,
+): Bar[] {
+  const first = fractalSwingHighSequence(firstStart, firstPeak);
+  const paddingStart = firstStart + first.length * HOUR_MS;
+  const secondStart = paddingStart + 7 * HOUR_MS;
+  return [
+    ...first,
+    ...neutralHighPadding(paddingStart, 7),
+    ...fractalSwingHighSequence(secondStart, secondPeak),
+  ];
+}
+
+function chainedSwingLowSequences(
+  firstStart: number,
+  firstTrough: number,
+  secondTrough: number,
+): Bar[] {
+  const first = fractalSwingLowSequenceAt(firstStart, firstTrough);
+  const paddingStart = firstStart + first.length * HOUR_MS;
+  const secondStart = paddingStart + 7 * HOUR_MS;
+  return [
+    ...first,
+    ...neutralLowPadding(paddingStart, 7),
+    ...fractalSwingLowSequenceAt(secondStart, secondTrough),
+  ];
+}
+
+function fractalSwingLowSequence(startTime: number): Bar[] {
+  return fractalSwingLowSequenceAt(startTime, 5000);
 }
 
 describe("HTF Swing Points", () => {
@@ -367,6 +437,88 @@ describe("HTF Swing Points", () => {
         price: 5100,
         formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
         confirmedAt,
+      }),
+    ]);
+  });
+
+  it("collapses nearby 1H swing highs within ADR proximity to the higher peak", () => {
+    const bars1h = chainedSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5100);
+    const secondStart = SUN_JAN_5_OPEN + 14 * HOUR_MS;
+    const higherConfirmedAt = secondStart + 6 * HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars1h, asOf: higherConfirmedAt }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(higherConfirmedAt, {
+        timeframe: "1H",
+        kind: "high",
+        price: 5100,
+        formedAt: secondStart + 3 * HOUR_MS,
+        confirmedAt: higherConfirmedAt,
+      }),
+    ]);
+  });
+
+  it("collapses nearby 1H swing lows to the lower trough", () => {
+    const bars1h = chainedSwingLowSequences(SUN_JAN_5_OPEN, 5010, 5000);
+    const secondStart = SUN_JAN_5_OPEN + 14 * HOUR_MS;
+    const lowerConfirmedAt = secondStart + 6 * HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars1h, asOf: lowerConfirmedAt }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(lowerConfirmedAt, {
+        timeframe: "1H",
+        kind: "low",
+        price: 5000,
+        formedAt: secondStart + 3 * HOUR_MS,
+        confirmedAt: lowerConfirmedAt,
+      }),
+    ]);
+  });
+
+  it("filters highs and lows independently when clustered at the same price area", () => {
+    const lowStart = SUN_JAN_5_OPEN + 28 * HOUR_MS;
+    const bars1h = [
+      ...chainedSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5100),
+      ...chainedSwingLowSequences(lowStart, 5010, 5000),
+    ];
+    const asOf = lowStart + 20 * HOUR_MS;
+
+    const swings = computeHtfSwingPoints(swingInput({ bars1h, asOf }));
+
+    expect(swings).toHaveLength(2);
+    expect(swings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "high", price: 5100 }),
+        expect.objectContaining({ kind: "low", price: 5000 }),
+      ]),
+    );
+  });
+
+  it("retroactively stamps the inner swing when a more extreme peer confirms later", () => {
+    const bars1h = chainedSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5100);
+    const innerConfirmedAt = SUN_JAN_5_OPEN + 6 * HOUR_MS;
+
+    expect(
+      computeHtfSwingPoints(swingInput({ bars1h, asOf: innerConfirmedAt })),
+    ).toHaveLength(1);
+
+    const secondStart = SUN_JAN_5_OPEN + 14 * HOUR_MS;
+    const outerConfirmedAt = secondStart + 6 * HOUR_MS;
+    expect(
+      computeHtfSwingPoints(swingInput({ bars1h, asOf: outerConfirmedAt })),
+    ).toEqual([
+      unmitigatedSwing(outerConfirmedAt, {
+        timeframe: "1H",
+        kind: "high",
+        price: 5100,
+        formedAt: secondStart + 3 * HOUR_MS,
+        confirmedAt: outerConfirmedAt,
       }),
     ]);
   });

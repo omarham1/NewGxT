@@ -1,10 +1,13 @@
 import {
   combinedWeeklySwingRange,
+  DEFAULT_FAILURE_SWING_ADR_FRACTION,
 } from "../../src/htf-swing.js";
 import {
   getDailySessionKey,
+  isWithinHtfSwingComparisonLookback,
   isWithinHtfSwingLookback,
 } from "../../src/session-calendar.js";
+import { findLevelCrossTime } from "../../src/level-mitigation.js";
 import type { Bar } from "../../src/types.js";
 
 type Swing = {
@@ -14,6 +17,7 @@ type Swing = {
   kind: "high" | "low";
   mitigated: boolean;
   mitigatedAt?: number;
+  isFailureSwing: boolean;
 };
 
 function isStrictFractalHigh(bars: Bar[], pivotIndex: number): boolean {
@@ -68,6 +72,91 @@ function swingExists(swings: Swing[], formedAt: number, kind: Swing["kind"]): bo
   return swings.some((s) => s.formedAt === formedAt && s.kind === kind);
 }
 
+function isMitigatedAsOf(
+  swing: Swing,
+  atTime: number,
+  mitigationBars: Bar[],
+): boolean {
+  return (
+    findLevelCrossTime(
+      swing.kind,
+      swing.price,
+      swing.confirmedAt,
+      mitigationBars,
+      atTime,
+    ) !== undefined
+  );
+}
+
+function isMoreExtreme(candidate: Swing, other: Swing): boolean {
+  if (candidate.kind === "high") {
+    return candidate.price > other.price;
+  }
+  return candidate.price < other.price;
+}
+
+function isFailureSwingPeer(
+  peer: Swing,
+  swing: Swing,
+  weekly: { rangeLow: number; rangeHigh: number },
+  threshold: number,
+  mitigationBars: Bar[],
+): boolean {
+  if (peer.kind !== swing.kind || peer.confirmedAt > swing.confirmedAt) {
+    return false;
+  }
+
+  if (
+    !isWithinHtfSwingComparisonLookback(peer.formedAt, swing.confirmedAt) ||
+    peer.price < weekly.rangeLow ||
+    peer.price > weekly.rangeHigh
+  ) {
+    return false;
+  }
+
+  if (isMitigatedAsOf(peer, swing.confirmedAt, mitigationBars)) {
+    return false;
+  }
+
+  return Math.abs(peer.price - swing.price) <= threshold;
+}
+
+function stampFailureSwingAgainstPeers(swing: Swing, peers: Swing[]): void {
+  for (const peer of peers) {
+    if (peer === swing) {
+      continue;
+    }
+
+    if (!peer.isFailureSwing && isMoreExtreme(peer, swing)) {
+      swing.isFailureSwing = true;
+      return;
+    }
+
+    if (isMoreExtreme(swing, peer)) {
+      peer.isFailureSwing = true;
+    }
+  }
+}
+
+function stampFailureSwingsForConfirmation(
+  swings: Swing[],
+  swing: Swing,
+  weekly: { rangeLow: number; rangeHigh: number },
+  adr: number,
+  failureSwingAdrFraction: number,
+  mitigationBars: Bar[],
+): void {
+  if (swing.isFailureSwing) {
+    return;
+  }
+
+  const threshold = adr * failureSwingAdrFraction;
+  const peers = swings.filter((peer) =>
+    isFailureSwingPeer(peer, swing, weekly, threshold, mitigationBars),
+  );
+  stampFailureSwingAgainstPeers(swing, peers);
+}
+
 function tryAddSwing(
   swings: Swing[],
   kind: Swing["kind"],
@@ -76,6 +165,9 @@ function tryAddSwing(
   confirmedAt: number,
   asOf: number,
   weekly: { rangeLow: number; rangeHigh: number },
+  adr: number,
+  failureSwingAdrFraction: number,
+  mitigationBars: Bar[],
 ): void {
   if (
     !isSwingVisible(price, formedAt, asOf, weekly) ||
@@ -84,13 +176,23 @@ function tryAddSwing(
     return;
   }
 
-  swings.push({
+  const swing: Swing = {
     price,
     formedAt,
     confirmedAt,
     kind,
     mitigated: false,
-  });
+    isFailureSwing: false,
+  };
+  swings.push(swing);
+  stampFailureSwingsForConfirmation(
+    swings,
+    swing,
+    weekly,
+    adr,
+    failureSwingAdrFraction,
+    mitigationBars,
+  );
 }
 
 function sweepSwings(
@@ -146,6 +248,15 @@ function pruneInvisible(
   }
 }
 
+function visibleSwingCount(swings: Swing[]): number {
+  return swings.filter((swing) => !swing.isFailureSwing).length;
+}
+
+function unmitigatedVisibleSwingCount(swings: Swing[]): number {
+  return swings.filter((swing) => !swing.mitigated && !swing.isFailureSwing)
+    .length;
+}
+
 export type PineSwingLifecycleInput = {
   htfBars: Bar[];
   mitigationBars?: Bar[];
@@ -153,8 +264,18 @@ export type PineSwingLifecycleInput = {
   pwl: number;
   currentWeekHigh: number;
   currentWeekLow: number;
+  adr?: number;
+  failureSwingAdrFraction?: number;
   isBarConfirmed?: (barIndex: number) => boolean;
 };
+
+function lifecycleConfig(input: PineSwingLifecycleInput) {
+  return {
+    adr: input.adr ?? 100,
+    failureSwingAdrFraction:
+      input.failureSwingAdrFraction ?? DEFAULT_FAILURE_SWING_ADR_FRACTION,
+  };
+}
 
 /**
  * Mirrors Pine on a higher-timeframe chart when mitigation only samples one 1m
@@ -174,6 +295,7 @@ export function simulatePineSwingLifecycleSampledMitigation(
     currentWeekLow,
     isBarConfirmed = () => true,
   } = input;
+  const { adr, failureSwingAdrFraction } = lifecycleConfig(input);
 
   const weekly = combinedWeeklySwingRange({
     pwh,
@@ -211,6 +333,9 @@ export function simulatePineSwingLifecycleSampledMitigation(
           bar.time,
           bar.time,
           weekly,
+          adr,
+          failureSwingAdrFraction,
+          mitigationBars,
         );
       }
 
@@ -223,6 +348,9 @@ export function simulatePineSwingLifecycleSampledMitigation(
           bar.time,
           bar.time,
           weekly,
+          adr,
+          failureSwingAdrFraction,
+          mitigationBars,
         );
       }
     }
@@ -248,7 +376,7 @@ export function simulatePineSwingLifecycleSampledMitigation(
   pruneStaleMitigated(active, asOf);
   pruneInvisible(active, asOf, weekly);
 
-  return active.filter((swing) => !swing.mitigated).length;
+  return unmitigatedVisibleSwingCount(active);
 }
 
 /** Mirrors Pine indicator bar-by-bar HTF swing state machine. */
@@ -265,6 +393,7 @@ export function simulatePineSwingLifecycle(
     currentWeekLow,
     isBarConfirmed = () => true,
   } = input;
+  const { adr, failureSwingAdrFraction } = lifecycleConfig(input);
 
   const weekly = combinedWeeklySwingRange({
     pwh,
@@ -315,6 +444,9 @@ export function simulatePineSwingLifecycle(
             bar.time,
             bar.time,
             weekly,
+            adr,
+            failureSwingAdrFraction,
+            mitigationBars,
           );
         }
 
@@ -327,6 +459,9 @@ export function simulatePineSwingLifecycle(
             bar.time,
             bar.time,
             weekly,
+            adr,
+            failureSwingAdrFraction,
+            mitigationBars,
           );
         }
       }
@@ -360,7 +495,7 @@ export function simulatePineSwingLifecycle(
   pruneStaleMitigated(active, asOf);
   pruneInvisible(active, asOf, weekly);
 
-  return active.length;
+  return visibleSwingCount(active);
 }
 
 export function pineUnmitigatedSwingCount(
@@ -376,6 +511,7 @@ export function pineUnmitigatedSwingCount(
     currentWeekLow,
     isBarConfirmed = () => true,
   } = input;
+  const { adr, failureSwingAdrFraction } = lifecycleConfig(input);
 
   const weekly = combinedWeeklySwingRange({
     pwh,
@@ -426,6 +562,9 @@ export function pineUnmitigatedSwingCount(
             bar.time,
             bar.time,
             weekly,
+            adr,
+            failureSwingAdrFraction,
+            mitigationBars,
           );
         }
 
@@ -438,6 +577,9 @@ export function pineUnmitigatedSwingCount(
             bar.time,
             bar.time,
             weekly,
+            adr,
+            failureSwingAdrFraction,
+            mitigationBars,
           );
         }
       }
@@ -471,5 +613,5 @@ export function pineUnmitigatedSwingCount(
   pruneStaleMitigated(active, asOf);
   pruneInvisible(active, asOf, weekly);
 
-  return active.filter((swing) => !swing.mitigated).length;
+  return unmitigatedVisibleSwingCount(active);
 }
