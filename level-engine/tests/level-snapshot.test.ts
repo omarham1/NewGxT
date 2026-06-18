@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { computeLevelSnapshot } from "../src/level-snapshot.js";
 import { getDailySessionCloseTime } from "../src/session-calendar.js";
 import { loadFixture } from "./helpers/load-fixture.js";
-import { chainedSwingHighSequences } from "./helpers/swing-bars.js";
+import {
+  chainedSwingHighSequences,
+  fractalSwingLowSequenceAt,
+  HOUR_MS as SWING_HOUR_MS,
+} from "./helpers/swing-bars.js";
 import type { Bar } from "../src/types.js";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -442,5 +446,64 @@ describe("Level Snapshot", () => {
     expect(snapshot.biasFlippedAt).toBe(MON_JAN_6_EVAL);
     expect(snapshot.sessionPoi).toBeNull();
     expect(snapshot.activeDol?.tp1).toEqual({ kind: "pdh" });
+  });
+
+  it("selects Continuation POI at bias flip when intraday gaps qualify", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const swingOriginTime = MON_JAN_6_SESSION_OPEN - 6 * SWING_HOUR_MS;
+    const bars1h = [
+      ...fractalSwingLowSequenceAt(swingOriginTime, 5000),
+      bar(MON_JAN_6_SESSION_OPEN, 5030, 5045, 5025, 5040),
+      bar(MON_JAN_6_EVAL, 5040, 5065, 5035, 5055),
+    ];
+    const continuationGapFormedAt = MON_JAN_6_EVAL;
+    const bars4h = [
+      ...equilibriumBullishGap(SUN_JAN_5_OPEN, 5035, 5040),
+      ...equilibriumBullishGap(MON_JAN_6_SESSION_OPEN - HOUR_MS, 5045, 5050),
+    ];
+
+    const snapshot = computeLevelSnapshot({
+      bars: [
+        ...bars,
+        bar(MON_JAN_6_EVAL, 5040, 5065, 5035, 5055),
+      ],
+      bars4h,
+      bars1h,
+      mitigationBars: [],
+      dailyBias: "directional",
+      biasDirection: "bearish",
+    });
+
+    expect(snapshot.sessionPoi).toBeNull();
+    expect(snapshot.effectiveBiasDirection).toBe("bullish");
+    expect(snapshot.continuationPoi).toEqual({
+      kind: "htf-fvg",
+      timeframe: "4H",
+      formedAt: continuationGapFormedAt,
+    });
+  });
+
+  it("keeps continuationPoi null at flip when no intraday gap qualifies yet", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const swingOriginTime = MON_JAN_6_SESSION_OPEN - 6 * SWING_HOUR_MS;
+    const bars1h = [
+      ...fractalSwingLowSequenceAt(swingOriginTime, 5000),
+      bar(MON_JAN_6_SESSION_OPEN, 5030, 5045, 5025, 5040),
+      bar(MON_JAN_6_EVAL, 5040, 5065, 5035, 5055),
+    ];
+
+    const snapshot = computeLevelSnapshot({
+      bars: [
+        ...bars,
+        bar(MON_JAN_6_EVAL, 5040, 5065, 5035, 5055),
+      ],
+      bars4h: equilibriumBullishGap(SUN_JAN_5_OPEN, 5035, 5040),
+      bars1h,
+      mitigationBars: [],
+      dailyBias: "directional",
+      biasDirection: "bearish",
+    });
+
+    expect(snapshot.continuationPoi).toBeNull();
   });
 });

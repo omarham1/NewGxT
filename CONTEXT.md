@@ -14,8 +14,12 @@ A Relevant Level where price interaction is expected to produce a tradeable reac
 _Avoid_: Setup zone, watch area
 
 **Session POI**:
-The single Relevant Level selected as today's primary manipulation watch. On directional days: auto-selected at 18:00 ET per daily bias rules (4H FVG in PD Equilibrium Range, else 1H, else deferred until a live swing forms). Tie-break among candidates: highest timeframe first, then nearest to current price. On neutral days: no highlight until PDH or PDL is swept, then the swept level is promoted. Visually emphasized with distinct color, increased line weight or zone opacity, and a POI badge on the label. Mitigation relinquishes Session POI immediately — the level reverts to standard mitigated styling and is no longer eligible as Session POI, Active DOL, or setup logic for the remainder of the session. No automatic re-selection after mitigation; the session continues without a highlighted POI unless the trader promotes another level manually.
+The single Relevant Level selected as today's primary manipulation watch. On directional days: auto-selected at 18:00 ET per daily bias rules — 4H FVG in the biased half of the Previous Day range (above PD 50% Midpoint when bullish, below when bearish), else 1H in the same half, else deferred until a live swing forms in that half. Tie-break among candidates: highest timeframe first, then nearest to current price. On neutral days: no highlight until PDH or PDL is swept, then the swept level is promoted. Visually emphasized with distinct color, increased line weight or zone opacity, and a POI badge on the label. Mitigation relinquishes Session POI immediately — the level reverts to standard mitigated styling and is no longer eligible as Session POI, Active DOL, or setup logic for the remainder of the session. A 4H or 1H close through PD 50% Midpoint against the live directional bias also relinquishes Session POI: the reversal-wick thesis is dead and the watch hands off to Continuation POI (only one POI is active at a time). No automatic re-selection after mitigation; the session continues without a highlighted POI unless the trader promotes another level manually.
 _Avoid_: Active POI, trade level, today's target
+
+**Continuation POI**:
+The single unmitigated expansion-direction HTF FVG (4H or 1H) selected as the intraday continuation watch — a gap price is expected to retrace into and continue from, toward the Active DOL. Distinct from Session POI: it is a continuation watch, not a manipulation/reversal watch. Activates in the same moment as an intraday directional-bias flip — when a 4H or 1H candle closes through PD 50% Midpoint against the prior bias (wick contact through the midpoint does not count). That single event flips bias, relinquishes Session POI, and enters continuation regime; there is no separate activation gate. If no eligible gap exists at flip time, continuation regime is active with no highlighted POI until one qualifies; the engine re-evaluates each bar. Candidate pool: intraday-formed gaps in the new bias direction from the current expansion move (including gaps that formed before the flip bar, during the same leg) that sit entirely within the upper 50% of the Expansion Leg (shallow retracements only — a deep gap whose far boundary falls past the 50% retracement is disqualified); among eligible gaps, highest timeframe first, then nearest to current price. Unlike Session POI, its candidate pool is intraday-formed gaps, and it auto-re-selects the next eligible gap after the current one is mitigated or invalidated.
+_Avoid_: Continuation zone, retrace POI, gap-fill level
 
 **HTF Swing Point**:
 A 4H or 1H swing high or low confirmed by a strict fractal — the extreme must exceed the 3 bars before and after it. Only swings whose price lies within the combined previous-week (PWH/PWL) and current-week range and whose formation falls in the current or immediately previous CME week are drawn. Failure swings are excluded — only the outermost extreme of each kind within proximity tolerance prints, compared across 4H and 1H. Intraday: newly formed swings that qualify may become Session POI. Unmitigated swings project as labeled solid lines from the fractal origin through the current CME daily session close (17:00 ET). Mitigated when price crosses the swing extreme on a bar after fractal confirmation — at or above a swing high, at or below a swing low. A body close through the level is not required; wick contact counts. While mitigated within the current CME session, the swing stays on the Structural Canvas in muted styling, truncated at the crossing bar where price first crosses the extreme rather than projected to session end; it is cleared at the next 18:00 ET session roll.
@@ -25,8 +29,12 @@ _Avoid_: Pivot, fractal, relative swing point
 A confirmed HTF swing high or low permanently suppressed from the Structural Canvas and excluded from all downstream logic (Session POI, Active DOL, setup triggers) because a more extreme swing of the same kind on any HTF timeframe (4H or 1H) already exists within a proximity threshold — for highs, a lower peak too close to a higher one; for lows, a higher trough too close to a lower one. Proximity is measured as a fraction of the 14-day ADR (default 12.5%, configurable in indicator settings). The outermost extreme is the Relevant Level; the inner swing is the failure swing. Comparison is across 4H and 1H but never mixes highs with lows. At confirmation, the comparison pool scans four CME weeks of unmitigated HTF swings of the same kind whose price lies within the combined PWH/PWL and current-week range — wider than the two-week display lookback — so aged-out outer extremes can still stamp nearby new swings as failure swings. Classification is stamped at confirmation or retroactively when a more extreme unmitigated peer later confirms within proximity — earlier inner swings in the cluster are then stamped and suppressed. Once a failure swing, always a failure swing; the stamp never reverses.
 _Avoid_: Subordinate swing, redundant swing, nested swing, relative swing point
 
+**PD 50% Midpoint**:
+The exact midpoint of the Previous Day's wick-to-wick range — PDL plus half the PD range. On directional days, Session POI candidates must sit in the biased half (above when bullish, below when bearish). Directional bias holds while 4H and 1H candles respect this level: wicks may trade through it, but no 4H or 1H close through it against the live bias. A 4H or 1H close through against the live bias flips directional bias and hands off from Session POI to Continuation POI in the same moment.
+_Avoid_: Equilibrium level, fair value, PD midpoint line
+
 **PD Equilibrium Range**:
-The middle 50% of the Previous Day's wick-to-wick range — from 25% to 75% between PDL and PDH. Used to filter Session POI candidates on directional days. Drawn as a faint band in Session Context; toggleable in indicator settings.
+The middle 50% of the Previous Day's wick-to-wick range — from 25% to 75% between PDL and PDH. Drawn as a faint band in Session Context; toggleable in indicator settings. Distinct from PD 50% Midpoint, which gates Session POI candidacy and directional-bias invalidation.
 _Avoid_: Equilibrium zone, 50% level, fair value
 
 **Previous Day High / Low (PDH/PDL)**:
@@ -101,7 +109,7 @@ A candle confirming the reversal when Candle 2 (C2) fails to form a C2 closure (
 _Avoid_: Confirmation bar, continuation candle
 
 **Daily Bias**:
-The session's directional stance: Directional (expansion/reversal) or Neutral (consolidation). Set manually by the trader at 18:00 ET; gates Session POI auto-selection logic.
+The session's directional stance: Directional (expansion/reversal, bullish or bearish) or Neutral (consolidation). Set manually by the trader at 18:00 ET; gates Session POI auto-selection logic. On directional days, bias direction holds until a 4H or 1H candle closes through PD 50% Midpoint against it — then bias flips to the opposing direction in the same moment Continuation POI activates. Wicks through the midpoint do not flip bias.
 _Avoid_: Day type, market bias, sentiment
 
 **Draw on Liquidity (DOL)**:
@@ -127,6 +135,10 @@ _Avoid_: Daily open, session open
 **Average Daily Range (ADR)**:
 The average range (high minus low) of the last 14 completed CME daily sessions. Rendered as faint dashed lines at Daily Open ± ADR with a consumption label showing how much of today's range has been used.
 _Avoid_: Daily range, ATR
+
+**Expansion Leg**:
+The directional price move whose 50% retracement gates Continuation POI eligibility and invalidation. Origin: the most recent opposing 1H swing point preceding the bias-flip close through PD 50% Midpoint (a 1H swing low for a bullish leg, a 1H swing high for a bearish leg). Terminus: the current extreme in the bias direction since that origin (highest high for bullish, lowest low for bearish), updating live. Anchoring the origin on the 1H swing keeps the leg tight so only shallow retracements qualify. Distinct from the post-entry, sweep-anchored leg used by the playbook's 50% Equilibrium Rule for trade management.
+_Avoid_: Impulse leg, displacement leg, expansion swing
 
 ## Indicator
 

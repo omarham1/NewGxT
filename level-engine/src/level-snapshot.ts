@@ -16,8 +16,13 @@ import {
   type BiasDirection,
 } from "./active-dol.js";
 import { detectBiasFlip } from "./bias-flip.js";
+import {
+  selectContinuationPoi,
+  type ContinuationPoi,
+} from "./continuation-poi.js";
 
 export type { DailyBias, SessionPoi } from "./session-poi.js";
+export type { ContinuationPoi } from "./continuation-poi.js";
 export type { ActiveDol, ActiveDolTarget, BiasDirection } from "./active-dol.js";
 
 export type LevelSnapshot = SessionContext & {
@@ -27,6 +32,7 @@ export type LevelSnapshot = SessionContext & {
   activeDol: ActiveDol | null;
   effectiveBiasDirection: BiasDirection | null;
   biasFlippedAt?: number;
+  continuationPoi: ContinuationPoi | null;
 };
 
 export type ComputeLevelSnapshotInput = {
@@ -109,6 +115,22 @@ export function computeLevelSnapshot(
           htfSwingPoints,
         });
 
+  const continuationPoi =
+    inContinuationRegime &&
+    effectiveBiasDirection !== null &&
+    biasFlip?.flippedAt !== undefined
+      ? selectContinuationPoi({
+          asOf,
+          sessionOpenTime,
+          currentPrice,
+          biasDirection: effectiveBiasDirection,
+          flippedAt: biasFlip.flippedAt,
+          htfFvgs,
+          bars1h: input.bars1h,
+          mitigationBars: input.mitigationBars,
+        })
+      : null;
+
   const activeDol =
     input.dailyBias === undefined || effectiveBiasDirection === null
       ? null
@@ -140,6 +162,7 @@ export function computeLevelSnapshot(
     activeDol,
     effectiveBiasDirection,
     biasFlippedAt: biasFlip?.flippedAt,
+    continuationPoi,
   };
 }
 
