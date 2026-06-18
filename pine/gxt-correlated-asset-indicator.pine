@@ -338,6 +338,12 @@ type SessionPoiTarget
 f_fvg_overlaps_equilibrium(float zoneLow, float zoneHigh, float eqLow, float eqHigh) =>
     zoneLow <= eqHigh and zoneHigh >= eqLow
 
+f_fvg_overlaps_biased_half(float zoneLow, float zoneHigh, float pdMidpoint, bool bullish) =>
+    bullish ? zoneHigh >= pdMidpoint : zoneLow <= pdMidpoint
+
+f_swing_in_biased_half(float price, float pdMidpoint, bool bullish) =>
+    bullish ? price >= pdMidpoint : price <= pdMidpoint
+
 f_timeframe_rank(string txt) =>
     str.contains(txt, "4H") ? 2 : 1
 
@@ -396,8 +402,8 @@ f_is_session_poi(SessionPoiTarget poi, string kind, int formedTime, string txt) 
 
 f_select_directional_fvg_poi(
      array<HtfFvgZone> zones,
-     float eqLow,
-     float eqHigh,
+     float pdMidpoint,
+     bool bullish,
      int sessionOpenTime,
      float currentPrice
  ) =>
@@ -408,7 +414,7 @@ f_select_directional_fvg_poi(
     if count > 0
         for i = 0 to count - 1
             HtfFvgZone zone = array.get(zones, i)
-            bool eligible = not zone.mitigated and zone.formedTime <= sessionOpenTime and f_fvg_overlaps_equilibrium(zone.zoneLow, zone.zoneHigh, eqLow, eqHigh)
+            bool eligible = not zone.mitigated and zone.formedTime <= sessionOpenTime and f_fvg_overlaps_biased_half(zone.zoneLow, zone.zoneHigh, pdMidpoint, bullish)
             if eligible
                 float mid = (zone.zoneLow + zone.zoneHigh) / 2.0
                 float dist = math.abs(currentPrice - mid)
@@ -428,7 +434,9 @@ f_select_defer_swing_poi(
      float pwh,
      float pwl,
      float curWeekHigh,
-     float curWeekLow
+     float curWeekLow,
+     float pdMidpoint,
+     bool bullish
  ) =>
     SessionPoiTarget best = na
     float bestRank = na
@@ -437,7 +445,7 @@ f_select_defer_swing_poi(
     if count > 0
         for i = 0 to count - 1
             HtfSwingLevel swing = array.get(swings, i)
-            bool eligible = not swing.mitigated and not swing.isFailureSwing and swing.confirmedTime >= sessionOpenTime and swing.confirmedTime <= asOfTime and f_swing_visible(swing.price, swing.formedTime, pwh, pwl, curWeekHigh, curWeekLow)
+            bool eligible = not swing.mitigated and not swing.isFailureSwing and swing.confirmedTime >= sessionOpenTime and swing.confirmedTime <= asOfTime and f_swing_visible(swing.price, swing.formedTime, pwh, pwl, curWeekHigh, curWeekLow) and f_swing_in_biased_half(swing.price, pdMidpoint, bullish)
             if eligible
                 float dist = math.abs(currentPrice - swing.price)
                 float rank = f_timeframe_rank(swing.txt)
@@ -1269,12 +1277,12 @@ poiFvgs4h := f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h,
 poiFvgs1h := f_advance_fvg_lifecycle(poiFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, mitigateClose1h, mitigateTime1h, barstate.isconfirmed)
 allPoiFvgs = f_concat_fvg_arrays(poiFvgs4h, poiFvgs1h)
 
-if dailyBias == "Directional" and not directionalFvgPoiAttempted and time >= sessionOpenTime and not na(pdEqLow) and not na(pdEqHigh)
-    sessionPoi := f_select_directional_fvg_poi(allPoiFvgs, pdEqLow, pdEqHigh, sessionOpenTime, close)
+if dailyBias == "Directional" and not directionalFvgPoiAttempted and time >= sessionOpenTime and not na(pdEq50)
+    sessionPoi := f_select_directional_fvg_poi(allPoiFvgs, pdEq50, biasDirection == "Bullish", sessionOpenTime, close)
     directionalFvgPoiAttempted := true
 
 if dailyBias == "Directional" and directionalFvgPoiAttempted and na(sessionPoi)
-    sessionPoi := f_select_defer_swing_poi(activeSwings, sessionOpenTime, close, time, pwh, pwl, currentWeekHigh, currentWeekLow)
+    sessionPoi := f_select_defer_swing_poi(activeSwings, sessionOpenTime, close, time, pwh, pwl, currentWeekHigh, currentWeekLow, pdEq50, biasDirection == "Bullish")
 
 if not na(sessionPoi) and f_poi_target_mitigated(sessionPoi, allPoiFvgs, activeSwings)
     sessionPoi := na

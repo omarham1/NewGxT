@@ -74,15 +74,16 @@ export function computeLevelSnapshot(
   const currentPrice = latestBarClose(input.bars);
   const sessionOpenTime = getDailySessionOpenTime(asOf);
   const sessionPoi =
-    input.dailyBias === undefined
+    input.dailyBias === undefined ||
+    (input.dailyBias === "directional" && input.biasDirection === undefined)
       ? null
       : selectSessionPoi({
           dailyBias: input.dailyBias,
           asOf,
           sessionOpenTime,
           currentPrice,
-          pdEquilibriumLow: context.pdEquilibriumLow,
-          pdEquilibriumHigh: context.pdEquilibriumHigh,
+          pdMidpoint: context.pdMidpoint,
+          biasDirection: input.biasDirection!,
           pdhMitigatedAt: railMitigation.pdhMitigatedAt,
           pdlMitigatedAt: railMitigation.pdlMitigatedAt,
           htfFvgs,

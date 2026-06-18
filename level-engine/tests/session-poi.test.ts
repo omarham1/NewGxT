@@ -11,10 +11,9 @@ const HOUR_MS = 60 * 60 * 1000;
 const SUN_JAN_5_OPEN = 1736118000000;
 const MON_JAN_6_SESSION_OPEN = 1736204400000;
 
-const PD_EQUILIBRIUM_LOW = 5025;
-const PD_EQUILIBRIUM_HIGH = 5075;
+const PD_MIDPOINT = 5050;
 
-function equilibrium4hFvg(
+function bullish4hFvg(
   formedAt: number,
   zoneLow: number,
   zoneHigh: number,
@@ -29,16 +28,16 @@ function equilibrium4hFvg(
 }
 
 describe("Directional Session POI", () => {
-  it("selects a 4H FVG in the PD Equilibrium Range at the 18:00 session open", () => {
+  it("selects a bullish 4H FVG above PD 50% Midpoint at the 18:00 session open", () => {
     const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
 
     const sessionPoi = selectDirectionalSessionPoi({
       asOf: MON_JAN_6_SESSION_OPEN,
       sessionOpenTime: MON_JAN_6_SESSION_OPEN,
-      currentPrice: 5055,
-      pdEquilibriumLow: PD_EQUILIBRIUM_LOW,
-      pdEquilibriumHigh: PD_EQUILIBRIUM_HIGH,
-      htfFvgs: [equilibrium4hFvg(formedAt, 5040, 5045)],
+      currentPrice: 5065,
+      biasDirection: "bullish",
+      pdMidpoint: PD_MIDPOINT,
+      htfFvgs: [bullish4hFvg(formedAt, 5055, 5060)],
       htfSwingPoints: [],
     });
 
@@ -49,21 +48,55 @@ describe("Directional Session POI", () => {
     });
   });
 
-  it("falls back to a 1H FVG in equilibrium when no 4H candidate exists", () => {
+  it("selects a bearish 4H FVG below PD 50% Midpoint at the 18:00 session open", () => {
     const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
 
     const sessionPoi = selectDirectionalSessionPoi({
       asOf: MON_JAN_6_SESSION_OPEN,
       sessionOpenTime: MON_JAN_6_SESSION_OPEN,
-      currentPrice: 5055,
-      pdEquilibriumLow: PD_EQUILIBRIUM_LOW,
-      pdEquilibriumHigh: PD_EQUILIBRIUM_HIGH,
+      currentPrice: 5040,
+      biasDirection: "bearish",
+      pdMidpoint: PD_MIDPOINT,
+      htfFvgs: [bullish4hFvg(formedAt, 5035, 5040)],
+      htfSwingPoints: [],
+    });
+
+    expect(sessionPoi).toEqual({
+      kind: "htf-fvg",
+      timeframe: "4H",
+      formedAt,
+    });
+  });
+
+  it("does not select a bullish FVG entirely below PD 50% Midpoint", () => {
+    const sessionPoi = selectDirectionalSessionPoi({
+      asOf: MON_JAN_6_SESSION_OPEN,
+      sessionOpenTime: MON_JAN_6_SESSION_OPEN,
+      currentPrice: 5043,
+      biasDirection: "bullish",
+      pdMidpoint: PD_MIDPOINT,
+      htfFvgs: [bullish4hFvg(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5040, 5045)],
+      htfSwingPoints: [],
+    });
+
+    expect(sessionPoi).toBeNull();
+  });
+
+  it("falls back to a 1H FVG in the biased half when no 4H candidate exists", () => {
+    const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
+
+    const sessionPoi = selectDirectionalSessionPoi({
+      asOf: MON_JAN_6_SESSION_OPEN,
+      sessionOpenTime: MON_JAN_6_SESSION_OPEN,
+      currentPrice: 5065,
+      biasDirection: "bullish",
+      pdMidpoint: PD_MIDPOINT,
       htfFvgs: [
         {
           timeframe: "1H",
           direction: "bullish",
-          zoneLow: 5040,
-          zoneHigh: 5045,
+          zoneLow: 5055,
+          zoneHigh: 5060,
           formedAt,
         },
       ],
@@ -77,15 +110,15 @@ describe("Directional Session POI", () => {
     });
   });
 
-  it("prefers a 4H equilibrium FVG over a nearer 1H FVG", () => {
+  it("prefers a 4H biased-half FVG over a nearer 1H FVG", () => {
     const sessionPoi = selectDirectionalSessionPoi({
       asOf: MON_JAN_6_SESSION_OPEN,
       sessionOpenTime: MON_JAN_6_SESSION_OPEN,
-      currentPrice: 5055,
-      pdEquilibriumLow: PD_EQUILIBRIUM_LOW,
-      pdEquilibriumHigh: PD_EQUILIBRIUM_HIGH,
+      currentPrice: 5065,
+      biasDirection: "bullish",
+      pdMidpoint: PD_MIDPOINT,
       htfFvgs: [
-        equilibrium4hFvg(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5068, 5072),
+        bullish4hFvg(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5068, 5072),
         {
           timeframe: "1H",
           direction: "bullish",
@@ -104,19 +137,19 @@ describe("Directional Session POI", () => {
     });
   });
 
-  it("breaks ties among same-timeframe equilibrium FVGs by nearest midpoint to current price", () => {
+  it("breaks ties among same-timeframe biased-half FVGs by nearest midpoint to current price", () => {
     const nearerFormedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
     const fartherFormedAt = SUN_JAN_5_OPEN + 3 * HOUR_MS;
 
     const sessionPoi = selectDirectionalSessionPoi({
       asOf: MON_JAN_6_SESSION_OPEN,
       sessionOpenTime: MON_JAN_6_SESSION_OPEN,
-      currentPrice: 5043,
-      pdEquilibriumLow: PD_EQUILIBRIUM_LOW,
-      pdEquilibriumHigh: PD_EQUILIBRIUM_HIGH,
+      currentPrice: 5055,
+      biasDirection: "bullish",
+      pdMidpoint: PD_MIDPOINT,
       htfFvgs: [
-        equilibrium4hFvg(fartherFormedAt, 5068, 5072),
-        equilibrium4hFvg(nearerFormedAt, 5040, 5046),
+        bullish4hFvg(fartherFormedAt, 5068, 5072),
+        bullish4hFvg(nearerFormedAt, 5052, 5058),
       ],
       htfSwingPoints: [],
     });
@@ -128,18 +161,18 @@ describe("Directional Session POI", () => {
     });
   });
 
-  it("defers Session POI until a live HTF swing forms when no equilibrium FVG qualifies", () => {
+  it("defers Session POI until a live HTF swing forms in the biased half when no FVG qualifies", () => {
     const swingFormedAt = MON_JAN_6_SESSION_OPEN + HOUR_MS;
     const swingConfirmedAt = MON_JAN_6_SESSION_OPEN + 4 * HOUR_MS;
 
     const atSessionOpen = selectDirectionalSessionPoi({
       asOf: MON_JAN_6_SESSION_OPEN,
       sessionOpenTime: MON_JAN_6_SESSION_OPEN,
-      currentPrice: 5055,
-      pdEquilibriumLow: PD_EQUILIBRIUM_LOW,
-      pdEquilibriumHigh: PD_EQUILIBRIUM_HIGH,
+      currentPrice: 5040,
+      biasDirection: "bearish",
+      pdMidpoint: PD_MIDPOINT,
       htfFvgs: [
-        equilibrium4hFvg(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5160, 5165),
+        bullish4hFvg(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5160, 5165),
       ],
       htfSwingPoints: [],
     });
@@ -147,11 +180,11 @@ describe("Directional Session POI", () => {
     const afterSwingConfirms = selectDirectionalSessionPoi({
       asOf: swingConfirmedAt,
       sessionOpenTime: MON_JAN_6_SESSION_OPEN,
-      currentPrice: 5050,
-      pdEquilibriumLow: PD_EQUILIBRIUM_LOW,
-      pdEquilibriumHigh: PD_EQUILIBRIUM_HIGH,
+      currentPrice: 5040,
+      biasDirection: "bearish",
+      pdMidpoint: PD_MIDPOINT,
       htfFvgs: [
-        equilibrium4hFvg(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5160, 5165),
+        bullish4hFvg(SUN_JAN_5_OPEN + 2 * HOUR_MS, 5160, 5165),
       ],
       htfSwingPoints: [
         {
@@ -173,13 +206,37 @@ describe("Directional Session POI", () => {
     });
   });
 
+  it("does not defer to a swing outside the biased half", () => {
+    const swingConfirmedAt = MON_JAN_6_SESSION_OPEN + 4 * HOUR_MS;
+
+    const sessionPoi = selectDirectionalSessionPoi({
+      asOf: swingConfirmedAt,
+      sessionOpenTime: MON_JAN_6_SESSION_OPEN,
+      currentPrice: 5065,
+      biasDirection: "bullish",
+      pdMidpoint: PD_MIDPOINT,
+      htfFvgs: [],
+      htfSwingPoints: [
+        {
+          timeframe: "4H",
+          kind: "low",
+          price: 5035,
+          formedAt: MON_JAN_6_SESSION_OPEN + HOUR_MS,
+          confirmedAt: swingConfirmedAt,
+        },
+      ],
+    });
+
+    expect(sessionPoi).toBeNull();
+  });
+
   it("does not promote a swing confirmed before the session open on the defer path", () => {
     const sessionPoi = selectDirectionalSessionPoi({
       asOf: MON_JAN_6_SESSION_OPEN,
       sessionOpenTime: MON_JAN_6_SESSION_OPEN,
-      currentPrice: 5055,
-      pdEquilibriumLow: PD_EQUILIBRIUM_LOW,
-      pdEquilibriumHigh: PD_EQUILIBRIUM_HIGH,
+      currentPrice: 5065,
+      biasDirection: "bullish",
+      pdMidpoint: PD_MIDPOINT,
       htfFvgs: [],
       htfSwingPoints: [
         {
@@ -258,8 +315,8 @@ describe("Session POI selection", () => {
       asOf: swingConfirmedAt,
       sessionOpenTime: MON_JAN_6_SESSION_OPEN,
       currentPrice: 5050,
-      pdEquilibriumLow: PD_EQUILIBRIUM_LOW,
-      pdEquilibriumHigh: PD_EQUILIBRIUM_HIGH,
+      biasDirection: "bullish",
+      pdMidpoint: PD_MIDPOINT,
       htfFvgs: [],
       htfSwingPoints: [
         {

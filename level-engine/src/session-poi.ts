@@ -1,5 +1,6 @@
 import type { HtfFvg, HtfTimeframe } from "./htf-fvg.js";
 import type { HtfSwingKind, HtfSwingPoint } from "./htf-swing.js";
+import type { BiasDirection } from "./active-dol.js";
 
 export type SessionPoi =
   | { kind: "htf-fvg"; timeframe: HtfTimeframe; formedAt: number }
@@ -14,22 +15,36 @@ export type SessionPoi =
 
 export type DailyBias = "directional" | "neutral";
 
+export type { BiasDirection } from "./active-dol.js";
+
 export type SelectDirectionalSessionPoiInput = {
   asOf: number;
   sessionOpenTime: number;
   currentPrice: number;
-  pdEquilibriumLow: number;
-  pdEquilibriumHigh: number;
+  biasDirection: BiasDirection;
+  pdMidpoint: number;
   htfFvgs: HtfFvg[];
   htfSwingPoints: HtfSwingPoint[];
 };
 
-function fvgOverlapsEquilibrium(
+function fvgOverlapsBiasedHalf(
   fvg: HtfFvg,
-  equilibriumLow: number,
-  equilibriumHigh: number,
+  pdMidpoint: number,
+  biasDirection: BiasDirection,
 ): boolean {
-  return fvg.zoneLow <= equilibriumHigh && fvg.zoneHigh >= equilibriumLow;
+  return biasDirection === "bullish"
+    ? fvg.zoneHigh >= pdMidpoint
+    : fvg.zoneLow <= pdMidpoint;
+}
+
+function swingInBiasedHalf(
+  swing: HtfSwingPoint,
+  pdMidpoint: number,
+  biasDirection: BiasDirection,
+): boolean {
+  return biasDirection === "bullish"
+    ? swing.price >= pdMidpoint
+    : swing.price <= pdMidpoint;
 }
 
 function timeframeRank(timeframe: HtfTimeframe): number {
@@ -85,18 +100,14 @@ export function selectDirectionalSessionPoi(
     return null;
   }
 
-  const equilibriumFvgs = input.htfFvgs.filter(
+  const biasedHalfFvgs = input.htfFvgs.filter(
     (fvg) =>
       fvg.formedAt <= input.sessionOpenTime &&
-      fvgOverlapsEquilibrium(
-        fvg,
-        input.pdEquilibriumLow,
-        input.pdEquilibriumHigh,
-      ),
+      fvgOverlapsBiasedHalf(fvg, input.pdMidpoint, input.biasDirection),
   );
 
-  if (equilibriumFvgs.length > 0) {
-    const selected = pickBestFvg(equilibriumFvgs, input.currentPrice);
+  if (biasedHalfFvgs.length > 0) {
+    const selected = pickBestFvg(biasedHalfFvgs, input.currentPrice);
     return {
       kind: "htf-fvg",
       timeframe: selected.timeframe,
@@ -108,7 +119,8 @@ export function selectDirectionalSessionPoi(
     (swing) =>
       swing.mitigatedAt === undefined &&
       swing.confirmedAt >= input.sessionOpenTime &&
-      swing.confirmedAt <= input.asOf,
+      swing.confirmedAt <= input.asOf &&
+      swingInBiasedHalf(swing, input.pdMidpoint, input.biasDirection),
   );
 
   if (deferSwings.length > 0) {
@@ -169,8 +181,8 @@ export type SelectSessionPoiInput = {
   asOf: number;
   sessionOpenTime: number;
   currentPrice: number;
-  pdEquilibriumLow: number;
-  pdEquilibriumHigh: number;
+  biasDirection: BiasDirection;
+  pdMidpoint: number;
   pdhMitigatedAt?: number;
   pdlMitigatedAt?: number;
   htfFvgs: HtfFvg[];
@@ -193,8 +205,8 @@ export function selectSessionPoi(
     asOf: input.asOf,
     sessionOpenTime: input.sessionOpenTime,
     currentPrice: input.currentPrice,
-    pdEquilibriumLow: input.pdEquilibriumLow,
-    pdEquilibriumHigh: input.pdEquilibriumHigh,
+    biasDirection: input.biasDirection,
+    pdMidpoint: input.pdMidpoint,
     htfFvgs: input.htfFvgs,
     htfSwingPoints: input.htfSwingPoints,
   });

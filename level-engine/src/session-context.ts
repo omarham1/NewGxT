@@ -35,5 +35,6 @@ export function computeSessionContext(bars: Bar[]): SessionContext {
     adrConsumptionPct: adr === 0 ? 0 : (currentRange / adr) * 100,
     pdEquilibriumLow: rails.pdl + pdRange * EQUILIBRIUM_LOW_FRACTION,
     pdEquilibriumHigh: rails.pdl + pdRange * EQUILIBRIUM_HIGH_FRACTION,
+    pdMidpoint: rails.pdl + pdRange * 0.5,
   };
 }

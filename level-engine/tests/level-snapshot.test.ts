@@ -208,10 +208,10 @@ describe("Level Snapshot", () => {
     expect(snapshot.pdlMitigatedAt).toBeUndefined();
   });
 
-  it("selects Session POI from a directional 4H equilibrium FVG at the current session open", () => {
+  it("selects Session POI from a directional 4H FVG above PD 50% Midpoint at the current session open", () => {
     const bars = loadFixture("mid-week-daily-boundary");
     const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
-    const bars4h = equilibriumBullishGap(SUN_JAN_5_OPEN, 5040, 5045);
+    const bars4h = equilibriumBullishGap(SUN_JAN_5_OPEN, 5055, 5060);
 
     const snapshot = computeLevelSnapshot({
       bars,
@@ -219,10 +219,33 @@ describe("Level Snapshot", () => {
       bars1h: [],
       mitigationBars: [],
       dailyBias: "directional",
+      biasDirection: "bullish",
     });
 
+    expect(snapshot.pdMidpoint).toBe(5050);
     expect(snapshot.pdEquilibriumLow).toBe(5025);
     expect(snapshot.pdEquilibriumHigh).toBe(5075);
+    expect(snapshot.sessionPoi).toEqual({
+      kind: "htf-fvg",
+      timeframe: "4H",
+      formedAt,
+    });
+  });
+
+  it("selects Session POI from a directional 4H FVG below PD 50% Midpoint when bearish", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
+    const bars4h = equilibriumBullishGap(SUN_JAN_5_OPEN, 5035, 5040);
+
+    const snapshot = computeLevelSnapshot({
+      bars,
+      bars4h,
+      bars1h: [],
+      mitigationBars: [],
+      dailyBias: "directional",
+      biasDirection: "bearish",
+    });
+
     expect(snapshot.sessionPoi).toEqual({
       kind: "htf-fvg",
       timeframe: "4H",

@@ -11,6 +11,13 @@ describe("Session Context", () => {
     expect(context.pdEquilibriumHigh).toBe(5075);
   });
 
+  it("computes PD 50% Midpoint at half the previous day's wick-to-wick range", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const context = computeSessionContext(bars);
+
+    expect(context.pdMidpoint).toBe(5050);
+  });
+
   it("computes ADR as the average of the last 14 completed CME daily session ranges", () => {
     const bars = loadFixture("adr-rolling-average");
     const context = computeSessionContext(bars);
