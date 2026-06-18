@@ -15,9 +15,11 @@ import {
 
 const MINUTE_MS = 60 * 1000;
 const SUN_DEC_22_OPEN = 1734908400000;
+const SUN_DEC_29_OPEN = 1735513200000;
 const SUN_JAN_5_OPEN = 1736118000000;
 const MON_JAN_6_SESSION_OPEN = 1736204400000;
 const MON_JAN_6_EVAL = 1736208000000;
+const SUN_JAN_12_OPEN = 1736722800000;
 
 const PWH = 5200;
 const PWL = 4700;
@@ -542,6 +544,76 @@ describe("HTF Swing Points", () => {
         price: 5100,
         formedAt: SUN_JAN_5_OPEN + 3 * FOUR_HOUR_MS,
         confirmedAt: outerConfirmedAt,
+      }),
+    ]);
+  });
+
+  it("stamps a nearby new swing as failure when the suppressor aged out of display but remains in the four-week comparison pool", () => {
+    const outerStart = SUN_DEC_29_OPEN;
+    const innerStart = SUN_JAN_12_OPEN;
+    const bars1h = [
+      ...fractalSwingHighSequence(outerStart, 5100),
+      ...fractalSwingHighSequence(innerStart, 5095),
+    ];
+    const innerConfirmedAt = innerStart + 6 * HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars1h, asOf: innerConfirmedAt }),
+    );
+
+    expect(swings).toEqual([]);
+  });
+
+  it("prints a nearby new swing when the historical suppressor was already mitigated", () => {
+    const outerStart = SUN_DEC_29_OPEN;
+    const innerStart = SUN_JAN_12_OPEN;
+    const bars1h = [
+      ...fractalSwingHighSequence(outerStart, 5100),
+      ...fractalSwingHighSequence(innerStart, 5095),
+    ];
+    const outerConfirmedAt = outerStart + 6 * HOUR_MS;
+    const innerConfirmedAt = innerStart + 6 * HOUR_MS;
+    const mitigatedAt = outerConfirmedAt + HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({
+        bars1h,
+        mitigationBars: [bar(mitigatedAt, 5095, 5101, 5090, 5098)],
+        asOf: innerConfirmedAt,
+      }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(innerConfirmedAt, {
+        timeframe: "1H",
+        kind: "high",
+        price: 5095,
+        formedAt: innerStart + 3 * HOUR_MS,
+        confirmedAt: innerConfirmedAt,
+      }),
+    ]);
+  });
+
+  it("prints a nearby new swing when the suppressor price is outside the combined weekly range", () => {
+    const outerStart = SUN_DEC_29_OPEN;
+    const innerStart = SUN_JAN_12_OPEN;
+    const bars1h = [
+      ...fractalSwingHighSequence(outerStart, 5250),
+      ...fractalSwingHighSequence(innerStart, 5095),
+    ];
+    const innerConfirmedAt = innerStart + 6 * HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars1h, asOf: innerConfirmedAt }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(innerConfirmedAt, {
+        timeframe: "1H",
+        kind: "high",
+        price: 5095,
+        formedAt: innerStart + 3 * HOUR_MS,
+        confirmedAt: innerConfirmedAt,
       }),
     ]);
   });

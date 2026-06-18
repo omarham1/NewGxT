@@ -249,26 +249,50 @@ function pruneStaleMitigated(swings: Swing[], asOf: number): void {
   }
 }
 
-function pruneInvisible(
-  swings: Swing[],
+function isSwingDisplayVisible(
+  price: number,
+  formedAt: number,
   asOf: number,
   weekly: { rangeLow: number; rangeHigh: number },
+): boolean {
+  return isSwingVisible(price, formedAt, asOf, weekly);
+}
+
+function pruneComparisonExpired(
+  swings: Swing[],
+  asOf: number,
 ): void {
   for (let i = swings.length - 1; i >= 0; i--) {
     const swing = swings[i]!;
-    if (!isSwingVisible(swing.price, swing.formedAt, asOf, weekly)) {
+    if (!isWithinHtfSwingComparisonLookback(swing.formedAt, asOf)) {
       swings.splice(i, 1);
     }
   }
 }
 
-function visibleSwingCount(swings: Swing[]): number {
-  return swings.filter((swing) => !swing.isFailureSwing).length;
+function visibleSwingCount(
+  swings: Swing[],
+  asOf: number,
+  weekly: { rangeLow: number; rangeHigh: number },
+): number {
+  return swings.filter(
+    (swing) =>
+      !swing.isFailureSwing &&
+      isSwingDisplayVisible(swing.price, swing.formedAt, asOf, weekly),
+  ).length;
 }
 
-function unmitigatedVisibleSwingCount(swings: Swing[]): number {
-  return swings.filter((swing) => !swing.mitigated && !swing.isFailureSwing)
-    .length;
+function unmitigatedVisibleSwingCount(
+  swings: Swing[],
+  asOf: number,
+  weekly: { rangeLow: number; rangeHigh: number },
+): number {
+  return swings.filter(
+    (swing) =>
+      !swing.mitigated &&
+      !swing.isFailureSwing &&
+      isSwingDisplayVisible(swing.price, swing.formedAt, asOf, weekly),
+  ).length;
 }
 
 export type PineSwingLifecycleInput = {
@@ -375,7 +399,7 @@ export function simulatePineSwingLifecycleSampledMitigation(
     }
 
     pruneStaleMitigated(active, bar.time);
-    pruneInvisible(active, bar.time, weekly);
+    pruneComparisonExpired(active, bar.time);
   }
 
   const asOf =
@@ -388,9 +412,9 @@ export function simulatePineSwingLifecycleSampledMitigation(
     );
 
   pruneStaleMitigated(active, asOf);
-  pruneInvisible(active, asOf, weekly);
+  pruneComparisonExpired(active, asOf);
 
-  return unmitigatedVisibleSwingCount(active);
+  return unmitigatedVisibleSwingCount(active, asOf, weekly);
 }
 
 /** Mirrors Pine indicator bar-by-bar HTF swing state machine. */
@@ -481,7 +505,7 @@ export function simulatePineSwingLifecycle(
       }
 
       pruneStaleMitigated(active, bar.time);
-      pruneInvisible(active, bar.time, weekly);
+      pruneComparisonExpired(active, bar.time);
       continue;
     }
 
@@ -494,7 +518,7 @@ export function simulatePineSwingLifecycle(
 
     sweepSwings(active, bar.low, bar.high, bar.time);
     pruneStaleMitigated(active, bar.time);
-    pruneInvisible(active, bar.time, weekly);
+    pruneComparisonExpired(active, bar.time);
   }
 
   const asOf =
@@ -507,9 +531,9 @@ export function simulatePineSwingLifecycle(
     );
 
   pruneStaleMitigated(active, asOf);
-  pruneInvisible(active, asOf, weekly);
+  pruneComparisonExpired(active, asOf);
 
-  return visibleSwingCount(active);
+  return visibleSwingCount(active, asOf, weekly);
 }
 
 export function pineUnmitigatedSwingCount(
@@ -599,7 +623,7 @@ export function pineUnmitigatedSwingCount(
       }
 
       pruneStaleMitigated(active, bar.time);
-      pruneInvisible(active, bar.time, weekly);
+      pruneComparisonExpired(active, bar.time);
       continue;
     }
 
@@ -612,7 +636,7 @@ export function pineUnmitigatedSwingCount(
 
     sweepSwings(active, bar.low, bar.high, bar.time);
     pruneStaleMitigated(active, bar.time);
-    pruneInvisible(active, bar.time, weekly);
+    pruneComparisonExpired(active, bar.time);
   }
 
   const asOf =
@@ -625,9 +649,9 @@ export function pineUnmitigatedSwingCount(
     );
 
   pruneStaleMitigated(active, asOf);
-  pruneInvisible(active, asOf, weekly);
+  pruneComparisonExpired(active, asOf);
 
-  return unmitigatedVisibleSwingCount(active);
+  return unmitigatedVisibleSwingCount(active, asOf, weekly);
 }
 
 export type PineCrossTfSwingLifecycleInput = Omit<
@@ -745,7 +769,7 @@ export function simulatePineCrossTfSwingLifecycle(
       }
 
       pruneStaleMitigated(active, bar.time);
-      pruneInvisible(active, bar.time, weekly);
+      pruneComparisonExpired(active, bar.time);
       continue;
     }
 
@@ -758,7 +782,7 @@ export function simulatePineCrossTfSwingLifecycle(
 
     sweepSwings(active, bar.low, bar.high, bar.time);
     pruneStaleMitigated(active, bar.time);
-    pruneInvisible(active, bar.time, weekly);
+    pruneComparisonExpired(active, bar.time);
   }
 
   const asOf =
@@ -772,8 +796,12 @@ export function simulatePineCrossTfSwingLifecycle(
     );
 
   pruneStaleMitigated(active, asOf);
-  pruneInvisible(active, asOf, weekly);
+  pruneComparisonExpired(active, asOf);
 
-  return active.filter((swing) => !swing.isFailureSwing && swing.confirmedAt <= asOf)
-    .length;
+  return active.filter(
+    (swing) =>
+      !swing.isFailureSwing &&
+      swing.confirmedAt <= asOf &&
+      isSwingDisplayVisible(swing.price, swing.formedAt, asOf, weekly),
+  ).length;
 }

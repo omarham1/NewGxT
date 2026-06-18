@@ -16,8 +16,10 @@ import {
 } from "./helpers/swing-bars.js";
 const MINUTE_MS = 60 * 1000;
 const SUN_DEC_22_OPEN = 1734908400000;
+const SUN_DEC_29_OPEN = 1735513200000;
 const SUN_JAN_5_OPEN = 1736118000000;
 const MON_JAN_6_EVAL = 1736208000000;
+const SUN_JAN_12_OPEN = 1736722800000;
 
 const PWH = 5200;
 const PWL = 4700;
@@ -205,6 +207,53 @@ describe("HTF Swing / Pine parity", () => {
     expect(engineCrossTfActiveCount(bars4h, bars1h, asOf)).toBe(
       pineCrossTfActiveCount(bars4h, bars1h, asOf),
     );
+  });
+
+  it("matches Pine visible swing count when an aged-out outer extreme suppresses a nearby new swing", () => {
+    const outerStart = SUN_DEC_29_OPEN;
+    const innerStart = SUN_JAN_12_OPEN;
+    const bars = [
+      ...fractalSwingHighAt(outerStart, 5100),
+      ...fractalSwingHighAt(innerStart, 5095),
+    ];
+    const asOf = innerStart + 6 * HOUR_MS;
+
+    expect(engineActiveCount(bars, asOf)).toBe(0);
+    expect(pineActiveCount(bars, asOf)).toBe(0);
+    expect(engineActiveCount(bars, asOf)).toBe(pineActiveCount(bars, asOf));
+  });
+
+  it("matches Pine visible swing count when a mitigated historical extreme does not suppress a nearby new swing", () => {
+    const outerStart = SUN_DEC_29_OPEN;
+    const innerStart = SUN_JAN_12_OPEN;
+    const bars = [
+      ...fractalSwingHighAt(outerStart, 5100),
+      ...fractalSwingHighAt(innerStart, 5095),
+    ];
+    const outerConfirmedAt = outerStart + 6 * HOUR_MS;
+    const innerConfirmedAt = innerStart + 6 * HOUR_MS;
+    const mitigatedAt = outerConfirmedAt + HOUR_MS;
+    const mitigationBars = [bar(mitigatedAt, 5095, 5101, 5090, 5098)];
+
+    expect(engineActiveCount(bars, innerConfirmedAt, mitigationBars)).toBe(1);
+    expect(pineActiveCount(bars, innerConfirmedAt, mitigationBars)).toBe(1);
+    expect(engineActiveCount(bars, innerConfirmedAt, mitigationBars)).toBe(
+      pineActiveCount(bars, innerConfirmedAt, mitigationBars),
+    );
+  });
+
+  it("matches Pine visible swing count when a suppressor outside the weekly range does not stamp failure", () => {
+    const outerStart = SUN_DEC_29_OPEN;
+    const innerStart = SUN_JAN_12_OPEN;
+    const bars = [
+      ...fractalSwingHighAt(outerStart, 5250),
+      ...fractalSwingHighAt(innerStart, 5095),
+    ];
+    const asOf = innerStart + 6 * HOUR_MS;
+
+    expect(engineActiveCount(bars, asOf)).toBe(1);
+    expect(pineActiveCount(bars, asOf)).toBe(1);
+    expect(engineActiveCount(bars, asOf)).toBe(pineActiveCount(bars, asOf));
   });
 
   it("matches Pine visible swing count when inner 1H confirms before outer 4H", () => {
