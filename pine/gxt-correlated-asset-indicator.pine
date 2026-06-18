@@ -174,6 +174,14 @@ f_within_htf_swing_comparison_lookback(int formedTime) =>
             weekKey := f_previous_week_session_key(weekKey)
         within
 
+f_swing_visible(float price, int formedTime, float pwh, float pwl, float curWeekHigh, float curWeekLow) =>
+    if not f_within_htf_swing_lookback(formedTime)
+        false
+    else
+        float rangeLow = math.min(pwl, curWeekLow)
+        float rangeHigh = math.max(pwh, curWeekHigh)
+        price >= rangeLow and price <= rangeHigh
+
 f_track_extreme(float cur_extreme, int cur_time, float candidate, int candidate_time) =>
     if na(cur_extreme) or candidate > cur_extreme
         [candidate, candidate_time]
@@ -1004,14 +1012,6 @@ f_htf_swing_signals() =>
             lowPivotTime := time[pivot]
             lowConfirmedTime := time
     [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime]
-
-f_swing_visible(float price, int formedTime, float pwh, float pwl, float curWeekHigh, float curWeekLow) =>
-    if not f_within_htf_swing_lookback(formedTime)
-        false
-    else
-        float rangeLow = math.min(pwl, curWeekLow)
-        float rangeHigh = math.max(pwh, curWeekHigh)
-        price >= rangeLow and price <= rangeHigh
 
 f_swing_in_comparison_pool(HtfSwingLevel swing, int atTime, float pwh, float pwl, float curWeekHigh, float curWeekLow) =>
     if swing.confirmedTime > atTime or not f_within_htf_swing_comparison_lookback(swing.formedTime)
