@@ -34,4 +34,21 @@ describe("doc glossary alignment", () => {
       }
     }
   });
+
+  it("does not reference Failure Swing in execution docs (HTF swing suppression only)", () => {
+    for (const docPath of neutralDayExecutionDocs) {
+      const content = readRepoFile(docPath);
+      expect(content, `${docPath} must not mention Failure Swing`).not.toMatch(/Failure Swing/i);
+    }
+  });
+
+  it("names Consolidation as the Neutral day type", () => {
+    const playbook = readRepoFile("docs/daily_execution_playbook.md");
+    expect(playbook).toMatch(/\*\*Consolidation\*\*/);
+    expect(playbook).toMatch(/Neutral Bias \(Consolidation Day\)/);
+
+    const adr = readRepoFile("docs/adr/0003-daily-bias-and-target-selection.md");
+    expect(adr).toMatch(/\*\*Consolidation Days\*\*/);
+    expect(adr).toMatch(/\*\*Neutral Bias\*\*/);
+  });
 });
