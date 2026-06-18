@@ -209,7 +209,11 @@ function isFailureSwingPeer(
   input: ComputeHtfSwingPointsInput,
   threshold: number,
 ): boolean {
-  if (peer.kind !== swing.kind || peer.confirmedAt > swing.confirmedAt) {
+  if (
+    peer.kind !== swing.kind ||
+    peer.timeframe !== swing.timeframe ||
+    peer.confirmedAt > swing.confirmedAt
+  ) {
     return false;
   }
 

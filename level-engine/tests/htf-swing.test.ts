@@ -436,6 +436,24 @@ describe("HTF Swing Points", () => {
     );
   });
 
+  it("does not collapse cross-timeframe swing highs within ADR proximity", () => {
+    const bars1h = chainedSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5095);
+    const bars4h = chained4hSwingHighSequences(SUN_JAN_5_OPEN, 5092, 5100);
+    const asOf = SUN_JAN_5_OPEN + 20 * FOUR_HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars1h, bars4h, asOf }),
+    );
+
+    expect(swings).toHaveLength(2);
+    expect(swings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ timeframe: "1H", kind: "high", price: 5095 }),
+        expect.objectContaining({ timeframe: "4H", kind: "high", price: 5100 }),
+      ]),
+    );
+  });
+
   it("retroactively stamps the inner swing when a more extreme peer confirms later", () => {
     const bars1h = chainedSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5100);
     const innerConfirmedAt = SUN_JAN_5_OPEN + 6 * HOUR_MS;
