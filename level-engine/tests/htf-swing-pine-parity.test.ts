@@ -3,11 +3,15 @@ import { computeHtfSwingPoints } from "../src/htf-swing.js";
 import type { Bar } from "../src/types.js";
 import {
   pineUnmitigatedSwingCount,
+  simulatePineCrossTfSwingLifecycle,
   simulatePineSwingLifecycle,
   simulatePineSwingLifecycleSampledMitigation,
 } from "./helpers/pine-swing-lifecycle.js";
 import {
+  chained4hSwingHighSequences,
   chainedSwingHighSequences,
+  FOUR_HOUR_MS,
+  fractalSwingHighSequence as fractalSwingHighAt,
   HOUR_MS,
 } from "./helpers/swing-bars.js";
 const MINUTE_MS = 60 * 1000;
@@ -75,6 +79,35 @@ function pineActiveCount(
     {
       htfBars: bars1h,
       mitigationBars,
+      ...weeklyInput(),
+    },
+    asOf,
+  );
+}
+
+function engineCrossTfActiveCount(
+  bars4h: Bar[],
+  bars1h: Bar[],
+  asOf: number,
+): number {
+  return computeHtfSwingPoints({
+    bars4h,
+    bars1h,
+    mitigationBars: [],
+    ...weeklyInput(),
+    asOf,
+  }).length;
+}
+
+function pineCrossTfActiveCount(
+  bars4h: Bar[],
+  bars1h: Bar[],
+  asOf: number,
+): number {
+  return simulatePineCrossTfSwingLifecycle(
+    {
+      bars4h,
+      bars1h,
       ...weeklyInput(),
     },
     asOf,
@@ -159,5 +192,39 @@ describe("HTF Swing / Pine parity", () => {
     expect(engineActiveCount(bars, asOf)).toBe(1);
     expect(pineActiveCount(bars, asOf)).toBe(1);
     expect(engineActiveCount(bars, asOf)).toBe(pineActiveCount(bars, asOf));
+  });
+
+  it("matches Pine visible swing count for cross-timeframe ADR proximity clusters", () => {
+    const bars1h = chainedSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5095);
+    const bars4h = chained4hSwingHighSequences(SUN_JAN_5_OPEN, 5092, 5100);
+    const second4hStart = SUN_JAN_5_OPEN + 14 * FOUR_HOUR_MS;
+    const asOf = second4hStart + 6 * FOUR_HOUR_MS;
+
+    expect(engineCrossTfActiveCount(bars4h, bars1h, asOf)).toBe(1);
+    expect(pineCrossTfActiveCount(bars4h, bars1h, asOf)).toBe(1);
+    expect(engineCrossTfActiveCount(bars4h, bars1h, asOf)).toBe(
+      pineCrossTfActiveCount(bars4h, bars1h, asOf),
+    );
+  });
+
+  it("matches Pine visible swing count when inner 1H confirms before outer 4H", () => {
+    const bars1h = fractalSwingHighAt(SUN_JAN_5_OPEN, 5095);
+    const bars4h = fractalSwingHighAt(SUN_JAN_5_OPEN, 5100).map(
+      (b, index) => ({
+        ...b,
+        time: SUN_JAN_5_OPEN + index * FOUR_HOUR_MS,
+      }),
+    );
+    const innerConfirmedAt = SUN_JAN_5_OPEN + 6 * HOUR_MS;
+    const outerConfirmedAt = SUN_JAN_5_OPEN + 6 * FOUR_HOUR_MS;
+
+    expect(engineCrossTfActiveCount(bars4h, bars1h, innerConfirmedAt)).toBe(1);
+    expect(pineCrossTfActiveCount(bars4h, bars1h, innerConfirmedAt)).toBe(1);
+
+    expect(engineCrossTfActiveCount(bars4h, bars1h, outerConfirmedAt)).toBe(1);
+    expect(pineCrossTfActiveCount(bars4h, bars1h, outerConfirmedAt)).toBe(1);
+    expect(engineCrossTfActiveCount(bars4h, bars1h, outerConfirmedAt)).toBe(
+      pineCrossTfActiveCount(bars4h, bars1h, outerConfirmedAt),
+    );
   });
 });

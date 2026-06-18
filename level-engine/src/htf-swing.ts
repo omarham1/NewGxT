@@ -211,7 +211,6 @@ function isFailureSwingPeer(
 ): boolean {
   if (
     peer.kind !== swing.kind ||
-    peer.timeframe !== swing.timeframe ||
     peer.confirmedAt > swing.confirmedAt
   ) {
     return false;

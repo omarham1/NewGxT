@@ -629,3 +629,151 @@ export function pineUnmitigatedSwingCount(
 
   return unmitigatedVisibleSwingCount(active);
 }
+
+export type PineCrossTfSwingLifecycleInput = Omit<
+  PineSwingLifecycleInput,
+  "htfBars"
+> & {
+  bars4h: Bar[];
+  bars1h: Bar[];
+};
+
+/** Mirrors Pine indicator bar-by-bar state when both 4H and 1H swings are active. */
+export function simulatePineCrossTfSwingLifecycle(
+  input: PineCrossTfSwingLifecycleInput,
+  evalAt?: number,
+): number {
+  const {
+    bars4h,
+    bars1h,
+    mitigationBars = [],
+    pwh,
+    pwl,
+    currentWeekHigh,
+    currentWeekLow,
+    isBarConfirmed = () => true,
+  } = input;
+  const { adr, failureSwingAdrFraction } = lifecycleConfig(input);
+
+  const weekly = combinedWeeklySwingRange({
+    pwh,
+    pwl,
+    currentWeekHigh,
+    currentWeekLow,
+  });
+  const active: Swing[] = [];
+
+  type TimelineEvent =
+    | { kind: "htf"; bars: Bar[]; barIndex: number }
+    | { kind: "mitigation"; bar: Bar };
+
+  const events: TimelineEvent[] = [];
+  for (let i = 0; i < bars4h.length; i++) {
+    events.push({ kind: "htf", bars: bars4h, barIndex: i });
+  }
+  for (let i = 0; i < bars1h.length; i++) {
+    events.push({ kind: "htf", bars: bars1h, barIndex: i });
+  }
+  for (const bar of mitigationBars) {
+    events.push({ kind: "mitigation", bar });
+  }
+  events.sort((left, right) => {
+    const leftTime =
+      left.kind === "htf"
+        ? left.bars[left.barIndex]!.time
+        : left.bar.time;
+    const rightTime =
+      right.kind === "htf"
+        ? right.bars[right.barIndex]!.time
+        : right.bar.time;
+    return leftTime - rightTime;
+  });
+
+  let prevSessionKey: string | undefined;
+
+  for (const event of events) {
+    const eventTime =
+      event.kind === "htf"
+        ? event.bars[event.barIndex]!.time
+        : event.bar.time;
+    if (evalAt !== undefined && eventTime > evalAt) {
+      continue;
+    }
+
+    if (event.kind === "htf") {
+      const bars = event.bars;
+      const bar = bars[event.barIndex]!;
+      const sessionKey = getDailySessionKey(bar.time);
+      if (prevSessionKey !== undefined && sessionKey !== prevSessionKey) {
+        removeAllMitigated(active);
+      }
+      prevSessionKey = sessionKey;
+
+      const pivotIndex = event.barIndex - 3;
+      if (pivotIndex >= 3 && isBarConfirmed(event.barIndex)) {
+        const pivot = bars[pivotIndex]!;
+
+        if (isStrictFractalHigh(bars, pivotIndex)) {
+          tryAddSwing(
+            active,
+            "high",
+            pivot.high,
+            pivot.time,
+            bar.time,
+            bar.time,
+            weekly,
+            adr,
+            failureSwingAdrFraction,
+            mitigationBars,
+          );
+        }
+
+        if (isStrictFractalLow(bars, pivotIndex)) {
+          tryAddSwing(
+            active,
+            "low",
+            pivot.low,
+            pivot.time,
+            bar.time,
+            bar.time,
+            weekly,
+            adr,
+            failureSwingAdrFraction,
+            mitigationBars,
+          );
+        }
+      }
+
+      pruneStaleMitigated(active, bar.time);
+      pruneInvisible(active, bar.time, weekly);
+      continue;
+    }
+
+    const bar = event.bar;
+    const sessionKey = getDailySessionKey(bar.time);
+    if (prevSessionKey !== undefined && sessionKey !== prevSessionKey) {
+      removeAllMitigated(active);
+    }
+    prevSessionKey = sessionKey;
+
+    sweepSwings(active, bar.low, bar.high, bar.time);
+    pruneStaleMitigated(active, bar.time);
+    pruneInvisible(active, bar.time, weekly);
+  }
+
+  const asOf =
+    evalAt ??
+    Math.max(
+      bars4h.length > 0 ? bars4h[bars4h.length - 1]!.time : 0,
+      bars1h.length > 0 ? bars1h[bars1h.length - 1]!.time : 0,
+      mitigationBars.length > 0
+        ? mitigationBars[mitigationBars.length - 1]!.time
+        : 0,
+    );
+
+  pruneStaleMitigated(active, asOf);
+  pruneInvisible(active, asOf, weekly);
+
+  return active.filter((swing) => !swing.isFailureSwing && swing.confirmedAt <= asOf)
+    .length;
+}

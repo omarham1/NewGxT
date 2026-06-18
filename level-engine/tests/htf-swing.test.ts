@@ -9,6 +9,7 @@ import {
   FOUR_HOUR_MS,
   fractalSwingHighSequence,
   fractalSwingLowSequence,
+  fractalSwingLowSequenceAt,
   HOUR_MS,
 } from "./helpers/swing-bars.js";
 
@@ -436,25 +437,116 @@ describe("HTF Swing Points", () => {
     );
   });
 
-  it("does not collapse cross-timeframe swing highs within ADR proximity", () => {
+  it("suppresses a nearby 1H swing high when a more extreme 4H swing high is within ADR proximity", () => {
     const bars1h = chainedSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5095);
     const bars4h = chained4hSwingHighSequences(SUN_JAN_5_OPEN, 5092, 5100);
-    const asOf = SUN_JAN_5_OPEN + 20 * FOUR_HOUR_MS;
+    const second4hStart = SUN_JAN_5_OPEN + 14 * FOUR_HOUR_MS;
+    const asOf = second4hStart + 6 * FOUR_HOUR_MS;
 
     const swings = computeHtfSwingPoints(
       swingInput({ bars1h, bars4h, asOf }),
     );
 
-    expect(swings).toHaveLength(2);
-    expect(swings).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ timeframe: "1H", kind: "high", price: 5095 }),
-        expect.objectContaining({ timeframe: "4H", kind: "high", price: 5100 }),
-      ]),
-    );
+    expect(swings).toEqual([
+      unmitigatedSwing(asOf, {
+        timeframe: "4H",
+        kind: "high",
+        price: 5100,
+        formedAt: second4hStart + 3 * FOUR_HOUR_MS,
+        confirmedAt: asOf,
+      }),
+    ]);
   });
 
-  it("retroactively stamps the inner swing when a more extreme peer confirms later", () => {
+  it("suppresses a nearby 1H swing low when a more extreme 4H swing low is within ADR proximity", () => {
+    const bars1h = fractalSwingLowSequenceAt(SUN_JAN_5_OPEN, 5005);
+    const bars4h = fractalSwingLowSequenceAt(SUN_JAN_5_OPEN, 5000).map(
+      (b, index) => ({
+        ...b,
+        time: SUN_JAN_5_OPEN + index * FOUR_HOUR_MS,
+      }),
+    );
+    const asOf = SUN_JAN_5_OPEN + 6 * FOUR_HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars1h, bars4h, asOf }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(asOf, {
+        timeframe: "4H",
+        kind: "low",
+        price: 5000,
+        formedAt: SUN_JAN_5_OPEN + 3 * FOUR_HOUR_MS,
+        confirmedAt: asOf,
+      }),
+    ]);
+  });
+
+  it("keeps a more extreme 1H swing high over a less extreme nearby 4H swing high", () => {
+    const bars1h = fractalSwingHighSequence(SUN_JAN_5_OPEN, 5110);
+    const bars4h = fractalSwingHighSequence(SUN_JAN_5_OPEN, 5100).map(
+      (b, index) => ({
+        ...b,
+        time: SUN_JAN_5_OPEN + index * FOUR_HOUR_MS,
+      }),
+    );
+    const asOf = SUN_JAN_5_OPEN + 6 * FOUR_HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars1h, bars4h, asOf }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(asOf, {
+        timeframe: "1H",
+        kind: "high",
+        price: 5110,
+        formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
+        confirmedAt: SUN_JAN_5_OPEN + 6 * HOUR_MS,
+      }),
+    ]);
+  });
+
+  it("retroactively stamps a 1H swing when a more extreme 4H peer confirms later within proximity", () => {
+    const bars1h = fractalSwingHighSequence(SUN_JAN_5_OPEN, 5095);
+    const bars4h = fractalSwingHighSequence(SUN_JAN_5_OPEN, 5100).map(
+      (b, index) => ({
+        ...b,
+        time: SUN_JAN_5_OPEN + index * FOUR_HOUR_MS,
+      }),
+    );
+    const innerConfirmedAt = SUN_JAN_5_OPEN + 6 * HOUR_MS;
+
+    expect(
+      computeHtfSwingPoints(swingInput({ bars1h, bars4h, asOf: innerConfirmedAt })),
+    ).toEqual([
+      unmitigatedSwing(innerConfirmedAt, {
+        timeframe: "1H",
+        kind: "high",
+        price: 5095,
+        formedAt: SUN_JAN_5_OPEN + 3 * HOUR_MS,
+        confirmedAt: innerConfirmedAt,
+      }),
+    ]);
+
+    const outerConfirmedAt = SUN_JAN_5_OPEN + 6 * FOUR_HOUR_MS;
+    expect(
+      computeHtfSwingPoints(
+        swingInput({ bars1h, bars4h, asOf: outerConfirmedAt }),
+      ),
+    ).toEqual([
+      unmitigatedSwing(outerConfirmedAt, {
+        timeframe: "4H",
+        kind: "high",
+        price: 5100,
+        formedAt: SUN_JAN_5_OPEN + 3 * FOUR_HOUR_MS,
+        confirmedAt: outerConfirmedAt,
+      }),
+    ]);
+  });
+
+  it("retroactively stamps the inner swing when a more extreme same-timeframe peer confirms later", () => {
     const bars1h = chainedSwingHighSequences(SUN_JAN_5_OPEN, 5090, 5100);
     const innerConfirmedAt = SUN_JAN_5_OPEN + 6 * HOUR_MS;
 
