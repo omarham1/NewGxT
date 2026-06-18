@@ -395,4 +395,52 @@ describe("Level Snapshot", () => {
 
     expect(snapshot.activeDol).toBeNull();
   });
+
+  it("keeps bearish Session POI when a 1H bar wicks above PD 50% but closes below", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
+    const bars4h = equilibriumBullishGap(SUN_JAN_5_OPEN, 5035, 5040);
+
+    const snapshot = computeLevelSnapshot({
+      bars: [
+        ...bars,
+        bar(MON_JAN_6_EVAL, 5040, 5060, 5035, 5045),
+      ],
+      bars4h,
+      bars1h: [bar(MON_JAN_6_EVAL, 5040, 5060, 5035, 5045)],
+      mitigationBars: [],
+      dailyBias: "directional",
+      biasDirection: "bearish",
+    });
+
+    expect(snapshot.effectiveBiasDirection).toBe("bearish");
+    expect(snapshot.sessionPoi).toEqual({
+      kind: "htf-fvg",
+      timeframe: "4H",
+      formedAt,
+    });
+  });
+
+  it("flips bearish bias to bullish on a 1H close above PD 50%, relinquishing Session POI and retargeting Active DOL", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const bars4h = equilibriumBullishGap(SUN_JAN_5_OPEN, 5035, 5040);
+
+    const snapshot = computeLevelSnapshot({
+      bars: [
+        ...bars,
+        bar(MON_JAN_6_EVAL, 5040, 5065, 5035, 5055),
+      ],
+      bars4h,
+      bars1h: [bar(MON_JAN_6_EVAL, 5040, 5065, 5035, 5055)],
+      mitigationBars: [],
+      dailyBias: "directional",
+      biasDirection: "bearish",
+    });
+
+    expect(snapshot.pdMidpoint).toBe(5050);
+    expect(snapshot.effectiveBiasDirection).toBe("bullish");
+    expect(snapshot.biasFlippedAt).toBe(MON_JAN_6_EVAL);
+    expect(snapshot.sessionPoi).toBeNull();
+    expect(snapshot.activeDol?.tp1).toEqual({ kind: "pdh" });
+  });
 });

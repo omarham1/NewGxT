@@ -473,6 +473,9 @@ f_is_active_dol(SessionPoiTarget target, string kind, int formedTime, string txt
 f_dol_in_bias_direction(bool bullish, float currentPrice, float levelPrice) =>
     bullish ? levelPrice > currentPrice : levelPrice < currentPrice
 
+f_close_through_pd_midpoint_against_bias(bool bearishBias, float htfClose, float pdMidpoint) =>
+    bearishBias ? htfClose > pdMidpoint : htfClose < pdMidpoint
+
 f_dol_within_adr(bool bullish, float levelPrice, float openPlusAdr, float openMinusAdr) =>
     bullish ? levelPrice <= openPlusAdr : levelPrice >= openMinusAdr
 
@@ -873,6 +876,8 @@ var bool pdlMitigated = false
 var int pdlMitigatedTime = na
 var SessionPoiTarget sessionPoi = na
 var bool directionalFvgPoiAttempted = false
+var string effectiveBiasDirection = biasDirection
+var bool biasFlipped = false
 var bool pwhMitigated = false
 var int pwhMitigatedTime = na
 var bool pwlMitigated = false
@@ -896,6 +901,8 @@ if sessionRolled
     pdlMitigatedTime := na
     sessionPoi := na
     directionalFvgPoiAttempted := false
+    effectiveBiasDirection := biasDirection
+    biasFlipped := false
 
 if newRailWeek
     pwhMitigated := false
@@ -1236,7 +1243,7 @@ f_draw_swing_levels(
      lookahead = barmerge.lookahead_off
  )
 
-[formed4h, zoneLow4h, zoneHigh4h, formedTime4h, bullish4h, _, _, mitigateTime4h, mitigateClose4h] = request.security(
+[formed4h, zoneLow4h, zoneHigh4h, formedTime4h, bullish4h, low4h, high4h, time4h, close4h] = request.security(
      syminfo.tickerid,
      "240",
      f_detect_fvg_with_ohlc(),
@@ -1244,7 +1251,7 @@ f_draw_swing_levels(
      lookahead = barmerge.lookahead_off
  )
 
-[formed1h, zoneLow1h, zoneHigh1h, formedTime1h, bullish1h, _, _, mitigateTime1h, mitigateClose1h] = request.security(
+[formed1h, zoneLow1h, zoneHigh1h, formedTime1h, bullish1h, low1h, high1h, time1h, close1h] = request.security(
      syminfo.tickerid,
      "60",
      f_detect_fvg_with_ohlc(),
@@ -1273,21 +1280,34 @@ activeSwings := f_sweep_swings_from_1m_bars(activeSwings, oneMinLows, oneMinHigh
 activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 activeSwings := f_prune_comparison_expired_swings(activeSwings)
 
-poiFvgs4h := f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, mitigateClose4h, mitigateTime4h, barstate.isconfirmed)
-poiFvgs1h := f_advance_fvg_lifecycle(poiFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, mitigateClose1h, mitigateTime1h, barstate.isconfirmed)
+poiFvgs4h := f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, close4h, time4h, barstate.isconfirmed)
+poiFvgs1h := f_advance_fvg_lifecycle(poiFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, close1h, time1h, barstate.isconfirmed)
 allPoiFvgs = f_concat_fvg_arrays(poiFvgs4h, poiFvgs1h)
 
-if dailyBias == "Directional" and not directionalFvgPoiAttempted and time >= sessionOpenTime and not na(pdEq50)
-    sessionPoi := f_select_directional_fvg_poi(allPoiFvgs, pdEq50, biasDirection == "Bullish", sessionOpenTime, close)
+if dailyBias == "Directional" and not biasFlipped and not na(pdEq50) and time >= sessionOpenTime
+    bool bearishBias = effectiveBiasDirection == "Bearish"
+    bool htf1hClosed = ta.change(time1h) != 0
+    bool htf4hClosed = ta.change(time4h) != 0
+    if htf1hClosed and time1h[1] >= sessionOpenTime and f_close_through_pd_midpoint_against_bias(bearishBias, close1h[1], pdEq50)
+        effectiveBiasDirection := bearishBias ? "Bullish" : "Bearish"
+        biasFlipped := true
+        sessionPoi := na
+    else if htf4hClosed and time4h[1] >= sessionOpenTime and f_close_through_pd_midpoint_against_bias(bearishBias, close4h[1], pdEq50)
+        effectiveBiasDirection := bearishBias ? "Bullish" : "Bearish"
+        biasFlipped := true
+        sessionPoi := na
+
+if dailyBias == "Directional" and not biasFlipped and not directionalFvgPoiAttempted and time >= sessionOpenTime and not na(pdEq50)
+    sessionPoi := f_select_directional_fvg_poi(allPoiFvgs, pdEq50, effectiveBiasDirection == "Bullish", sessionOpenTime, close)
     directionalFvgPoiAttempted := true
 
-if dailyBias == "Directional" and directionalFvgPoiAttempted and na(sessionPoi)
-    sessionPoi := f_select_defer_swing_poi(activeSwings, sessionOpenTime, close, time, pwh, pwl, currentWeekHigh, currentWeekLow, pdEq50, biasDirection == "Bullish")
+if dailyBias == "Directional" and not biasFlipped and directionalFvgPoiAttempted and na(sessionPoi)
+    sessionPoi := f_select_defer_swing_poi(activeSwings, sessionOpenTime, close, time, pwh, pwl, currentWeekHigh, currentWeekLow, pdEq50, effectiveBiasDirection == "Bullish")
 
 if not na(sessionPoi) and f_poi_target_mitigated(sessionPoi, allPoiFvgs, activeSwings)
     sessionPoi := na
 
-bool bullishBias = biasDirection == "Bullish"
+bool bullishBias = effectiveBiasDirection == "Bullish"
 [activeDolTp1, activeDolTp2] = f_resolve_active_dol(bullishBias, close, dailyOpen, adrConsumptionPct, reversalDayTp1, openPlusAdr, openMinusAdr, pdh, pdl, pwh, pwl, pdhMitigated, pdlMitigated, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow, activeSwings)
 
 bool dailyOpenIsTp1 = f_is_active_dol(activeDolTp1, "daily-open", na, "Daily Open")

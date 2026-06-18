@@ -15,6 +15,7 @@ export {
 } from "./htf-swing.js";
 export { computeSessionRailMitigation } from "./session-rail-mitigation.js";
 export { computeLevelSnapshot } from "./level-snapshot.js";
+export { detectBiasFlip } from "./bias-flip.js";
 export { resolveActiveDol } from "./active-dol.js";
 export { selectDirectionalSessionPoi, selectNeutralSessionPoi, selectSessionPoi } from "./session-poi.js";
 export {

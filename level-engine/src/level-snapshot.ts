@@ -15,6 +15,7 @@ import {
   type ActiveDol,
   type BiasDirection,
 } from "./active-dol.js";
+import { detectBiasFlip } from "./bias-flip.js";
 
 export type { DailyBias, SessionPoi } from "./session-poi.js";
 export type { ActiveDol, ActiveDolTarget, BiasDirection } from "./active-dol.js";
@@ -24,6 +25,8 @@ export type LevelSnapshot = SessionContext & {
   htfSwingPoints: HtfSwingPoint[];
   sessionPoi: SessionPoi | null;
   activeDol: ActiveDol | null;
+  effectiveBiasDirection: BiasDirection | null;
+  biasFlippedAt?: number;
 };
 
 export type ComputeLevelSnapshotInput = {
@@ -73,9 +76,25 @@ export function computeLevelSnapshot(
 
   const currentPrice = latestBarClose(input.bars);
   const sessionOpenTime = getDailySessionOpenTime(asOf);
+
+  const biasFlip =
+    input.dailyBias === "directional" && input.biasDirection !== undefined
+      ? detectBiasFlip({
+          sessionOpenTime,
+          asOf,
+          initialBiasDirection: input.biasDirection,
+          pdMidpoint: context.pdMidpoint,
+          bars4h: input.bars4h,
+          bars1h: input.bars1h,
+        })
+      : null;
+  const effectiveBiasDirection = biasFlip?.effectiveBiasDirection ?? null;
+  const inContinuationRegime = biasFlip?.flippedAt !== undefined;
+
   const sessionPoi =
     input.dailyBias === undefined ||
-    (input.dailyBias === "directional" && input.biasDirection === undefined)
+    (input.dailyBias === "directional" && input.biasDirection === undefined) ||
+    inContinuationRegime
       ? null
       : selectSessionPoi({
           dailyBias: input.dailyBias,
@@ -91,10 +110,10 @@ export function computeLevelSnapshot(
         });
 
   const activeDol =
-    input.dailyBias === undefined || input.biasDirection === undefined
+    input.dailyBias === undefined || effectiveBiasDirection === null
       ? null
       : resolveActiveDol({
-          biasDirection: input.biasDirection,
+          biasDirection: effectiveBiasDirection,
           currentPrice,
           openPlusAdr: context.openPlusAdr,
           openMinusAdr: context.openMinusAdr,
@@ -119,6 +138,8 @@ export function computeLevelSnapshot(
     htfSwingPoints,
     sessionPoi,
     activeDol,
+    effectiveBiasDirection,
+    biasFlippedAt: biasFlip?.flippedAt,
   };
 }
 
