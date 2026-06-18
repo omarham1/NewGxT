@@ -25,10 +25,10 @@ We establish the following rules for establishing daily bias and selecting targe
    - **Invalidation**: The bias is invalidated if price closes past the absolute swing extreme of the sweep leg. If this occurs, the bias flips to a **Continuation Bias** in the direction of the break.
 
 3. **Target Selection Protocol (Draw on Liquidity)**:
-   - **TP1 (Primary Target)**: **Nearest Relevant Level** in bias direction (unmitigated HTF structure → PDH/PDL → PWH/PWL).
-     - *Default*: The closest structural magnet ahead of current price.
+   - **TP1 (Primary Target)**: **Nearest eligible level** in bias direction — unmitigated HTF swing points, then PDH/PDL, then PWH/PWL. HTF FVGs are excluded from Active DOL.
+     - *Default*: The closest structural magnet ahead of current price among rails and HTF swings.
    - **TP1 Reversal-Day Override**: **18:00 Daily Open** per [ADR-0008](0008-reversal-day-tp1-override.md) when reversal is confirmed, ADR consumption ≥ 80%, and Daily Open lies in bias direction. Caps the daily wick on large-range reversal sessions.
-   - **TP2 (Extended Target)**: **Furthest Relevant Level within the ADR band** via HTF hierarchy walk (same tier order as TP1 candidates, gated by open ± ADR).
+   - **TP2 (Extended Target)**: **Furthest eligible level within the ADR band** — same candidate set as TP1 (HTF swings, PDH/PDL, PWH/PWL; no HTF FVGs), gated by open ± ADR.
 
 ## Consequences
 - Reversals are validated with higher statistical confidence by enforcing a 2-stage verification process.

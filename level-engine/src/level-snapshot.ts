@@ -108,7 +108,6 @@ export function computeLevelSnapshot(
           dailyOpen: context.dailyOpen,
           adrConsumptionPct: context.adrConsumptionPct,
           reversalDayTp1: input.reversalDayTp1,
-          htfFvgs,
           htfSwingPoints,
         });
 

@@ -516,7 +516,6 @@ f_resolve_active_dol(
      bool pwlMitigated,
      float curWeekHigh,
      float curWeekLow,
-     array<HtfFvgZone> zones,
      array<HtfSwingLevel> swings
  ) =>
     SessionPoiTarget nearest = na
@@ -568,23 +567,6 @@ f_resolve_active_dol(
             furthest := nextFurthest
             furthestDistance := nextFurthestDistance
             furthestTier := nextFurthestTier
-
-    int zone_count = array.size(zones)
-    if zone_count > 0
-        for i = 0 to zone_count - 1
-            HtfFvgZone zone = array.get(zones, i)
-            if not zone.mitigated
-                float dolPrice = bullish ? zone.zoneHigh : zone.zoneLow
-                if f_dol_in_bias_direction(bullish, currentPrice, dolPrice)
-                    SessionPoiTarget candidate = SessionPoiTarget.new("fvg", zone.formedTime, zone.txt)
-                    [nextNearest, nextNearestDistance] = f_update_nearest_dol(nearest, nearestDistance, candidate, dolPrice, currentPrice)
-                    nearest := nextNearest
-                    nearestDistance := nextNearestDistance
-                    if f_dol_within_adr(bullish, dolPrice, openPlusAdr, openMinusAdr)
-                        [nextFurthest, nextFurthestDistance, nextFurthestTier] = f_update_furthest_dol(furthest, furthestDistance, furthestTier, candidate, dolPrice, currentPrice)
-                        furthest := nextFurthest
-                        furthestDistance := nextFurthestDistance
-                        furthestTier := nextFurthestTier
 
     int swing_count = array.size(swings)
     if swing_count > 0
@@ -757,9 +739,7 @@ f_draw_fvg_zones(
      array<label> existing_labels,
      array<HtfFvgZone> zones,
      int session_end_time,
-     SessionPoiTarget session_poi,
-     SessionPoiTarget tp1_target,
-     SessionPoiTarget tp2_target
+     SessionPoiTarget session_poi
  ) =>
     array<box> next_boxes = array.new<box>()
     array<label> next_labels = array.new<label>()
@@ -779,11 +759,8 @@ f_draw_fvg_zones(
                 int origin_bi = f_bar_index_for_time(zone.formedTime)
                 int end_bi = math.max(origin_bi, f_bar_index_for_time(session_end_time))
                 bool is_poi = f_is_session_poi(session_poi, "fvg", zone.formedTime, zone.txt)
-                bool is_tp1 = f_is_active_dol(tp1_target, "fvg", zone.formedTime, zone.txt)
-                bool is_tp2 = f_is_active_dol(tp2_target, "fvg", zone.formedTime, zone.txt)
-                bool is_dol = is_tp1 or is_tp2
-                color box_bg = is_poi ? POI_FVG_COLOR : is_dol ? DOL_FVG_COLOR : FVG_COLOR
-                color box_border = is_poi ? POI_FVG_BORDER : is_dol ? DOL_FVG_BORDER : color.new(color.teal, 40)
+                color box_bg = is_poi ? POI_FVG_COLOR : FVG_COLOR
+                color box_border = is_poi ? POI_FVG_BORDER : color.new(color.teal, 40)
                 box next_box = box.new(
                      origin_bi,
                      zone.zoneHigh,
@@ -792,11 +769,11 @@ f_draw_fvg_zones(
                      xloc = xloc.bar_index,
                      bgcolor = box_bg,
                      border_color = box_border,
-                     border_width = is_poi or is_dol ? POI_LINE_WIDTH : 1
+                     border_width = is_poi ? POI_LINE_WIDTH : 1
                  )
                 array.push(next_boxes, next_box)
-                string label_txt = f_format_level_label(zone.txt, is_poi, is_tp1, is_tp2)
-                color label_color = is_poi ? POI_COLOR : is_dol ? DOL_COLOR : color.teal
+                string label_txt = f_format_level_label(zone.txt, is_poi, false, false)
+                color label_color = is_poi ? POI_COLOR : color.teal
                 label next_label = label.new(
                      end_bi,
                      zone.zoneHigh,
@@ -1303,7 +1280,7 @@ if not na(sessionPoi) and f_poi_target_mitigated(sessionPoi, allPoiFvgs, activeS
     sessionPoi := na
 
 bool bullishBias = biasDirection == "Bullish"
-[activeDolTp1, activeDolTp2] = f_resolve_active_dol(bullishBias, close, dailyOpen, adrConsumptionPct, reversalDayTp1, openPlusAdr, openMinusAdr, pdh, pdl, pwh, pwl, pdhMitigated, pdlMitigated, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow, allPoiFvgs, activeSwings)
+[activeDolTp1, activeDolTp2] = f_resolve_active_dol(bullishBias, close, dailyOpen, adrConsumptionPct, reversalDayTp1, openPlusAdr, openMinusAdr, pdh, pdl, pwh, pwl, pdhMitigated, pdlMitigated, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow, activeSwings)
 
 bool dailyOpenIsTp1 = f_is_active_dol(activeDolTp1, "daily-open", na, "Daily Open")
 [_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, dailyOpen, dailyOpenTime, sessionEnd, "Daily Open", true, "above", SESSION_CONTEXT_COLOR, false, na, false, dailyOpenIsTp1, false, true)
@@ -1336,7 +1313,7 @@ bool pwlIsTp2 = f_is_active_dol(activeDolTp2, "pwl", pwlMitigatedTime, "PWL")
 pwl_line := _pwl_line
 pwl_label := _pwl_label
 
-[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEnd, sessionPoi, activeDolTp1, activeDolTp2)
+[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEnd, sessionPoi)
 fvg_boxes := _fvg_boxes
 fvg_labels := _fvg_labels
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { resolveActiveDol } from "../src/active-dol.js";
-import type { HtfFvg } from "../src/htf-fvg.js";
 import type { HtfSwingPoint } from "../src/htf-swing.js";
 
 const SUN_JAN_5_OPEN = 1736118000000;
@@ -18,7 +17,6 @@ function baseInput(overrides: Partial<Parameters<typeof resolveActiveDol>[0]> = 
     pdl: 5000,
     pwh: 5200,
     pwl: 4700,
-    htfFvgs: [] as HtfFvg[],
     htfSwingPoints: [] as HtfSwingPoint[],
     ...overrides,
   };
@@ -161,29 +159,5 @@ describe("Active DOL", () => {
     );
 
     expect(activeDol.tp1).toEqual({ kind: "pdh" });
-  });
-
-  it("uses the HTF FVG top as a bullish TP1 when it is nearer than PDH", () => {
-    const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
-    const activeDol = resolveActiveDol(
-      baseInput({
-        currentPrice: 5065,
-        htfFvgs: [
-          {
-            timeframe: "4H",
-            direction: "bullish",
-            zoneLow: 5070,
-            zoneHigh: 5075,
-            formedAt,
-          },
-        ],
-      }),
-    );
-
-    expect(activeDol.tp1).toEqual({
-      kind: "htf-fvg",
-      timeframe: "4H",
-      formedAt,
-    });
   });
 });

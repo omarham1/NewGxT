@@ -49,7 +49,7 @@ Check for a 4H FVG within the 50% equilibrium range of the Previous Day
 
 | Target | Level | When to Use |
 |---|---|---|
-| **Primary TP** | Next **Relevant Level** (PDH/PDL, PWH/PWL, or unmitigated HTF FVG) | Default — the nearest high-probability structural magnet in the direction of your bias |
+| **Primary TP** | Next **eligible level** (HTF swing, PDH/PDL, or PWH/PWL) | Default — the nearest high-probability structural magnet in the direction of your bias; HTF FVGs are not TP candidates |
 | **Daily Open TP** | 18:00 Daily Open | Only on **reversal days with a large wick** — when ADR is nearly consumed and the reversal fires late, price is expected to pull back to cap the daily wick |
 
 > [!NOTE]

@@ -1,4 +1,4 @@
-import type { HtfFvg, HtfTimeframe } from "./htf-fvg.js";
+import type { HtfTimeframe } from "./htf-fvg.js";
 import type { HtfSwingKind, HtfSwingPoint } from "./htf-swing.js";
 
 export type BiasDirection = "bullish" | "bearish";
@@ -9,7 +9,6 @@ export type ActiveDolTarget =
   | { kind: "pdl" }
   | { kind: "pwh" }
   | { kind: "pwl" }
-  | { kind: "htf-fvg"; timeframe: HtfTimeframe; formedAt: number }
   | {
       kind: "htf-swing";
       timeframe: HtfTimeframe;
@@ -38,7 +37,6 @@ export type ResolveActiveDolInput = {
   pdlMitigatedAt?: number;
   pwhMitigatedAt?: number;
   pwlMitigatedAt?: number;
-  htfFvgs: HtfFvg[];
   htfSwingPoints: HtfSwingPoint[];
 };
 
@@ -102,18 +100,6 @@ function collectCandidates(input: ResolveActiveDolInput): DolCandidate[] {
     isInBiasDirection(input.biasDirection, input.currentPrice, input.pwl)
   ) {
     candidates.push({ target: { kind: "pwl" }, price: input.pwl, tier: 3 });
-  }
-
-  for (const fvg of input.htfFvgs) {
-    const price =
-      input.biasDirection === "bullish" ? fvg.zoneHigh : fvg.zoneLow;
-    if (isInBiasDirection(input.biasDirection, input.currentPrice, price)) {
-      candidates.push({
-        target: { kind: "htf-fvg", timeframe: fvg.timeframe, formedAt: fvg.formedAt },
-        price,
-        tier: 1,
-      });
-    }
   }
 
   for (const swing of input.htfSwingPoints) {
