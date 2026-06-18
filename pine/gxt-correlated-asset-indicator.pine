@@ -456,15 +456,95 @@ f_select_defer_swing_poi(
                     bestDistance := dist
     best
 
-f_format_level_label(string txt, bool is_poi, bool is_tp1, bool is_tp2) =>
+f_format_level_label(string txt, bool is_poi, bool is_continuation, bool is_tp1, bool is_tp2) =>
     string label_txt = txt
-    if is_poi
+    if is_continuation
+        label_txt += " · Continuation"
+    else if is_poi
         label_txt += " · POI"
     if is_tp1
         label_txt += " · TP1"
     if is_tp2
         label_txt += " · TP2"
     label_txt
+
+f_is_continuation_poi(SessionPoiTarget poi, string kind, int formedTime, string txt) =>
+    bool matches = not na(poi) and poi.kind == kind and poi.txt == txt
+    kind == "fvg" ? matches and poi.formedTime == formedTime : matches
+
+f_find_opposing_1h_swing_before_flip(array<HtfSwingLevel> swings, int flippedAt, bool bullish) =>
+    string wantTxt = bullish ? "1H Swing Low" : "1H Swing High"
+    HtfSwingLevel best = na
+    int count = array.size(swings)
+    if count > 0
+        for i = 0 to count - 1
+            HtfSwingLevel swing = array.get(swings, i)
+            bool eligible = swing.txt == wantTxt and not swing.mitigated and not swing.isFailureSwing and swing.confirmedTime <= flippedAt
+            if eligible
+                bool take = na(best) or swing.formedTime > best.formedTime
+                if take
+                    best := swing
+    best
+
+f_expansion_leg_midpoint(float origin, float terminus) =>
+    (origin + terminus) / 2.0
+
+f_fvg_within_upper_half(HtfFvgZone zone, float origin, float terminus, bool bullish) =>
+    float midpoint = f_expansion_leg_midpoint(origin, terminus)
+    bullish ? zone.zoneLow >= midpoint and zone.zoneHigh <= terminus : zone.zoneHigh <= midpoint and zone.zoneLow >= terminus
+
+f_same_fvg_zone(HtfFvgZone left, HtfFvgZone right) =>
+    left.formedTime == right.formedTime and left.txt == right.txt and left.zoneLow == right.zoneLow and left.zoneHigh == right.zoneHigh
+
+f_pick_best_fvg_zone(array<HtfFvgZone> zones, float currentPrice) =>
+    HtfFvgZone best = na
+    float bestRank = na
+    float bestDistance = na
+    int count = array.size(zones)
+    if count > 0
+        for i = 0 to count - 1
+            HtfFvgZone candidate = array.get(zones, i)
+            float rank = f_timeframe_rank(candidate.txt)
+            float mid = (candidate.zoneLow + candidate.zoneHigh) / 2.0
+            float dist = math.abs(currentPrice - mid)
+            bool take = na(best) or rank > bestRank or (rank == bestRank and dist < bestDistance)
+            if take
+                best := candidate
+                bestRank := rank
+                bestDistance := dist
+    best
+
+f_closes_past_expansion_leg_midpoint(float barClose, float origin, float terminus, bool bullish) =>
+    float midpoint = f_expansion_leg_midpoint(origin, terminus)
+    bullish ? barClose < midpoint : barClose > midpoint
+
+f_select_continuation_fvg_poi(
+     array<HtfFvgZone> zones,
+     float expansionOrigin,
+     float expansionTerminus,
+     int sessionOpenTime,
+     int asOfTime,
+     float currentPrice,
+     bool bullish,
+     SessionPoiTarget excluded
+ ) =>
+    SessionPoiTarget best = na
+    if not na(expansionOrigin) and not na(expansionTerminus)
+        array<HtfFvgZone> candidates = array.new<HtfFvgZone>()
+        int zone_count = array.size(zones)
+        if zone_count > 0
+            for i = 0 to zone_count - 1
+                HtfFvgZone zone = array.get(zones, i)
+                bool directionMatch = zone.bullish == bullish
+                bool intraday = zone.formedTime >= sessionOpenTime and zone.formedTime <= asOfTime
+                bool inUpperHalf = f_fvg_within_upper_half(zone, expansionOrigin, expansionTerminus, bullish)
+                bool notExcluded = na(excluded) or excluded.formedTime != zone.formedTime or excluded.txt != zone.txt
+                if not zone.mitigated and directionMatch and intraday and inUpperHalf and notExcluded
+                    array.push(candidates, zone)
+        HtfFvgZone selected = f_pick_best_fvg_zone(candidates, currentPrice)
+        if not na(selected)
+            best := SessionPoiTarget.new("fvg", selected.formedTime, selected.txt)
+    best
 
 f_is_active_dol(SessionPoiTarget target, string kind, int formedTime, string txt) =>
     bool matches = not na(target) and target.kind == kind and target.txt == txt
@@ -750,7 +830,9 @@ f_draw_fvg_zones(
      array<label> existing_labels,
      array<HtfFvgZone> zones,
      int session_end_time,
-     SessionPoiTarget session_poi
+     SessionPoiTarget session_poi,
+     SessionPoiTarget continuation_poi,
+     bool in_continuation_regime
  ) =>
     array<box> next_boxes = array.new<box>()
     array<label> next_labels = array.new<label>()
@@ -769,7 +851,9 @@ f_draw_fvg_zones(
                 HtfFvgZone zone = array.get(zones, i)
                 int origin_bi = f_bar_index_for_time(zone.formedTime)
                 int end_bi = math.max(origin_bi, f_bar_index_for_time(session_end_time))
-                bool is_poi = f_is_session_poi(session_poi, "fvg", zone.formedTime, zone.txt)
+                bool is_session_poi = not in_continuation_regime and f_is_session_poi(session_poi, "fvg", zone.formedTime, zone.txt)
+                bool is_continuation = in_continuation_regime and f_is_continuation_poi(continuation_poi, "fvg", zone.formedTime, zone.txt)
+                bool is_poi = is_session_poi or is_continuation
                 color box_bg = is_poi ? POI_FVG_COLOR : FVG_COLOR
                 color box_border = is_poi ? POI_FVG_BORDER : color.new(color.teal, 40)
                 box next_box = box.new(
@@ -783,7 +867,7 @@ f_draw_fvg_zones(
                      border_width = is_poi ? POI_LINE_WIDTH : 1
                  )
                 array.push(next_boxes, next_box)
-                string label_txt = f_format_level_label(zone.txt, is_poi, false, false)
+                string label_txt = f_format_level_label(zone.txt, is_session_poi, is_continuation, false, false)
                 color label_color = is_poi ? POI_COLOR : color.teal
                 label next_label = label.new(
                      end_bi,
@@ -841,7 +925,7 @@ f_draw_level(
                  style = dashed ? line.style_dashed : line.style_solid
              )
             if txt != "" and not suppress_label
-                string label_txt = f_format_level_label(txt, is_poi, is_tp1, is_tp2)
+                string label_txt = f_format_level_label(txt, is_poi, false, is_tp1, is_tp2)
                 next_label := label.new(
                      end_bi,
                      f_label_y(price, label_placement),
@@ -875,9 +959,16 @@ var int pdhMitigatedTime = na
 var bool pdlMitigated = false
 var int pdlMitigatedTime = na
 var SessionPoiTarget sessionPoi = na
+var SessionPoiTarget continuationPoi = na
 var bool directionalFvgPoiAttempted = false
 var string effectiveBiasDirection = biasDirection
 var bool biasFlipped = false
+var int biasFlippedAt = na
+var float expansionLegOrigin = na
+var float expansionLegTerminus = na
+var int expansionLegOriginFormedAt = na
+var SessionPoiTarget excludedContinuationPoi = na
+var bool expansionLegInvalidationHandled = false
 var bool pwhMitigated = false
 var int pwhMitigatedTime = na
 var bool pwlMitigated = false
@@ -900,9 +991,16 @@ if sessionRolled
     pdlMitigated := false
     pdlMitigatedTime := na
     sessionPoi := na
+    continuationPoi := na
     directionalFvgPoiAttempted := false
     effectiveBiasDirection := biasDirection
     biasFlipped := false
+    biasFlippedAt := na
+    expansionLegOrigin := na
+    expansionLegTerminus := na
+    expansionLegOriginFormedAt := na
+    excludedContinuationPoi := na
+    expansionLegInvalidationHandled := false
 
 if newRailWeek
     pwhMitigated := false
@@ -1149,7 +1247,8 @@ f_draw_swing_levels(
      bool pwhMitigated,
      bool pwlMitigated,
      float curWeekHigh,
-     float curWeekLow
+     float curWeekLow,
+     bool in_continuation_regime
  ) =>
     array<line> next_lines = array.new<line>()
     array<label> next_labels = array.new<label>()
@@ -1176,7 +1275,7 @@ f_draw_swing_levels(
                     int origin_bi = f_bar_index_for_time(swing.formedTime)
                     int end_time = swing.mitigated ? swing.mitigatedTime : session_end_time
                     int end_bi = math.max(origin_bi, f_bar_index_for_time(end_time))
-                    bool is_poi = f_is_session_poi(session_poi, "swing", swing.formedTime, swing.txt)
+                    bool is_poi = not in_continuation_regime and f_is_session_poi(session_poi, "swing", swing.formedTime, swing.txt)
                     bool is_tp1 = f_is_active_dol(tp1_target, "swing", swing.formedTime, swing.txt)
                     bool is_tp2 = f_is_active_dol(tp2_target, "swing", swing.formedTime, swing.txt)
                     bool is_dol = is_tp1 or is_tp2
@@ -1195,7 +1294,7 @@ f_draw_swing_levels(
                      )
                     array.push(next_lines, next_line)
                     if not swing.mitigated and not f_swing_label_suppressed_by_higher_tf(swings, swing) and not f_swing_label_suppressed_by_liquidity_rail(swing, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated)
-                        string label_txt = f_format_level_label(swing.txt, is_poi, is_tp1, is_tp2)
+                        string label_txt = f_format_level_label(swing.txt, is_poi, false, is_tp1, is_tp2)
                         label next_label = label.new(
                              end_bi,
                              f_label_y(swing.price, "on"),
@@ -1291,11 +1390,52 @@ if dailyBias == "Directional" and not biasFlipped and not na(pdEq50) and time >=
     if htf1hClosed and time1h[1] >= sessionOpenTime and f_close_through_pd_midpoint_against_bias(bearishBias, close1h[1], pdEq50)
         effectiveBiasDirection := bearishBias ? "Bullish" : "Bearish"
         biasFlipped := true
+        biasFlippedAt := time1h[1]
         sessionPoi := na
+        continuationPoi := na
+        excludedContinuationPoi := na
+        expansionLegInvalidationHandled := false
+        HtfSwingLevel originSwing = f_find_opposing_1h_swing_before_flip(activeSwings, biasFlippedAt, effectiveBiasDirection == "Bullish")
+        if not na(originSwing)
+            expansionLegOrigin := originSwing.price
+            expansionLegOriginFormedAt := originSwing.formedTime
+            expansionLegTerminus := originSwing.price
+        else
+            expansionLegOrigin := na
+            expansionLegOriginFormedAt := na
+            expansionLegTerminus := na
     else if htf4hClosed and time4h[1] >= sessionOpenTime and f_close_through_pd_midpoint_against_bias(bearishBias, close4h[1], pdEq50)
         effectiveBiasDirection := bearishBias ? "Bullish" : "Bearish"
         biasFlipped := true
+        biasFlippedAt := time4h[1]
         sessionPoi := na
+        continuationPoi := na
+        excludedContinuationPoi := na
+        expansionLegInvalidationHandled := false
+        HtfSwingLevel originSwing = f_find_opposing_1h_swing_before_flip(activeSwings, biasFlippedAt, effectiveBiasDirection == "Bullish")
+        if not na(originSwing)
+            expansionLegOrigin := originSwing.price
+            expansionLegOriginFormedAt := originSwing.formedTime
+            expansionLegTerminus := originSwing.price
+        else
+            expansionLegOrigin := na
+            expansionLegOriginFormedAt := na
+            expansionLegTerminus := na
+
+bool htf1hClosedForLeg = ta.change(time1h) != 0
+if biasFlipped and not na(expansionLegOriginFormedAt) and htf1hClosedForLeg and time1h[1] >= sessionOpenTime and time1h[1] >= expansionLegOriginFormedAt
+    if effectiveBiasDirection == "Bullish"
+        expansionLegTerminus := math.max(expansionLegTerminus, high1h[1])
+    else
+        expansionLegTerminus := math.min(expansionLegTerminus, low1h[1])
+
+if biasFlipped and not expansionLegInvalidationHandled and not na(biasFlippedAt) and not na(expansionLegOrigin) and htf1hClosedForLeg and time1h[1] > biasFlippedAt and f_closes_past_expansion_leg_midpoint(close1h[1], expansionLegOrigin, expansionLegTerminus, effectiveBiasDirection == "Bullish")
+    float priceBeforeInvalidation = close1h[2]
+    excludedContinuationPoi := f_select_continuation_fvg_poi(allPoiFvgs, expansionLegOrigin, expansionLegTerminus, sessionOpenTime, time1h[1], priceBeforeInvalidation, effectiveBiasDirection == "Bullish", na)
+    expansionLegInvalidationHandled := true
+
+if dailyBias == "Directional" and biasFlipped and not na(expansionLegOrigin)
+    continuationPoi := f_select_continuation_fvg_poi(allPoiFvgs, expansionLegOrigin, expansionLegTerminus, sessionOpenTime, time, close, effectiveBiasDirection == "Bullish", excludedContinuationPoi)
 
 if dailyBias == "Directional" and not biasFlipped and not directionalFvgPoiAttempted and time >= sessionOpenTime and not na(pdEq50)
     sessionPoi := f_select_directional_fvg_poi(allPoiFvgs, pdEq50, effectiveBiasDirection == "Bullish", sessionOpenTime, close)
@@ -1341,10 +1481,12 @@ bool pwlIsTp2 = f_is_active_dol(activeDolTp2, "pwl", pwlMitigatedTime, "PWL")
 pwl_line := _pwl_line
 pwl_label := _pwl_label
 
-[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEnd, sessionPoi)
+bool inContinuationRegime = biasFlipped
+
+[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEnd, sessionPoi, continuationPoi, inContinuationRegime)
 fvg_boxes := _fvg_boxes
 fvg_labels := _fvg_labels
 
-[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, activeSwings, sessionEnd, sessionPoi, activeDolTp1, activeDolTp2, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow)
+[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, activeSwings, sessionEnd, sessionPoi, activeDolTp1, activeDolTp2, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow, inContinuationRegime)
 swing_lines := _swing_lines
 swing_labels := _swing_labels
