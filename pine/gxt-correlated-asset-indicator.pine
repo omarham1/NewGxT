@@ -825,6 +825,10 @@ f_bar_index_for_time(int target_time) =>
                 result := bar_index - max_i
     result
 
+var int sessionEndBi = na
+if barstate.islast
+    sessionEndBi := f_bar_index_for_time(sessionEnd)
+
 f_draw_fvg_zones(
      array<box> existing_boxes,
      array<label> existing_labels,
@@ -887,7 +891,7 @@ f_draw_level(
      label existing_label,
      float price,
      int origin_time,
-     int session_end_time,
+     int session_end_bi,
      string txt,
      bool dashed,
      string label_placement,
@@ -907,10 +911,9 @@ f_draw_level(
             line.delete(existing_line)
         if not na(existing_label)
             label.delete(existing_label)
-        if not na(price) and not na(origin_time) and not na(session_end_time)
+        if not na(price) and not na(origin_time) and not na(session_end_bi)
             origin_bi = f_bar_index_for_time(origin_time)
-            int end_time = mitigated ? mitigated_time : session_end_time
-            end_bi = math.max(origin_bi, f_bar_index_for_time(end_time))
+            end_bi = mitigated ? math.max(origin_bi, f_bar_index_for_time(mitigated_time)) : math.max(origin_bi, session_end_bi)
             color draw_color = is_poi ? POI_COLOR : (not session_context and (is_tp1 or is_tp2)) ? DOL_COLOR : mitigated ? SWING_MITIGATED_COLOR : line_color
             int line_width = is_poi ? POI_LINE_WIDTH : (not session_context and (is_tp1 or is_tp2)) ? DOL_LINE_WIDTH : 1
             next_line := line.new(
@@ -1039,14 +1042,14 @@ bool pdhIsPoi = f_is_session_poi(sessionPoi, "pdh", pdhMitigatedTime, "PDH")
 bool pdlIsPoi = f_is_session_poi(sessionPoi, "pdl", pdlMitigatedTime, "PDL")
 
 adr_consumption_txt = not na(adrConsumptionPct) ? str.format("ADR {0,number,#.#}%", adrConsumptionPct) : "ADR"
-[_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, openPlusAdr, dailyOpenTime, sessionEnd, adr_consumption_txt, true, "above", SESSION_CONTEXT_COLOR)
+[_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, openPlusAdr, dailyOpenTime, sessionEndBi, adr_consumption_txt, true, "above", SESSION_CONTEXT_COLOR)
 open_plus_adr_line := _open_plus_adr_line
 adr_consumption_label := _adr_consumption_label
 
-[_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, openMinusAdr, dailyOpenTime, sessionEnd, "", true, "below", SESSION_CONTEXT_COLOR)
+[_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, openMinusAdr, dailyOpenTime, sessionEndBi, "", true, "below", SESSION_CONTEXT_COLOR)
 open_minus_adr_line := _open_minus_adr_line
 
-[_pd_equilibrium_line, _pd_equilibrium_label] = f_draw_level(pd_equilibrium_line, pd_equilibrium_label, pd_eq_price, dailyOpenTime, sessionEnd, "PD EQ 50%", true, "on", SESSION_CONTEXT_COLOR)
+[_pd_equilibrium_line, _pd_equilibrium_label] = f_draw_level(pd_equilibrium_line, pd_equilibrium_label, pd_eq_price, dailyOpenTime, sessionEndBi, "PD EQ 50%", true, "on", SESSION_CONTEXT_COLOR)
 pd_equilibrium_line := _pd_equilibrium_line
 pd_equilibrium_label := _pd_equilibrium_label
 
@@ -1451,33 +1454,33 @@ bool bullishBias = effectiveBiasDirection == "Bullish"
 [activeDolTp1, activeDolTp2] = f_resolve_active_dol(bullishBias, close, dailyOpen, adrConsumptionPct, reversalDayTp1, openPlusAdr, openMinusAdr, pdh, pdl, pwh, pwl, pdhMitigated, pdlMitigated, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow, activeSwings)
 
 bool dailyOpenIsTp1 = f_is_active_dol(activeDolTp1, "daily-open", na, "Daily Open")
-[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, dailyOpen, dailyOpenTime, sessionEnd, "Daily Open", true, "above", SESSION_CONTEXT_COLOR, false, na, false, dailyOpenIsTp1, false, true)
+[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, dailyOpen, dailyOpenTime, sessionEndBi, "Daily Open", true, "above", SESSION_CONTEXT_COLOR, false, na, false, dailyOpenIsTp1, false, true)
 daily_open_line := _daily_open_line
 daily_open_label := _daily_open_label
 
 bool pdhIsTp1 = f_is_active_dol(activeDolTp1, "pdh", pdhMitigatedTime, "PDH")
 bool pdhIsTp2 = f_is_active_dol(activeDolTp2, "pdh", pdhMitigatedTime, "PDH")
 bool pdhLabelSuppressed = f_daily_rail_label_suppressed("pdh", pdh, pwh, pwl, pwhMitigated, pwlMitigated)
-[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhTime, sessionEnd, "PDH", false, "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedTime, pdhIsPoi, pdhIsTp1, pdhIsTp2, false, pdhLabelSuppressed)
+[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhTime, sessionEndBi, "PDH", false, "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedTime, pdhIsPoi, pdhIsTp1, pdhIsTp2, false, pdhLabelSuppressed)
 pdh_line := _pdh_line
 pdh_label := _pdh_label
 
 bool pdlIsTp1 = f_is_active_dol(activeDolTp1, "pdl", pdlMitigatedTime, "PDL")
 bool pdlIsTp2 = f_is_active_dol(activeDolTp2, "pdl", pdlMitigatedTime, "PDL")
 bool pdlLabelSuppressed = f_daily_rail_label_suppressed("pdl", pdl, pwh, pwl, pwhMitigated, pwlMitigated)
-[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlTime, sessionEnd, "PDL", false, "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedTime, pdlIsPoi, pdlIsTp1, pdlIsTp2, false, pdlLabelSuppressed)
+[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlTime, sessionEndBi, "PDL", false, "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedTime, pdlIsPoi, pdlIsTp1, pdlIsTp2, false, pdlLabelSuppressed)
 pdl_line := _pdl_line
 pdl_label := _pdl_label
 
 bool pwhIsTp1 = f_is_active_dol(activeDolTp1, "pwh", pwhMitigatedTime, "PWH")
 bool pwhIsTp2 = f_is_active_dol(activeDolTp2, "pwh", pwhMitigatedTime, "PWH")
-[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh, pwhTime, sessionEnd, "PWH", false, "on", LEVEL_COLOR, pwhMitigated, pwhMitigatedTime, false, pwhIsTp1, pwhIsTp2)
+[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh, pwhTime, sessionEndBi, "PWH", false, "on", LEVEL_COLOR, pwhMitigated, pwhMitigatedTime, false, pwhIsTp1, pwhIsTp2)
 pwh_line := _pwh_line
 pwh_label := _pwh_label
 
 bool pwlIsTp1 = f_is_active_dol(activeDolTp1, "pwl", pwlMitigatedTime, "PWL")
 bool pwlIsTp2 = f_is_active_dol(activeDolTp2, "pwl", pwlMitigatedTime, "PWL")
-[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl, pwlTime, sessionEnd, "PWL", false, open_near_pwl ? "below" : "on", LEVEL_COLOR, pwlMitigated, pwlMitigatedTime, false, pwlIsTp1, pwlIsTp2)
+[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl, pwlTime, sessionEndBi, "PWL", false, open_near_pwl ? "below" : "on", LEVEL_COLOR, pwlMitigated, pwlMitigatedTime, false, pwlIsTp1, pwlIsTp2)
 pwl_line := _pwl_line
 pwl_label := _pwl_label
 
