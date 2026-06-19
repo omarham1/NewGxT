@@ -5,7 +5,9 @@ indicator(
      max_lines_count = 500,
      max_labels_count = 500,
      max_boxes_count = 500,
-     dynamic_requests = false
+     dynamic_requests = false,
+     // Pine requires const int (CE10123); 14 sessions at 1m = ADR_LOOKBACK * 24 * 60.
+     calc_bars_count = 20160
  )
 
 TZ = "America/New_York"
@@ -26,11 +28,15 @@ DOL_LINE_WIDTH = 2
 LABEL_SIZE = size.small
 LABEL_GAP_TICKS = 2
 ADR_LOOKBACK = 14
-BAR_TIME_SEARCH_MAX = 4999
+CME_SESSION_MS = 86400000
+PINE_BAR_TIME_SEARCH_CEILING = 4999
+session_bar_cap = int(math.ceil(ADR_LOOKBACK * CME_SESSION_MS / (timeframe.in_seconds() * 1000)))
+BAR_TIME_SEARCH_MAX = math.min(PINE_BAR_TIME_SEARCH_CEILING, session_bar_cap - 1)
 
 // f_bar_index_for_time scans time[] on barstate.islast (realtime). Without an explicit
 // buffer, Pine auto-sizes too small on the last bar and throws CE overflow errors.
-max_bars_back(time, BAR_TIME_SEARCH_MAX + 1)
+// max_bars_back also requires const int (CE10123); ceiling matches PINE_BAR_TIME_SEARCH_CEILING + 1.
+max_bars_back(time, 5000)
 
 // Map a timestamp to the chart bar that contains it (avoids bar_time rounding forward).
 // Future targets (e.g. current session close at 17:00 ET) project forward from the active bar.
@@ -44,12 +50,14 @@ f_bar_index_for_time(int target_time) =>
             result := bar_index
         else
             int max_i = math.min(bar_index, BAR_TIME_SEARCH_MAX)
+            bool found = false
             for i = 0 to max_i
                 bool in_bar = time[i] <= target_time and (i == 0 or target_time < time[i - 1])
                 if in_bar
                     result := bar_index - i
+                    found := true
                     break
-            if result == bar_index and time[max_i] > target_time
+            if not found
                 result := bar_index - max_i
     result
 

@@ -17,7 +17,15 @@ const WEIGHT = {
   arrayCopy: 5,
 } as const;
 
-const BAR_TIME_SEARCH_MAX = 4_999;
+import {
+  adrLookbackBarCap,
+  barTimeSearchMax as replayBarTimeSearchMax,
+} from "./helpers/pine-replay-history.js";
+
+/** Pine CE ceiling; on coarse TFs the ADR lookback window is smaller. */
+function barTimeSearchMaxForTimeframe(timeframeSeconds: number): number {
+  return replayBarTimeSearchMax(adrLookbackBarCap(timeframeSeconds));
+}
 
 function readPineSource(): string {
   return readFileSync(pinePath, "utf-8");
@@ -59,7 +67,8 @@ function estimateLoadUnits(input: {
   const fvgConcatCopy =
     fvgLifecycleEvents * activeFvgs * WEIGHT.arrayCopy;
   const drawOriginScans = 0;
-  const sessionEndScan = BAR_TIME_SEARCH_MAX * WEIGHT.barIndexScan;
+  const sessionEndScan =
+    barTimeSearchMaxForTimeframe(60) * WEIGHT.barIndexScan;
 
   const breakdown = {
     requestSecurity,
@@ -142,7 +151,10 @@ describe("pine load complexity model", () => {
     expect(source).toMatch(/out_pdh_mitigated/);
     expect(source).toContain("f_align_cross_tf_swing_prices(");
     expect(source).toContain("f_sweep_swings_from_1m_bars(");
-    expect(source).toContain("max_bars_back(time, BAR_TIME_SEARCH_MAX + 1)");
+    expect(source).toContain("max_bars_back(time, 5000)");
+    expect(source).toMatch(
+      /BAR_TIME_SEARCH_MAX\s*=\s*math\.min\(PINE_BAR_TIME_SEARCH_CEILING,\s*session_bar_cap\s*-\s*1\)/,
+    );
   });
 
   it("gates cross-TF swing alignment to swing-add events in source", () => {
