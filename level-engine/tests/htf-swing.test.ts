@@ -640,4 +640,132 @@ describe("HTF Swing Points", () => {
       }),
     ]);
   });
+
+  it("aligns overlapping 1H and 4H swing lows to the same wick extreme", () => {
+    const bars4h = fractalSwingLowSequenceAt(SUN_JAN_5_OPEN, 5000).map(
+      (b, index) => ({
+        ...b,
+        time: SUN_JAN_5_OPEN + index * FOUR_HOUR_MS,
+      }),
+    );
+    const bars1h = fractalSwingLowSequenceAt(
+      SUN_JAN_5_OPEN + 10 * HOUR_MS,
+      5005,
+    ).map((b, index) => ({
+      ...b,
+      time: SUN_JAN_5_OPEN + (10 + index) * HOUR_MS,
+    }));
+    const asOf = SUN_JAN_5_OPEN + 6 * FOUR_HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({
+        bars4h,
+        bars1h,
+        asOf,
+      }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(asOf, {
+        timeframe: "4H",
+        kind: "low",
+        price: 5000,
+        formedAt: SUN_JAN_5_OPEN + 3 * FOUR_HOUR_MS,
+        confirmedAt: asOf,
+      }),
+    ]);
+  });
+
+  it("anchors 4H swing low formedAt to the 1H bar where the wick extreme occurred", () => {
+    const trough = 5000;
+    const bars4h = fractalSwingLowSequenceAt(SUN_JAN_5_OPEN, trough).map(
+      (b, index) => ({
+        ...b,
+        time: SUN_JAN_5_OPEN + index * FOUR_HOUR_MS,
+      }),
+    );
+    const pivotFourHourStart = SUN_JAN_5_OPEN + 3 * FOUR_HOUR_MS;
+    const wickOneHourTime = pivotFourHourStart + HOUR_MS;
+    const bars1h = Array.from({ length: 4 }, (_, hour) => {
+      const time = pivotFourHourStart + hour * HOUR_MS;
+      const low = hour === 1 ? trough : trough + 10;
+      return bar(time, 5016, 5017, low, 5016);
+    });
+    const asOf = SUN_JAN_5_OPEN + 6 * FOUR_HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars4h, bars1h, asOf }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(asOf, {
+        timeframe: "4H",
+        kind: "low",
+        price: trough,
+        formedAt: wickOneHourTime,
+        confirmedAt: asOf,
+      }),
+    ]);
+  });
+
+  it("anchors 1H swing low formedAt to the 1m bar where the wick extreme occurred", () => {
+    const trough = 5000;
+    const bars1h = fractalSwingLowSequenceAt(SUN_JAN_5_OPEN, trough);
+    const pivotOneHourStart = SUN_JAN_5_OPEN + 3 * HOUR_MS;
+    const wickMinuteTime = pivotOneHourStart + 15 * MINUTE_MS;
+    const mitigationBars = [
+      bar(pivotOneHourStart, 5016, 5017, trough + 10, 5016),
+      bar(wickMinuteTime, 5016, 5017, trough, 5016),
+    ];
+    const asOf = SUN_JAN_5_OPEN + 6 * HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({ bars1h, mitigationBars, asOf }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(asOf, {
+        timeframe: "1H",
+        kind: "low",
+        price: trough,
+        formedAt: wickMinuteTime,
+        confirmedAt: asOf,
+      }),
+    ]);
+  });
+
+  it("aligns cross-timeframe swing lows within ADR proximity even without pivot overlap", () => {
+    const bars4h = fractalSwingLowSequenceAt(SUN_JAN_5_OPEN, 5000).map(
+      (b, index) => ({
+        ...b,
+        time: SUN_JAN_5_OPEN + index * FOUR_HOUR_MS,
+      }),
+    );
+    const bars1h = fractalSwingLowSequenceAt(
+      SUN_JAN_5_OPEN + 17 * HOUR_MS,
+      5005,
+    ).map((b, index) => ({
+      ...b,
+      time: SUN_JAN_5_OPEN + (17 + index) * HOUR_MS,
+    }));
+    const asOf = SUN_JAN_5_OPEN + 6 * FOUR_HOUR_MS;
+
+    const swings = computeHtfSwingPoints(
+      swingInput({
+        bars4h,
+        bars1h,
+        asOf,
+      }),
+    );
+
+    expect(swings).toEqual([
+      unmitigatedSwing(asOf, {
+        timeframe: "4H",
+        kind: "low",
+        price: 5000,
+        formedAt: SUN_JAN_5_OPEN + 3 * FOUR_HOUR_MS,
+        confirmedAt: asOf,
+      }),
+    ]);
+  });
 });

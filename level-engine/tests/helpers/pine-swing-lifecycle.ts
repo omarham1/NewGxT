@@ -1,6 +1,9 @@
 import {
+  alignCrossTfSwingPrices,
   combinedWeeklySwingRange,
   DEFAULT_FAILURE_SWING_ADR_FRACTION,
+  resolveSwingWickTime,
+  type HtfSwingPoint,
 } from "../../src/htf-swing.js";
 import {
   getDailySessionKey,
@@ -15,6 +18,7 @@ type Swing = {
   formedAt: number;
   confirmedAt: number;
   kind: "high" | "low";
+  timeframe?: "4H" | "1H";
   mitigated: boolean;
   mitigatedAt?: number;
   isFailureSwing: boolean;
@@ -68,8 +72,18 @@ function swingSwept(
     : checkLow <= swing.price;
 }
 
-function swingExists(swings: Swing[], formedAt: number, kind: Swing["kind"]): boolean {
-  return swings.some((s) => s.formedAt === formedAt && s.kind === kind);
+function swingExists(
+  swings: Swing[],
+  formedAt: number,
+  kind: Swing["kind"],
+  timeframe?: Swing["timeframe"],
+): boolean {
+  return swings.some(
+    (s) =>
+      s.formedAt === formedAt &&
+      s.kind === kind &&
+      (timeframe === undefined || s.timeframe === timeframe),
+  );
 }
 
 function isMitigatedAsOf(
@@ -171,6 +185,21 @@ function stampFailureSwingsForConfirmation(
   stampFailureSwingAgainstPeers(swing, peers);
 }
 
+function resolveLifecycleSwingWickTime(
+  pivot: Bar,
+  kind: Swing["kind"],
+  timeframe: "4H" | "1H",
+  bars1h: Bar[],
+  mitigationBars: Bar[],
+): number {
+  return resolveSwingWickTime(
+    pivot,
+    kind,
+    timeframe,
+    timeframe === "4H" ? bars1h : mitigationBars,
+  );
+}
+
 function tryAddSwing(
   swings: Swing[],
   kind: Swing["kind"],
@@ -182,10 +211,11 @@ function tryAddSwing(
   adr: number,
   failureSwingAdrFraction: number,
   mitigationBars: Bar[],
+  timeframe?: Swing["timeframe"],
 ): void {
   if (
     !isSwingVisible(price, formedAt, asOf, weekly) ||
-    swingExists(swings, formedAt, kind)
+    swingExists(swings, formedAt, kind, timeframe)
   ) {
     return;
   }
@@ -195,6 +225,7 @@ function tryAddSwing(
     formedAt,
     confirmedAt,
     kind,
+    timeframe,
     mitigated: false,
     isFailureSwing: false,
   };
@@ -207,6 +238,53 @@ function tryAddSwing(
     failureSwingAdrFraction,
     mitigationBars,
   );
+}
+
+function alignActiveCrossTfSwings(
+  swings: Swing[],
+  adr: number,
+  failureSwingAdrFraction: number,
+  asOf: number,
+): void {
+  const htfSwings: HtfSwingPoint[] = swings
+    .filter((swing): swing is Swing & { timeframe: "4H" | "1H" } =>
+      swing.timeframe !== undefined,
+    )
+    .map((swing) => ({
+      timeframe: swing.timeframe,
+      kind: swing.kind,
+      price: swing.price,
+      formedAt: swing.formedAt,
+      confirmedAt: swing.confirmedAt,
+      isFailureSwing: swing.isFailureSwing,
+    }));
+
+  const aligned = alignCrossTfSwingPrices(htfSwings, {
+    bars4h: [],
+    bars1h: [],
+    mitigationBars: [],
+    pwh: 0,
+    pwl: 0,
+    currentWeekHigh: 0,
+    currentWeekLow: 0,
+    adr,
+    failureSwingAdrFraction,
+    asOf,
+  });
+
+  for (const swing of aligned) {
+    const match = swings.find(
+      (candidate) =>
+        candidate.timeframe === swing.timeframe &&
+        candidate.kind === swing.kind &&
+        candidate.formedAt === swing.formedAt &&
+        candidate.confirmedAt === swing.confirmedAt,
+    );
+    if (match) {
+      match.price = swing.price;
+      match.isFailureSwing = swing.isFailureSwing ?? false;
+    }
+  }
 }
 
 function sweepSwings(
@@ -736,19 +814,27 @@ export function simulatePineCrossTfSwingLifecycle(
       const pivotIndex = event.barIndex - 3;
       if (pivotIndex >= 3 && isBarConfirmed(event.barIndex)) {
         const pivot = bars[pivotIndex]!;
+        const timeframe = bars === bars4h ? "4H" : "1H";
 
         if (isStrictFractalHigh(bars, pivotIndex)) {
           tryAddSwing(
             active,
             "high",
             pivot.high,
-            pivot.time,
+            resolveLifecycleSwingWickTime(
+              pivot,
+              "high",
+              timeframe,
+              bars1h,
+              mitigationBars,
+            ),
             bar.time,
             bar.time,
             weekly,
             adr,
             failureSwingAdrFraction,
             mitigationBars,
+            timeframe,
           );
         }
 
@@ -757,15 +843,24 @@ export function simulatePineCrossTfSwingLifecycle(
             active,
             "low",
             pivot.low,
-            pivot.time,
+            resolveLifecycleSwingWickTime(
+              pivot,
+              "low",
+              timeframe,
+              bars1h,
+              mitigationBars,
+            ),
             bar.time,
             bar.time,
             weekly,
             adr,
             failureSwingAdrFraction,
             mitigationBars,
+            timeframe,
           );
         }
+
+        alignActiveCrossTfSwings(active, adr, failureSwingAdrFraction, bar.time);
       }
 
       pruneStaleMitigated(active, bar.time);
