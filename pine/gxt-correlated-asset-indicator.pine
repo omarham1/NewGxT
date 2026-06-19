@@ -833,7 +833,7 @@ f_draw_fvg_zones(
      array<box> existing_boxes,
      array<label> existing_labels,
      array<HtfFvgZone> zones,
-     int session_end_time,
+     int session_end_bi,
      SessionPoiTarget session_poi,
      SessionPoiTarget continuation_poi,
      bool in_continuation_regime
@@ -854,7 +854,7 @@ f_draw_fvg_zones(
             for i = 0 to zone_count - 1
                 HtfFvgZone zone = array.get(zones, i)
                 int origin_bi = f_bar_index_for_time(zone.formedTime)
-                int end_bi = math.max(origin_bi, f_bar_index_for_time(session_end_time))
+                int end_bi = math.max(origin_bi, session_end_bi)
                 bool is_session_poi = not in_continuation_regime and f_is_session_poi(session_poi, "fvg", zone.formedTime, zone.txt)
                 bool is_continuation = in_continuation_regime and f_is_continuation_poi(continuation_poi, "fvg", zone.formedTime, zone.txt)
                 bool is_poi = is_session_poi or is_continuation
@@ -1486,7 +1486,7 @@ pwl_label := _pwl_label
 
 bool inContinuationRegime = biasFlipped
 
-[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEnd, sessionPoi, continuationPoi, inContinuationRegime)
+[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEndBi, sessionPoi, continuationPoi, inContinuationRegime)
 fvg_boxes := _fvg_boxes
 fvg_labels := _fvg_labels
 
