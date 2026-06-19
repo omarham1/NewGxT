@@ -1237,7 +1237,7 @@ f_draw_swing_levels(
      array<line> existing_lines,
      array<label> existing_labels,
      array<HtfSwingLevel> swings,
-     int session_end_time,
+     int session_end_bi,
      SessionPoiTarget session_poi,
      SessionPoiTarget tp1_target,
      SessionPoiTarget tp2_target,
@@ -1276,8 +1276,7 @@ f_draw_swing_levels(
                     if f_timeframe_rank(swing.txt) != drawRank
                         continue
                     int origin_bi = f_bar_index_for_time(swing.formedTime)
-                    int end_time = swing.mitigated ? swing.mitigatedTime : session_end_time
-                    int end_bi = math.max(origin_bi, f_bar_index_for_time(end_time))
+                    int end_bi = swing.mitigated ? math.max(origin_bi, f_bar_index_for_time(swing.mitigatedTime)) : math.max(origin_bi, session_end_bi)
                     bool is_poi = not in_continuation_regime and f_is_session_poi(session_poi, "swing", swing.formedTime, swing.txt)
                     bool is_tp1 = f_is_active_dol(tp1_target, "swing", swing.formedTime, swing.txt)
                     bool is_tp2 = f_is_active_dol(tp2_target, "swing", swing.formedTime, swing.txt)
@@ -1490,6 +1489,6 @@ bool inContinuationRegime = biasFlipped
 fvg_boxes := _fvg_boxes
 fvg_labels := _fvg_labels
 
-[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, activeSwings, sessionEnd, sessionPoi, activeDolTp1, activeDolTp2, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow, inContinuationRegime)
+[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, activeSwings, sessionEndBi, sessionPoi, activeDolTp1, activeDolTp2, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow, inContinuationRegime)
 swing_lines := _swing_lines
 swing_labels := _swing_labels
