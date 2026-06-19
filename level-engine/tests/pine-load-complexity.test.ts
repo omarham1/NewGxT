@@ -54,10 +54,7 @@ function estimateLoadUnits(input: {
   const crossTfAlign =
     swingAlignEvents * activeSwings * activeSwings * WEIGHT.crossTfAlignInner;
   const fvgConcatCopy = chartBars * activeFvgs * WEIGHT.arrayCopy;
-  const drawOriginScans =
-    (activeSwings + activeFvgs + drawLevels) *
-    BAR_TIME_SEARCH_MAX *
-    WEIGHT.barIndexScan;
+  const drawOriginScans = 0;
   const sessionEndScan = BAR_TIME_SEARCH_MAX * WEIGHT.barIndexScan;
 
   const breakdown = {
@@ -85,6 +82,51 @@ describe("pine load complexity model", () => {
     activeFvgs: 30,
     drawLevels: 8,
   };
+
+  it("models draw-time origin scans as eliminated after bar-index caching (#27)", () => {
+    const { breakdown } = estimateLoadUnits({
+      chartBars: 10_000,
+      oneMinBarsPerChartBar: 15,
+      ...assumptions,
+    });
+
+    expect(breakdown.drawOriginScans).toBe(0);
+  });
+
+  it("caches session rail bar indices at origin and mitigation instead of draw-time scan", () => {
+    const source = readPineSource();
+
+    expect(source).toMatch(/var int pdhOriginBi/);
+    expect(source).toMatch(/var int pdhMitigatedBi/);
+    expect(source).toMatch(/var int dailyOpenOriginBi/);
+    expect(source).not.toContain("f_bar_index_for_time(origin_time)");
+    expect(source).not.toContain("f_bar_index_for_time(mitigated_time)");
+  });
+
+  it("caches HTF swing formed and mitigated bar indices at lifecycle events", () => {
+    const source = readPineSource();
+
+    expect(source).toMatch(/type HtfSwingLevel[\s\S]*?int formedBi/);
+    expect(source).toMatch(/type HtfSwingLevel[\s\S]*?int mitigatedBi/);
+    expect(source).toContain(
+      "f_bar_index_for_time(resolvedFormedTime)",
+    );
+    expect(source).toContain("f_bar_index_for_time(checkTime)");
+    expect(source).not.toContain(
+      "f_bar_index_for_time(swing.formedTime)",
+    );
+    expect(source).not.toContain(
+      "f_bar_index_for_time(swing.mitigatedTime)",
+    );
+  });
+
+  it("caches HTF FVG formed bar index at zone creation instead of draw-time scan", () => {
+    const source = readPineSource();
+
+    expect(source).toMatch(/type HtfFvgZone[\s\S]*?int formedBi/);
+    expect(source).toContain("f_bar_index_for_time(formedTime)");
+    expect(source).not.toContain("f_bar_index_for_time(zone.formedTime)");
+  });
 
   it("documents that opts #20 and #24 left major per-bar hotspots in source", () => {
     const source = readPineSource();
