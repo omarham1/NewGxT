@@ -80,6 +80,26 @@ describe("Session Rail Mitigation", () => {
     expect(mitigation.pwhMitigatedAt).toBe(mitigatedAt);
   });
 
+  it("marks PWL mitigated when a 1m bar crosses after the current week open", () => {
+    const bars = loadFixture("mid-week-daily-boundary");
+    const mitigatedAt = MON_JAN_6_EVAL + HOUR_MS;
+
+    const mitigation = computeSessionRailMitigation({
+      rails: {
+        pdh: 5100,
+        pdl: 5000,
+        pwh: 4920,
+        pwl: 4750,
+        dailyOpen: 5055,
+      },
+      bars,
+      mitigationBars: [bar(mitigatedAt, 4755, 4760, 4745, 4750)],
+      asOf: mitigatedAt,
+    });
+
+    expect(mitigation.pwlMitigatedAt).toBe(mitigatedAt);
+  });
+
   it("excludes PDH mitigation from a prior CME session", () => {
     const bars = loadFixture("mid-week-daily-boundary");
     const priorSessionCross = 1736182800000;

@@ -281,9 +281,49 @@ f_session_rails() =>
 f_session_rails_with_end() =>
     [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low] = f_session_rails()
     int out_session_end = f_current_daily_session_end()
-    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_session_end]
 
-[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd] = request.security(
+    var bool out_pdh_mitigated = false
+    var int out_pdh_mitigated_time = na
+    var bool out_pdl_mitigated = false
+    var int out_pdl_mitigated_time = na
+    var bool out_pwh_mitigated = false
+    var int out_pwh_mitigated_time = na
+    var bool out_pwl_mitigated = false
+    var int out_pwl_mitigated_time = na
+
+    daily_key = f_cme_daily_session_key()
+    week_key = f_cme_week_session_key()
+    new_daily = ta.change(daily_key) != 0
+    new_week = not na(week_key) and ta.change(week_key) != 0
+
+    if new_daily
+        out_pdh_mitigated := false
+        out_pdh_mitigated_time := na
+        out_pdl_mitigated := false
+        out_pdl_mitigated_time := na
+
+    if new_week
+        out_pwh_mitigated := false
+        out_pwh_mitigated_time := na
+        out_pwl_mitigated := false
+        out_pwl_mitigated_time := na
+
+    if not out_pdh_mitigated and not na(out_pdh) and not na(out_daily_open_time) and time >= out_daily_open_time and high >= out_pdh
+        out_pdh_mitigated := true
+        out_pdh_mitigated_time := time
+    if not out_pdl_mitigated and not na(out_pdl) and not na(out_daily_open_time) and time >= out_daily_open_time and low <= out_pdl
+        out_pdl_mitigated := true
+        out_pdl_mitigated_time := time
+    if not out_pwh_mitigated and not na(out_pwh) and not na(week_key) and time >= week_key and high >= out_pwh
+        out_pwh_mitigated := true
+        out_pwh_mitigated_time := time
+    if not out_pwl_mitigated and not na(out_pwl) and not na(week_key) and time >= week_key and low <= out_pwl
+        out_pwl_mitigated := true
+        out_pwl_mitigated_time := time
+
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_session_end, out_pdh_mitigated, out_pdh_mitigated_time, out_pdl_mitigated, out_pdl_mitigated_time, out_pwh_mitigated, out_pwh_mitigated_time, out_pwl_mitigated, out_pwl_mitigated_time]
+
+[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime] = request.security(
      syminfo.tickerid,
      "1",
      f_session_rails_with_end(),
@@ -954,10 +994,6 @@ var label daily_open_label = na
 var label adr_consumption_label = na
 var label pd_equilibrium_label = na
 
-var bool pdhMitigated = false
-var int pdhMitigatedTime = na
-var bool pdlMitigated = false
-var int pdlMitigatedTime = na
 var SessionPoiTarget sessionPoi = na
 var SessionPoiTarget continuationPoi = na
 var bool directionalFvgPoiAttempted = false
@@ -969,11 +1005,6 @@ var float expansionLegTerminus = na
 var int expansionLegOriginFormedAt = na
 var SessionPoiTarget excludedContinuationPoi = na
 var bool expansionLegInvalidationHandled = false
-var bool pwhMitigated = false
-var int pwhMitigatedTime = na
-var bool pwlMitigated = false
-var int pwlMitigatedTime = na
-
 open_near_pwl = not na(dailyOpen) and not na(pwl) and math.abs(dailyOpen - pwl) <= syminfo.mintick * LABEL_GAP_TICKS * 4
 pdRange = not na(pdh) and not na(pdl) ? pdh - pdl : na
 pdEqLow = not na(pdRange) ? pdl + pdRange * 0.25 : na
@@ -986,10 +1017,6 @@ weekKey = f_cme_week_session_key()
 newRailWeek = not na(weekKey) and ta.change(weekKey) != 0
 
 if sessionRolled
-    pdhMitigated := false
-    pdhMitigatedTime := na
-    pdlMitigated := false
-    pdlMitigatedTime := na
     sessionPoi := na
     continuationPoi := na
     directionalFvgPoiAttempted := false
@@ -1001,31 +1028,6 @@ if sessionRolled
     expansionLegOriginFormedAt := na
     excludedContinuationPoi := na
     expansionLegInvalidationHandled := false
-
-if newRailWeek
-    pwhMitigated := false
-    pwhMitigatedTime := na
-    pwlMitigated := false
-    pwlMitigatedTime := na
-
-int oneMinBarCount = array.size(oneMinTimes)
-if oneMinBarCount > 0
-    for mi = 0 to oneMinBarCount - 1
-        float checkLow = array.get(oneMinLows, mi)
-        float checkHigh = array.get(oneMinHighs, mi)
-        int checkTime = array.get(oneMinTimes, mi)
-        if not pdhMitigated and not na(pdh) and not na(dailyOpenTime) and checkTime >= dailyOpenTime and checkHigh >= pdh
-            pdhMitigated := true
-            pdhMitigatedTime := checkTime
-        if not pdlMitigated and not na(pdl) and not na(dailyOpenTime) and checkTime >= dailyOpenTime and checkLow <= pdl
-            pdlMitigated := true
-            pdlMitigatedTime := checkTime
-        if not pwhMitigated and not na(pwh) and not na(weekKey) and checkTime >= weekKey and checkHigh >= pwh
-            pwhMitigated := true
-            pwhMitigatedTime := checkTime
-        if not pwlMitigated and not na(pwl) and not na(weekKey) and checkTime >= weekKey and checkLow <= pwl
-            pwlMitigated := true
-            pwlMitigatedTime := checkTime
 
 if dailyBias == "Neutral" and na(sessionPoi)
     if pdhMitigated and pdlMitigated
