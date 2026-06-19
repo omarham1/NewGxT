@@ -31,6 +31,8 @@ function estimateLoadUnits(input: {
   drawLevels: number;
   /** Cross-TF align runs on swing-add / retroactive failure-stamp events, not every bar. */
   swingAlignEvents?: number;
+  /** FVG concat copy runs when 4H/1H POI FVG pools mutate, not every chart bar. */
+  fvgLifecycleEvents?: number;
 }) {
   const {
     chartBars,
@@ -39,6 +41,7 @@ function estimateLoadUnits(input: {
     activeFvgs,
     drawLevels,
     swingAlignEvents = 0,
+    fvgLifecycleEvents = 0,
   } = input;
 
   const requestSecurity = chartBars * 3 * WEIGHT.requestSecurity;
@@ -53,7 +56,8 @@ function estimateLoadUnits(input: {
     WEIGHT.swingSweepInner;
   const crossTfAlign =
     swingAlignEvents * activeSwings * activeSwings * WEIGHT.crossTfAlignInner;
-  const fvgConcatCopy = chartBars * activeFvgs * WEIGHT.arrayCopy;
+  const fvgConcatCopy =
+    fvgLifecycleEvents * activeFvgs * WEIGHT.arrayCopy;
   const drawOriginScans = 0;
   const sessionEndScan = BAR_TIME_SEARCH_MAX * WEIGHT.barIndexScan;
 
@@ -151,6 +155,39 @@ describe("pine load complexity model", () => {
     expect(source).not.toMatch(
       /f_try_add_swing\([\s\S]*?\nactiveSwings := f_align_cross_tf_swing_prices/,
     );
+  });
+
+  it("caches merged POI FVG pool and only concatenates on lifecycle mutations (#28)", () => {
+    const source = readPineSource();
+
+    expect(source).toMatch(/var array<HtfFvgZone> allPoiFvgs/);
+    expect(source).toMatch(
+      /f_advance_fvg_lifecycle\([\s\S]*?poiFvgsDirty/,
+    );
+    expect(source).toMatch(
+      /if poiFvgsDirty[\s\S]*?allPoiFvgs := f_concat_fvg_arrays\(/,
+    );
+    expect(source).not.toMatch(
+      /allPoiFvgs = f_concat_fvg_arrays\(poiFvgs4h, poiFvgs1h\)/,
+    );
+  });
+
+  it("models FVG concat copy cost near zero on steady-state bars", () => {
+    const chartBars = 10_000;
+    const fvgMutationsPerHistory = 120;
+
+    const legacyConcat =
+      chartBars * assumptions.activeFvgs * WEIGHT.arrayCopy;
+    const { breakdown } = estimateLoadUnits({
+      chartBars,
+      oneMinBarsPerChartBar: 15,
+      fvgLifecycleEvents: fvgMutationsPerHistory,
+      ...assumptions,
+    });
+
+    expect(breakdown.fvgConcatCopy).toBeLessThan(legacyConcat / 50);
+    expect(breakdown.fvgConcatCopy / chartBars).toBeLessThan(2);
+    expect(fvgMutationsPerHistory).toBeLessThan(chartBars / 50);
   });
 
   it("models cross-TF alignment cost near zero on steady-state bars", () => {

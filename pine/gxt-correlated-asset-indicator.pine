@@ -851,11 +851,18 @@ f_advance_fvg_lifecycle(
      bool bar_confirmed
  ) =>
     array<HtfFvgZone> result = zones
+    bool dirty = false
     if bar_confirmed
+        int sizeBeforeAdd = array.size(result)
         result := f_try_add_fvg(result, formed, zoneLow, zoneHigh, formedTime, txt, formedBullish)
+        dirty := array.size(result) != sizeBeforeAdd
+    int sizeBeforeMitigate = array.size(result)
     result := f_remove_mitigated_fvgs(result, checkClose, checkTime)
+    dirty := dirty or array.size(result) != sizeBeforeMitigate
+    int sizeBeforePrune = array.size(result)
     result := f_prune_expired_fvgs(result)
-    result
+    dirty := dirty or array.size(result) != sizeBeforePrune
+    [result, dirty]
 
 f_concat_fvg_arrays(array<HtfFvgZone> left, array<HtfFvgZone> right) =>
     array<HtfFvgZone> combined = array.copy(left)
@@ -1130,7 +1137,8 @@ if chartTfSeconds != lastChartTf
     lastChartTf := chartTfSeconds
 
 if showFvgs
-    activeFvgs := f_advance_fvg_lifecycle(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel, formedBullish, close, time, barstate.isconfirmed)
+    [activeFvgsNext, _activeFvgsDirty] = f_advance_fvg_lifecycle(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel, formedBullish, close, time, barstate.isconfirmed)
+    activeFvgs := activeFvgsNext
 
 fvgZonesToDraw = showFvgs ? activeFvgs : array.new<HtfFvgZone>()
 
@@ -1488,6 +1496,7 @@ f_draw_swing_levels(
 
 var array<HtfFvgZone> poiFvgs4h = array.new<HtfFvgZone>()
 var array<HtfFvgZone> poiFvgs1h = array.new<HtfFvgZone>()
+var array<HtfFvgZone> allPoiFvgs = array.new<HtfFvgZone>()
 
 var array<HtfSwingLevel> activeSwings = array.new<HtfSwingLevel>()
 var array<line> swing_lines = array.new<line>()
@@ -1507,9 +1516,15 @@ activeSwings := f_sweep_swings_from_1m_bars(activeSwings, oneMinLows, oneMinHigh
 activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 activeSwings := f_prune_comparison_expired_swings(activeSwings)
 
-poiFvgs4h := f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, close4h, time4h, barstate.isconfirmed)
-poiFvgs1h := f_advance_fvg_lifecycle(poiFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, close1h, time1h, barstate.isconfirmed)
-allPoiFvgs = f_concat_fvg_arrays(poiFvgs4h, poiFvgs1h)
+bool poiFvgsDirty = false
+[poiFvgs4hNext, poiFvgs4hDirty] = f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, close4h, time4h, barstate.isconfirmed)
+poiFvgs4h := poiFvgs4hNext
+poiFvgsDirty := poiFvgs4hDirty
+[poiFvgs1hNext, poiFvgs1hDirty] = f_advance_fvg_lifecycle(poiFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, close1h, time1h, barstate.isconfirmed)
+poiFvgs1h := poiFvgs1hNext
+poiFvgsDirty := poiFvgsDirty or poiFvgs1hDirty
+if poiFvgsDirty
+    allPoiFvgs := f_concat_fvg_arrays(poiFvgs4h, poiFvgs1h)
 
 if dailyBias == "Directional" and not biasFlipped and not na(pdEq50) and time >= sessionOpenTime
     bool bearishBias = effectiveBiasDirection == "Bearish"
