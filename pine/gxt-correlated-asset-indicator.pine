@@ -278,18 +278,15 @@ f_session_rails() =>
 
     [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low]
 
-[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow] = request.security(
-     syminfo.tickerid,
-     "1",
-     f_session_rails(),
-     gaps = barmerge.gaps_off,
-     lookahead = barmerge.lookahead_off
- )
+f_session_rails_with_end() =>
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low] = f_session_rails()
+    int out_session_end = f_current_daily_session_end()
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_session_end]
 
-sessionEnd = request.security(
+[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd] = request.security(
      syminfo.tickerid,
      "1",
-     f_current_daily_session_end(),
+     f_session_rails_with_end(),
      gaps = barmerge.gaps_off,
      lookahead = barmerge.lookahead_off
  )
@@ -1126,6 +1123,11 @@ f_htf_swing_signals() =>
             lowConfirmedTime := time
     [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime]
 
+f_htf_swing_and_fvg_signals() =>
+    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime] = f_htf_swing_signals()
+    [formed, zoneLow, zoneHigh, formedTime, bullish, barLow, barHigh, barTime, barClose] = f_detect_fvg_with_ohlc()
+    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime, formed, zoneLow, zoneHigh, formedTime, bullish, barLow, barHigh, barTime, barClose]
+
 f_swing_in_comparison_pool(HtfSwingLevel swing, int atTime, float pwh, float pwl, float curWeekHigh, float curWeekLow) =>
     if swing.confirmedTime > atTime or not f_within_htf_swing_comparison_lookback(swing.formedTime)
         false
@@ -1377,11 +1379,20 @@ f_draw_swing_levels(
      lowConfirmed4h,
      lowPrice4h,
      lowPivotTime4h,
-     lowConfirmedTime4h
+     lowConfirmedTime4h,
+     formed4h,
+     zoneLow4h,
+     zoneHigh4h,
+     formedTime4h,
+     bullish4h,
+     low4h,
+     high4h,
+     time4h,
+     close4h
  ] = request.security(
      syminfo.tickerid,
      "240",
-     f_htf_swing_signals(),
+     f_htf_swing_and_fvg_signals(),
      gaps = barmerge.gaps_off,
      lookahead = barmerge.lookahead_off
  )
@@ -1394,27 +1405,20 @@ f_draw_swing_levels(
      lowConfirmed1h,
      lowPrice1h,
      lowPivotTime1h,
-     lowConfirmedTime1h
+     lowConfirmedTime1h,
+     formed1h,
+     zoneLow1h,
+     zoneHigh1h,
+     formedTime1h,
+     bullish1h,
+     low1h,
+     high1h,
+     time1h,
+     close1h
  ] = request.security(
      syminfo.tickerid,
      "60",
-     f_htf_swing_signals(),
-     gaps = barmerge.gaps_off,
-     lookahead = barmerge.lookahead_off
- )
-
-[formed4h, zoneLow4h, zoneHigh4h, formedTime4h, bullish4h, low4h, high4h, time4h, close4h] = request.security(
-     syminfo.tickerid,
-     "240",
-     f_detect_fvg_with_ohlc(),
-     gaps = barmerge.gaps_off,
-     lookahead = barmerge.lookahead_off
- )
-
-[formed1h, zoneLow1h, zoneHigh1h, formedTime1h, bullish1h, low1h, high1h, time1h, close1h] = request.security(
-     syminfo.tickerid,
-     "60",
-     f_detect_fvg_with_ohlc(),
+     f_htf_swing_and_fvg_signals(),
      gaps = barmerge.gaps_off,
      lookahead = barmerge.lookahead_off
  )
