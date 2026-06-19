@@ -29,6 +29,8 @@ function estimateLoadUnits(input: {
   activeSwings: number;
   activeFvgs: number;
   drawLevels: number;
+  /** Cross-TF align runs on swing-add / retroactive failure-stamp events, not every bar. */
+  swingAlignEvents?: number;
 }) {
   const {
     chartBars,
@@ -36,6 +38,7 @@ function estimateLoadUnits(input: {
     activeSwings,
     activeFvgs,
     drawLevels,
+    swingAlignEvents = 0,
   } = input;
 
   const requestSecurity = chartBars * 3 * WEIGHT.requestSecurity;
@@ -49,7 +52,7 @@ function estimateLoadUnits(input: {
     Math.max(activeSwings, 1) *
     WEIGHT.swingSweepInner;
   const crossTfAlign =
-    chartBars * activeSwings * activeSwings * WEIGHT.crossTfAlignInner;
+    swingAlignEvents * activeSwings * activeSwings * WEIGHT.crossTfAlignInner;
   const fvgConcatCopy = chartBars * activeFvgs * WEIGHT.arrayCopy;
   const drawOriginScans =
     (activeSwings + activeFvgs + drawLevels) *
@@ -96,7 +99,39 @@ describe("pine load complexity model", () => {
     expect(source).toContain("max_bars_back(time, BAR_TIME_SEARCH_MAX + 1)");
   });
 
-  it("models per-bar 1m work plus cross-TF alignment as larger than session-end draw cache win", () => {
+  it("gates cross-TF swing alignment to swing-add events in source", () => {
+    const source = readPineSource();
+
+    expect(source).toContain("f_align_cross_tf_swing_prices(");
+    expect(source).toMatch(
+      /f_try_add_swing\([\s\S]*?f_align_cross_tf_swing_prices\(/,
+    );
+    expect(source).not.toMatch(
+      /f_try_add_swing\([\s\S]*?\nactiveSwings := f_align_cross_tf_swing_prices/,
+    );
+  });
+
+  it("models cross-TF alignment cost near zero on steady-state bars", () => {
+    const chartBars = 10_000;
+    const swings = assumptions.activeSwings;
+    const swingAddsPerHistory = 60;
+
+    const { total, breakdown } = estimateLoadUnits({
+      chartBars,
+      oneMinBarsPerChartBar: 15,
+      swingAlignEvents: swingAddsPerHistory,
+      ...assumptions,
+    });
+
+    const perBarCrossTfShare = breakdown.crossTfAlign / chartBars;
+    const steadyStateCrossTfShare = breakdown.crossTfAlign / total;
+
+    expect(perBarCrossTfShare).toBeLessThan(500);
+    expect(steadyStateCrossTfShare).toBeLessThan(0.02);
+    expect(swingAddsPerHistory).toBeLessThan(chartBars / 100);
+  });
+
+  it("models per-bar 1m work as larger than session-end draw cache win", () => {
     const { total, breakdown } = estimateLoadUnits({
       chartBars: 10_000,
       oneMinBarsPerChartBar: 15,
@@ -104,14 +139,12 @@ describe("pine load complexity model", () => {
     });
 
     const perBarHotspots =
-      breakdown.requestSecurityLowerTf +
-      breakdown.swingSweepLoop +
-      breakdown.crossTfAlign;
+      breakdown.requestSecurityLowerTf + breakdown.swingSweepLoop;
 
     const drawHotspots =
       breakdown.drawOriginScans + breakdown.sessionEndScan;
 
-    expect(perBarHotspots / total).toBeGreaterThan(0.55);
+    expect(perBarHotspots / total).toBeGreaterThan(0.54);
     expect(perBarHotspots).toBeGreaterThan(drawHotspots * 2);
     expect(breakdown.railMitigationLoop).toBe(0);
   });

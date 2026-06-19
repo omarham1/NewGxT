@@ -212,12 +212,12 @@ function tryAddSwing(
   failureSwingAdrFraction: number,
   mitigationBars: Bar[],
   timeframe?: Swing["timeframe"],
-): void {
+): boolean {
   if (
     !isSwingVisible(price, formedAt, asOf, weekly) ||
     swingExists(swings, formedAt, kind, timeframe)
   ) {
-    return;
+    return false;
   }
 
   const swing: Swing = {
@@ -238,6 +238,7 @@ function tryAddSwing(
     failureSwingAdrFraction,
     mitigationBars,
   );
+  return true;
 }
 
 function alignActiveCrossTfSwings(
@@ -815,52 +816,57 @@ export function simulatePineCrossTfSwingLifecycle(
       if (pivotIndex >= 3 && isBarConfirmed(event.barIndex)) {
         const pivot = bars[pivotIndex]!;
         const timeframe = bars === bars4h ? "4H" : "1H";
+        let swingAdded = false;
 
         if (isStrictFractalHigh(bars, pivotIndex)) {
-          tryAddSwing(
-            active,
-            "high",
-            pivot.high,
-            resolveLifecycleSwingWickTime(
-              pivot,
+          swingAdded =
+            tryAddSwing(
+              active,
               "high",
-              timeframe,
-              bars1h,
+              pivot.high,
+              resolveLifecycleSwingWickTime(
+                pivot,
+                "high",
+                timeframe,
+                bars1h,
+                mitigationBars,
+              ),
+              bar.time,
+              bar.time,
+              weekly,
+              adr,
+              failureSwingAdrFraction,
               mitigationBars,
-            ),
-            bar.time,
-            bar.time,
-            weekly,
-            adr,
-            failureSwingAdrFraction,
-            mitigationBars,
-            timeframe,
-          );
+              timeframe,
+            ) || swingAdded;
         }
 
         if (isStrictFractalLow(bars, pivotIndex)) {
-          tryAddSwing(
-            active,
-            "low",
-            pivot.low,
-            resolveLifecycleSwingWickTime(
-              pivot,
+          swingAdded =
+            tryAddSwing(
+              active,
               "low",
-              timeframe,
-              bars1h,
+              pivot.low,
+              resolveLifecycleSwingWickTime(
+                pivot,
+                "low",
+                timeframe,
+                bars1h,
+                mitigationBars,
+              ),
+              bar.time,
+              bar.time,
+              weekly,
+              adr,
+              failureSwingAdrFraction,
               mitigationBars,
-            ),
-            bar.time,
-            bar.time,
-            weekly,
-            adr,
-            failureSwingAdrFraction,
-            mitigationBars,
-            timeframe,
-          );
+              timeframe,
+            ) || swingAdded;
         }
 
-        alignActiveCrossTfSwings(active, adr, failureSwingAdrFraction, bar.time);
+        if (swingAdded) {
+          alignActiveCrossTfSwings(active, adr, failureSwingAdrFraction, bar.time);
+        }
       }
 
       pruneStaleMitigated(active, bar.time);

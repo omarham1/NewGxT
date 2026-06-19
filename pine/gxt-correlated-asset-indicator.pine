@@ -1186,26 +1186,6 @@ f_swing_exists(array<HtfSwingLevel> swings, int formedTime, string txt) =>
                 found := true
     found
 
-f_try_add_swing(
-     array<HtfSwingLevel> swings,
-     bool confirmed,
-     float price,
-     int formedTime,
-     int confirmedTime,
-     string txt,
-     float pwh,
-     float pwl,
-     float curWeekHigh,
-     float curWeekLow,
-     float adrVal,
-     float adrPct
- ) =>
-    int resolvedFormedTime = f_resolve_swing_wick_time(formedTime, price, txt)
-    if confirmed and not na(price) and not na(formedTime) and not na(confirmedTime) and f_swing_visible(price, formedTime, pwh, pwl, curWeekHigh, curWeekLow) and not f_swing_exists(swings, resolvedFormedTime, txt)
-        array.push(swings, HtfSwingLevel.new(price, resolvedFormedTime, confirmedTime, txt, false, na, false))
-        f_stamp_failure_swings(swings, array.size(swings) - 1, adrVal, adrPct, pwh, pwl, curWeekHigh, curWeekLow)
-    swings
-
 f_cross_tf_swing_price_cluster(HtfSwingLevel fourH, HtfSwingLevel oneH, float threshold) =>
     f_same_swing_kind(fourH.txt, oneH.txt) and math.abs(fourH.price - oneH.price) <= threshold
 
@@ -1242,6 +1222,27 @@ f_align_cross_tf_swing_prices(array<HtfSwingLevel> swings, float adrVal, float a
                     array.set(swings, j, HtfSwingLevel.new(aligned, oneH.formedTime, oneH.confirmedTime, oneH.txt, oneH.mitigated, oneH.mitigatedTime, true))
                 if not fourHInner and not oneHInner
                     array.set(swings, j, HtfSwingLevel.new(oneH.price, oneH.formedTime, oneH.confirmedTime, oneH.txt, oneH.mitigated, oneH.mitigatedTime, true))
+    swings
+
+f_try_add_swing(
+     array<HtfSwingLevel> swings,
+     bool confirmed,
+     float price,
+     int formedTime,
+     int confirmedTime,
+     string txt,
+     float pwh,
+     float pwl,
+     float curWeekHigh,
+     float curWeekLow,
+     float adrVal,
+     float adrPct
+ ) =>
+    int resolvedFormedTime = f_resolve_swing_wick_time(formedTime, price, txt)
+    if confirmed and not na(price) and not na(formedTime) and not na(confirmedTime) and f_swing_visible(price, formedTime, pwh, pwl, curWeekHigh, curWeekLow) and not f_swing_exists(swings, resolvedFormedTime, txt)
+        array.push(swings, HtfSwingLevel.new(price, resolvedFormedTime, confirmedTime, txt, false, na, false))
+        f_stamp_failure_swings(swings, array.size(swings) - 1, adrVal, adrPct, pwh, pwl, curWeekHigh, curWeekLow)
+        f_align_cross_tf_swing_prices(swings, adrVal, adrPct)
     swings
 
 f_swing_swept(HtfSwingLevel swing, float checkLow, float checkHigh) =>
@@ -1442,7 +1443,6 @@ activeSwings := f_try_add_swing(activeSwings, highConfirmed4h, highPrice4h, high
 activeSwings := f_try_add_swing(activeSwings, lowConfirmed4h, lowPrice4h, lowPivotTime4h, lowConfirmedTime4h, "4H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
 activeSwings := f_try_add_swing(activeSwings, highConfirmed1h, highPrice1h, highPivotTime1h, highConfirmedTime1h, "1H Swing High", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
 activeSwings := f_try_add_swing(activeSwings, lowConfirmed1h, lowPrice1h, lowPivotTime1h, lowConfirmedTime1h, "1H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
-activeSwings := f_align_cross_tf_swing_prices(activeSwings, adr, failureSwingAdrPct)
 activeSwings := f_sweep_swings_from_1m_bars(activeSwings, oneMinLows, oneMinHighs, oneMinTimes)
 activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 activeSwings := f_prune_comparison_expired_swings(activeSwings)
