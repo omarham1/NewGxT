@@ -31,6 +31,14 @@ function readPineSource(): string {
   return readFileSync(pinePath, "utf-8");
 }
 
+function sessionRailsWithEndBody(source: string): string {
+  const start = source.indexOf("f_session_rails_with_end() =>");
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = source.indexOf("\n\n[", start);
+  expect(end).toBeGreaterThan(start);
+  return source.slice(start, end);
+}
+
 function estimateLoadUnits(input: {
   chartBars: number;
   oneMinBarsPerChartBar: number;
@@ -53,15 +61,10 @@ function estimateLoadUnits(input: {
   } = input;
 
   const requestSecurity = chartBars * 3 * WEIGHT.requestSecurity;
-  const requestSecurityLowerTf =
-    chartBars * WEIGHT.requestSecurityLowerTf +
-    chartBars * oneMinBarsPerChartBar * WEIGHT.oneMinInnerLoop;
+  const requestSecurityLowerTf = chartBars * WEIGHT.requestSecurityLowerTf;
   const railMitigationLoop = 0;
   const swingSweepLoop =
-    chartBars *
-    oneMinBarsPerChartBar *
-    Math.max(activeSwings, 1) *
-    WEIGHT.swingSweepInner;
+    chartBars * oneMinBarsPerChartBar * activeSwings * WEIGHT.swingSweepInner;
   const crossTfAlign =
     swingAlignEvents * activeSwings * activeSwings * WEIGHT.crossTfAlignInner;
   const fvgConcatCopy =
@@ -116,21 +119,15 @@ describe("pine load complexity model", () => {
     expect(source).not.toContain("f_bar_index_for_time(mitigated_time)");
   });
 
-  it("caches HTF swing formed and mitigated bar indices at lifecycle events", () => {
+  it("caches HTF swing formed and mitigated bar indices at lifecycle mutation", () => {
     const source = readPineSource();
 
     expect(source).toMatch(/type HtfSwingLevel[\s\S]*?int formedBi/);
     expect(source).toMatch(/type HtfSwingLevel[\s\S]*?int mitigatedBi/);
-    expect(source).toContain(
-      "f_bar_index_for_time(resolvedFormedTime)",
-    );
+    expect(source).toContain("f_bar_index_for_time(resolvedFormedTime)");
     expect(source).toContain("f_bar_index_for_time(checkTime)");
-    expect(source).not.toContain(
-      "f_bar_index_for_time(swing.formedTime)",
-    );
-    expect(source).not.toContain(
-      "f_bar_index_for_time(swing.mitigatedTime)",
-    );
+    expect(source).not.toContain("f_remap_swing_bar_indices(");
+    expect(source).not.toContain("engineSwings");
   });
 
   it("caches HTF FVG formed bar index at zone creation instead of draw-time scan", () => {
@@ -141,16 +138,32 @@ describe("pine load complexity model", () => {
     expect(source).not.toContain("f_bar_index_for_time(zone.formedTime)");
   });
 
-  it("documents that opts #20 and #24 left major per-bar hotspots in source", () => {
+  it("documents 1m session rails security and chart-path swing sweep (#31)", () => {
     const source = readPineSource();
 
     expect(source).toMatch(/var int sessionEndBi/);
+    let topLevelSecurityCalls = 0;
+    for (const line of source.split("\n")) {
+      if (/= request\.security\(/.test(line)) {
+        const indent = line.match(/^(\s*)/)?.[1].length ?? 0;
+        if (indent <= 1) {
+          topLevelSecurityCalls++;
+        }
+      }
+    }
+    expect(topLevelSecurityCalls).toBe(3);
     expect(source.match(/request\.security\(/g)?.length ?? 0).toBe(3);
-    expect(source).toContain("request.security_lower_tf(");
+    expect(source).not.toContain("request.security_lower_tf(");
     expect(source).not.toMatch(/for mi = 0 to oneMinBarCount - 1/);
     expect(source).toMatch(/out_pdh_mitigated/);
+    expect(source).toMatch(
+      /"1",[\s\S]*f_session_rails_with_end\(\)/,
+    );
+    expect(source).not.toMatch(/f_structural_engine_with_end\(/);
+    expect(source).not.toContain("publishedSwings");
     expect(source).toContain("f_align_cross_tf_swing_prices(");
-    expect(source).toContain("f_sweep_swings_from_1m_bars(");
+    expect(source).not.toContain("f_sweep_swings_from_1m_bars(");
+    expect(source).not.toContain("chartIs1m");
     expect(source).toContain("max_bars_back(time, 5000)");
     expect(source).toMatch(
       /BAR_TIME_SEARCH_MAX\s*=\s*math\.min\(PINE_BAR_TIME_SEARCH_CEILING,\s*session_bar_cap\s*-\s*1\)/,
@@ -165,8 +178,18 @@ describe("pine load complexity model", () => {
       /f_try_add_swing\([\s\S]*?f_align_cross_tf_swing_prices\(/,
     );
     expect(source).not.toMatch(
-      /f_try_add_swing\([\s\S]*?\nactiveSwings := f_align_cross_tf_swing_prices/,
+      /if engineSwingsDirty[\s\S]*?f_align_cross_tf_swing_prices/,
     );
+  });
+
+  it("rejects swing inventory inside 1m request.security replay (memory regression)", () => {
+    const source = readPineSource();
+    const railsBody = sessionRailsWithEndBody(source);
+
+    expect(source).not.toContain("engineSwings");
+    expect(railsBody).not.toContain("f_sweep_swings(");
+    expect(railsBody).not.toContain("f_try_add_swing(");
+    expect(railsBody).not.toContain("var array<HtfSwingLevel>");
   });
 
   it("caches merged POI FVG pool and only concatenates on lifecycle mutations (#28)", () => {
@@ -222,22 +245,21 @@ describe("pine load complexity model", () => {
     expect(swingAddsPerHistory).toBeLessThan(chartBars / 100);
   });
 
-  it("models per-bar 1m work as larger than session-end draw cache win", () => {
-    const { total, breakdown } = estimateLoadUnits({
-      chartBars: 10_000,
-      oneMinBarsPerChartBar: 15,
+  it("models chart-path swing sweep via security_lower_tf on coarse execution TFs", () => {
+    const chartBars = 10_000;
+    const oneMinPerChart = 15;
+
+    const { breakdown } = estimateLoadUnits({
+      chartBars,
+      oneMinBarsPerChartBar: oneMinPerChart,
       ...assumptions,
     });
 
-    const perBarHotspots =
-      breakdown.requestSecurityLowerTf + breakdown.swingSweepLoop;
-
-    const drawHotspots =
-      breakdown.drawOriginScans + breakdown.sessionEndScan;
-
-    expect(perBarHotspots / total).toBeGreaterThan(0.54);
-    expect(perBarHotspots).toBeGreaterThan(drawHotspots * 2);
-    expect(breakdown.railMitigationLoop).toBe(0);
+    expect(breakdown.requestSecurityLowerTf).toBeGreaterThan(0);
+    expect(breakdown.swingSweepLoop).toBe(
+      chartBars * oneMinPerChart * assumptions.activeSwings * WEIGHT.swingSweepInner,
+    );
+    expect(breakdown.requestSecurity).toBeGreaterThan(0);
   });
 
   it("models rail mitigation on aligned 1m security instead of per-chart-bar inner loop", () => {
@@ -256,20 +278,17 @@ describe("pine load complexity model", () => {
     expect(breakdown.railMitigationLoop).toBe(0);
   });
 
-  it("models aligned 1m security as materially cheaper than security_lower_tf path", () => {
+  it("models 1m chart native sweep as cheaper than coarse-TF security_lower_tf fanout", () => {
     const chartBars = 10_000;
     const swings = assumptions.activeSwings;
 
-    const lowerTfPath =
+    const coarseTfPath =
       chartBars * WEIGHT.requestSecurityLowerTf +
       chartBars * 15 * WEIGHT.oneMinInnerLoop +
       chartBars * 15 * swings * WEIGHT.swingSweepInner;
 
-    const alignedOneMinPath =
-      chartBars * WEIGHT.requestSecurity +
-      chartBars * 1 * WEIGHT.oneMinInnerLoop +
-      chartBars * 1 * swings * WEIGHT.swingSweepInner;
+    const native1mSweepPath = chartBars * 1 * swings * WEIGHT.swingSweepInner;
 
-    expect(alignedOneMinPath).toBeLessThan(lowerTfPath / 5);
+    expect(native1mSweepPath).toBeLessThan(coarseTfPath / 10);
   });
 });

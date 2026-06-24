@@ -5,7 +5,9 @@ indicator(
      max_lines_count = 500,
      max_labels_count = 500,
      max_boxes_count = 500,
-     dynamic_requests = false
+     dynamic_requests = false,
+     // Pine requires const int (CE10123); 14 sessions at 1m = ADR_LOOKBACK * 24 * 60.
+     calc_bars_count = 20160
  )
 
 TZ = "America/New_York"
@@ -674,7 +676,13 @@ f_session_rails_with_end() =>
      lookahead = barmerge.lookahead_off
  )
 
-[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime] = f_session_rails_with_end()
+[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime] = request.security(
+     syminfo.tickerid,
+     "1",
+     f_session_rails_with_end(),
+     gaps = barmerge.gaps_off,
+     lookahead = barmerge.lookahead_off
+ )
 
 
 dailySessionKey = f_cme_daily_session_key()
@@ -1175,6 +1183,10 @@ if pdhMitigated
         pdhMitigatedBi := f_bar_index_for_time(pdhMitigatedTime)
 else
     pdhMitigatedBi := na
+if barstate.islast and not na(pdhTime)
+    pdhOriginBi := f_bar_index_for_time(pdhTime)
+if barstate.islast and pdhMitigated and not na(pdhMitigatedTime)
+    pdhMitigatedBi := f_bar_index_for_time(pdhMitigatedTime)
 
 var int pdlOriginBi = na
 var int pdlMitigatedBi = na
@@ -1188,6 +1200,10 @@ if pdlMitigated
         pdlMitigatedBi := f_bar_index_for_time(pdlMitigatedTime)
 else
     pdlMitigatedBi := na
+if barstate.islast and not na(pdlTime)
+    pdlOriginBi := f_bar_index_for_time(pdlTime)
+if barstate.islast and pdlMitigated and not na(pdlMitigatedTime)
+    pdlMitigatedBi := f_bar_index_for_time(pdlMitigatedTime)
 
 var int pwhOriginBi = na
 var int pwhMitigatedBi = na
@@ -1201,6 +1217,10 @@ if pwhMitigated
         pwhMitigatedBi := f_bar_index_for_time(pwhMitigatedTime)
 else
     pwhMitigatedBi := na
+if barstate.islast and not na(pwhTime)
+    pwhOriginBi := f_bar_index_for_time(pwhTime)
+if barstate.islast and pwhMitigated and not na(pwhMitigatedTime)
+    pwhMitigatedBi := f_bar_index_for_time(pwhMitigatedTime)
 
 var int pwlOriginBi = na
 var int pwlMitigatedBi = na
@@ -1214,6 +1234,10 @@ if pwlMitigated
         pwlMitigatedBi := f_bar_index_for_time(pwlMitigatedTime)
 else
     pwlMitigatedBi := na
+if barstate.islast and not na(pwlTime)
+    pwlOriginBi := f_bar_index_for_time(pwlTime)
+if barstate.islast and pwlMitigated and not na(pwlMitigatedTime)
+    pwlMitigatedBi := f_bar_index_for_time(pwlMitigatedTime)
 
 f_draw_fvg_zones(
      array<box> existing_boxes,
@@ -1299,7 +1323,7 @@ f_draw_level(
         if not na(existing_label)
             label.delete(existing_label)
         if not na(price) and not na(origin_bi) and not na(session_end_bi)
-            end_bi = mitigated ? math.max(origin_bi, mitigated_bi) : math.max(origin_bi, session_end_bi)
+            end_bi = mitigated and not na(mitigated_bi) ? math.max(origin_bi, mitigated_bi) : math.max(origin_bi, session_end_bi)
             color draw_color = is_poi ? POI_COLOR : (not session_context and (is_tp1 or is_tp2)) ? DOL_COLOR : mitigated ? SWING_MITIGATED_COLOR : line_color
             int line_width = is_poi ? POI_LINE_WIDTH : (not session_context and (is_tp1 or is_tp2)) ? DOL_LINE_WIDTH : 1
             color txt_color = na(label_textcolor) ? draw_color : label_textcolor

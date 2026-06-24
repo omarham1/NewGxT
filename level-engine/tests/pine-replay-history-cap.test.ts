@@ -16,7 +16,7 @@ function readPineSource(): string {
 }
 
 describe("pine replay history cap (#30)", () => {
-  it("declares const replay cap in indicator() and timeframe-aware session_bar_cap", () => {
+  it("declares calc_bars_count for 1m session-rails replay and keeps timeframe-aware session_bar_cap", () => {
     const source = readPineSource();
 
     expect(source).toMatch(/calc_bars_count\s*=\s*20160/);
@@ -37,8 +37,8 @@ describe("pine replay history cap (#30)", () => {
   it("clips off-window origin timestamps to the oldest searchable bar", () => {
     const source = readPineSource();
 
-    expect(source).toMatch(/bool found = false/);
-    expect(source).toMatch(/if not found[\s\S]*?result := bar_index - max_i/);
+    expect(source).toMatch(/int found_i = max_i/);
+    expect(source).toMatch(/result := bar_index - found_i/);
     expect(source).not.toMatch(
       /if result == bar_index and time\[max_i\] > target_time/,
     );
