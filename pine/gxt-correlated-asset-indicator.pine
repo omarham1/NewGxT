@@ -5,9 +5,7 @@ indicator(
      max_lines_count = 500,
      max_labels_count = 500,
      max_boxes_count = 500,
-     dynamic_requests = false,
-     // Pine requires const int (CE10123); 14 sessions at 1m = ADR_LOOKBACK * 24 * 60.
-     calc_bars_count = 20160
+     dynamic_requests = false
  )
 
 TZ = "America/New_York"
@@ -50,22 +48,30 @@ f_bar_index_for_time(int target_time) =>
             result := bar_index
         else
             int max_i = math.min(bar_index, BAR_TIME_SEARCH_MAX)
-            bool found = false
-            for i = 0 to max_i
-                bool in_bar = time[i] <= target_time and (i == 0 or target_time < time[i - 1])
-                if in_bar
-                    result := bar_index - i
-                    found := true
-                    break
-            if not found
-                result := bar_index - max_i
+            int left = 0
+            int right = max_i
+            int found_i = max_i
+            while left <= right
+                int mid = left + int((right - left) / 2)
+                if time[mid] <= target_time
+                    found_i := mid
+                    right := mid - 1
+                else
+                    left := mid + 1
+            result := bar_index - found_i
     result
 
+showDailyOpen = input.bool(true, "Show Daily Open", group = "Session Context")
+dailyOpenColor = input.color(color.black, "Daily Open Color", group = "Session Context")
+dailyOpenStyle = input.string("Dashed", "Daily Open Line Style", options = ["Solid", "Dashed", "Dotted"], group = "Session Context")
 showPdEquilibrium50 = input.bool(true, "Show PD 50% Equilibrium", group = "Session Context")
 dailyBias = input.string("Directional", "Daily Bias", options = ["Directional", "Neutral"], group = "Session POI")
 biasDirection = input.string("Bullish", "Bias Direction", options = ["Bullish", "Bearish"], group = "Active DOL")
 reversalDayTp1 = input.bool(false, "Reversal Day TP1", group = "Active DOL")
 failureSwingAdrPct = input.float(12.5, "Failure Swing ADR %", minval = 0, step = 0.1, group = "HTF Swings")
+
+f_line_style(string style_str) =>
+    style_str == "Dashed" ? line.style_dashed : style_str == "Dotted" ? line.style_dotted : line.style_solid
 
 f_cme_daily_session_key_for(int t) =>
     et_hour = hour(t, TZ)
@@ -211,6 +217,267 @@ f_swing_visible(float price, int formedTime, float pwh, float pwl, float curWeek
         float rangeHigh = math.max(pwh, curWeekHigh)
         price >= rangeLow and price <= rangeHigh
 
+type HtfSwingLevel
+    float price
+    int formedTime
+    int confirmedTime
+    string txt
+    bool mitigated
+    int mitigatedTime
+    bool isFailureSwing
+    int formedBi
+    int mitigatedBi
+
+f_strict_fractal_high_confirmed(int pivot) =>
+    float pivotHigh = high[pivot]
+    pivotHigh > high[pivot + 1] and pivotHigh > high[pivot + 2] and pivotHigh > high[pivot + 3] and pivotHigh > high[pivot - 1] and pivotHigh > high[pivot - 2] and pivotHigh > high[pivot - 3]
+
+f_strict_fractal_low_confirmed(int pivot) =>
+    float pivotLow = low[pivot]
+    pivotLow < low[pivot + 1] and pivotLow < low[pivot + 2] and pivotLow < low[pivot + 3] and pivotLow < low[pivot - 1] and pivotLow < low[pivot - 2] and pivotLow < low[pivot - 3]
+
+f_swing_period_ms(string txt) =>
+    str.contains(txt, "4H") ? 240 * 60 * 1000 : 60 * 60 * 1000
+
+// When the chart TF is finer than the swing TF, anchor at the sub-bar wick time.
+f_resolve_swing_wick_time(int htf_open, float price, string txt) =>
+    int period_ms = f_swing_period_ms(txt)
+    int chart_ms = timeframe.in_seconds() * 1000
+    int result = htf_open
+    if chart_ms < period_ms
+        bool is_high = str.contains(txt, "High")
+        int end_time = htf_open + period_ms
+        int max_i = math.min(bar_index, BAR_TIME_SEARCH_MAX)
+        int open_bi = f_bar_index_for_time(htf_open)
+        int start_i = math.min(max_i, bar_index - open_bi)
+        int limit = int(period_ms / chart_ms)
+        int end_i = math.max(0, start_i - limit)
+        for i = end_i to start_i
+            if time[i] >= htf_open and time[i] < end_time
+                float extreme = is_high ? high[i] : low[i]
+                if extreme == price
+                    result := time[i]
+                    break
+    result
+
+f_htf_swing_signals() =>
+    bool highConfirmed = false
+    float highPrice = na
+    int highPivotTime = na
+    int highConfirmedTime = na
+    bool lowConfirmed = false
+    float lowPrice = na
+    int lowPivotTime = na
+    int lowConfirmedTime = na
+    int pivot = 3
+    if barstate.isconfirmed
+        if f_strict_fractal_high_confirmed(pivot)
+            highConfirmed := true
+            highPrice := high[pivot]
+            highPivotTime := time[pivot]
+            highConfirmedTime := time
+        if f_strict_fractal_low_confirmed(pivot)
+            lowConfirmed := true
+            lowPrice := low[pivot]
+            lowPivotTime := time[pivot]
+            lowConfirmedTime := time
+    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime]
+
+f_swing_in_comparison_pool(HtfSwingLevel swing, int atTime, float pwh, float pwl, float curWeekHigh, float curWeekLow) =>
+    if swing.confirmedTime > atTime or not f_within_htf_swing_comparison_lookback(swing.formedTime)
+        false
+    else
+        float rangeLow = math.min(pwl, curWeekLow)
+        float rangeHigh = math.max(pwh, curWeekHigh)
+        swing.price >= rangeLow and swing.price <= rangeHigh
+
+f_failure_swing_proximity(float adrVal, float adrPct) =>
+    adrVal * (adrPct / 100.0)
+
+f_same_swing_kind(string left, string right) =>
+    (str.contains(left, "High") and str.contains(right, "High")) or (str.contains(left, "Low") and str.contains(right, "Low"))
+
+f_is_more_extreme_swing(HtfSwingLevel swing, HtfSwingLevel other) =>
+    bool isHigh = str.contains(swing.txt, "High")
+    isHigh ? swing.price > other.price : swing.price < other.price
+
+f_stamp_failure_swings(
+     array<HtfSwingLevel> swings,
+     int newIndex,
+     float adrVal,
+     float adrPct,
+     float pwh,
+     float pwl,
+     float curWeekHigh,
+     float curWeekLow
+ ) =>
+    HtfSwingLevel swing = array.get(swings, newIndex)
+    if swing.isFailureSwing
+        swings
+    else
+        float threshold = f_failure_swing_proximity(adrVal, adrPct)
+        int count = array.size(swings)
+        if count > 0
+            for i = 0 to count - 1
+                HtfSwingLevel peer = array.get(swings, i)
+                bool inPool = f_same_swing_kind(swing.txt, peer.txt) and f_swing_in_comparison_pool(peer, swing.confirmedTime, pwh, pwl, curWeekHigh, curWeekLow) and not peer.mitigated and math.abs(peer.price - swing.price) <= threshold
+                if inPool
+                    if i != newIndex and not peer.isFailureSwing and f_is_more_extreme_swing(peer, swing)
+                        array.set(swings, newIndex, HtfSwingLevel.new(swing.price, swing.formedTime, swing.confirmedTime, swing.txt, swing.mitigated, swing.mitigatedTime, true, swing.formedBi, swing.mitigatedBi))
+                        break
+                    if f_is_more_extreme_swing(swing, peer)
+                        array.set(swings, i, HtfSwingLevel.new(peer.price, peer.formedTime, peer.confirmedTime, peer.txt, peer.mitigated, peer.mitigatedTime, true, peer.formedBi, peer.mitigatedBi))
+        swings
+
+f_swing_exists(array<HtfSwingLevel> swings, int formedTime, string txt) =>
+    bool found = false
+    int count = array.size(swings)
+    if count > 0
+        for i = 0 to count - 1
+            HtfSwingLevel swing = array.get(swings, i)
+            if swing.formedTime == formedTime and swing.txt == txt
+                found := true
+    found
+
+f_cross_tf_swing_price_cluster(HtfSwingLevel fourH, HtfSwingLevel oneH, float threshold) =>
+    f_same_swing_kind(fourH.txt, oneH.txt) and math.abs(fourH.price - oneH.price) <= threshold
+
+f_canonical_cross_tf_swing_price(float left, float right, bool isHigh) =>
+    isHigh ? math.max(left, right) : math.min(left, right)
+
+f_is_inner_cross_tf_swing(bool isHigh, float price, float otherPrice) =>
+    isHigh ? price < otherPrice : price > otherPrice
+
+f_align_cross_tf_swing_prices(array<HtfSwingLevel> swings, float adrVal, float adrPct) =>
+    float threshold = f_failure_swing_proximity(adrVal, adrPct)
+    int count = array.size(swings)
+    if count > 0
+        for i = 0 to count - 1
+            HtfSwingLevel fourH = array.get(swings, i)
+            if not str.contains(fourH.txt, "4H")
+                continue
+            bool isHigh = str.contains(fourH.txt, "High")
+            for j = 0 to count - 1
+                if i == j
+                    continue
+                HtfSwingLevel oneH = array.get(swings, j)
+                if not str.contains(oneH.txt, "1H") or not f_cross_tf_swing_price_cluster(fourH, oneH, threshold)
+                    continue
+                if fourH.confirmedTime > time or oneH.confirmedTime > time
+                    continue
+                float aligned = f_canonical_cross_tf_swing_price(fourH.price, oneH.price, isHigh)
+                bool fourHInner = f_is_inner_cross_tf_swing(isHigh, fourH.price, oneH.price)
+                bool oneHInner = f_is_inner_cross_tf_swing(isHigh, oneH.price, fourH.price)
+                if fourHInner
+                    array.set(swings, i, HtfSwingLevel.new(aligned, fourH.formedTime, fourH.confirmedTime, fourH.txt, fourH.mitigated, fourH.mitigatedTime, true, fourH.formedBi, fourH.mitigatedBi))
+                    fourH := array.get(swings, i)
+                if oneHInner
+                    array.set(swings, j, HtfSwingLevel.new(aligned, oneH.formedTime, oneH.confirmedTime, oneH.txt, oneH.mitigated, oneH.mitigatedTime, true, oneH.formedBi, oneH.mitigatedBi))
+                if not fourHInner and not oneHInner
+                    array.set(swings, j, HtfSwingLevel.new(oneH.price, oneH.formedTime, oneH.confirmedTime, oneH.txt, oneH.mitigated, oneH.mitigatedTime, true, oneH.formedBi, oneH.mitigatedBi))
+    swings
+
+f_try_add_swing(
+     array<HtfSwingLevel> swings,
+     bool confirmed,
+     float price,
+     int formedTime,
+     int confirmedTime,
+     string txt,
+     float pwh,
+     float pwl,
+     float curWeekHigh,
+     float curWeekLow,
+     float adrVal,
+     float adrPct
+ ) =>
+    if confirmed and not na(price) and not na(formedTime) and not na(confirmedTime) and f_swing_visible(price, formedTime, pwh, pwl, curWeekHigh, curWeekLow)
+        int resolvedFormedTime = f_resolve_swing_wick_time(formedTime, price, txt)
+        if not f_swing_exists(swings, resolvedFormedTime, txt)
+            array.push(swings, HtfSwingLevel.new(price, resolvedFormedTime, confirmedTime, txt, false, na, false, f_bar_index_for_time(resolvedFormedTime), na))
+            f_stamp_failure_swings(swings, array.size(swings) - 1, adrVal, adrPct, pwh, pwl, curWeekHigh, curWeekLow)
+            f_align_cross_tf_swing_prices(swings, adrVal, adrPct)
+    swings
+
+f_swing_swept(HtfSwingLevel swing, float checkLow, float checkHigh) =>
+    bool isHigh = str.contains(swing.txt, "High")
+    bool isLow = str.contains(swing.txt, "Low")
+    (isHigh and checkHigh >= swing.price) or (isLow and checkLow <= swing.price)
+
+f_sweep_swings(array<HtfSwingLevel> swings, float checkLow, float checkHigh, int checkTime) =>
+    int i = array.size(swings) - 1
+    while i >= 0
+        HtfSwingLevel swing = array.get(swings, i)
+        if not swing.mitigated and checkTime > swing.confirmedTime and f_swing_swept(swing, checkLow, checkHigh)
+            array.set(swings, i, HtfSwingLevel.new(swing.price, swing.formedTime, swing.confirmedTime, swing.txt, true, checkTime, swing.isFailureSwing, swing.formedBi, f_bar_index_for_time(checkTime)))
+        i -= 1
+    swings
+
+
+f_remove_all_mitigated_swings(array<HtfSwingLevel> swings) =>
+    int i = array.size(swings) - 1
+    while i >= 0
+        HtfSwingLevel swing = array.get(swings, i)
+        if swing.mitigated
+            array.remove(swings, i)
+        i -= 1
+    swings
+
+f_prune_stale_mitigated_swings(array<HtfSwingLevel> swings) =>
+    int currentSession = f_cme_daily_session_key()
+    int i = array.size(swings) - 1
+    while i >= 0
+        HtfSwingLevel swing = array.get(swings, i)
+        if swing.mitigated
+            int mitigatedSession = f_cme_daily_session_key_for(swing.mitigatedTime)
+            if na(mitigatedSession) or mitigatedSession != currentSession
+                array.remove(swings, i)
+        i -= 1
+    swings
+
+f_prune_comparison_expired_swings(array<HtfSwingLevel> swings) =>
+    int i = array.size(swings) - 1
+    while i >= 0
+        HtfSwingLevel swing = array.get(swings, i)
+        if not f_within_htf_swing_comparison_lookback(swing.formedTime)
+            array.remove(swings, i)
+        i -= 1
+    swings
+
+f_range_fully_in(float innerLow, float innerHigh, float outerLow, float outerHigh) =>
+    innerLow >= outerLow and innerHigh <= outerHigh
+
+f_middle_fully_overlapped_by_outer(int firstIdx, int middleIdx, int thirdIdx) =>
+    float innerLow = low[middleIdx]
+    float innerHigh = high[middleIdx]
+    float aLow = low[firstIdx]
+    float aHigh = high[firstIdx]
+    float bLow = low[thirdIdx]
+    float bHigh = high[thirdIdx]
+    bool inFirst = f_range_fully_in(innerLow, innerHigh, aLow, aHigh)
+    bool inThird = f_range_fully_in(innerLow, innerHigh, bLow, bHigh)
+    bool spansFirstThenThird = innerLow >= aLow and aHigh >= innerLow and innerHigh <= bHigh and bLow <= aHigh
+    bool spansThirdThenFirst = innerLow >= bLow and bHigh >= innerLow and innerHigh <= aHigh and aLow <= bHigh
+    inFirst or inThird or spansFirstThenThird or spansThirdThenFirst
+
+f_detect_fvg() =>
+    bool bullish = low[0] > high[2]
+    bool bearish = high[0] < low[2]
+    bool middleOverlapped = f_middle_fully_overlapped_by_outer(2, 1, 0)
+    float zoneLow = bullish ? high[2] : bearish ? high[0] : na
+    float zoneHigh = bullish ? low[0] : bearish ? low[2] : na
+    bool formed = (bullish or bearish) and not middleOverlapped
+    [formed, zoneLow, zoneHigh, time, bullish]
+
+f_detect_fvg_with_ohlc() =>
+    [formed, zoneLow, zoneHigh, formedTime, bullish] = f_detect_fvg()
+    [formed, zoneLow, zoneHigh, formedTime, bullish, low, high, time, close]
+
+f_htf_swing_and_fvg_signals() =>
+    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime] = f_htf_swing_signals()
+    [formed, zoneLow, zoneHigh, formedTime, bullish, barLow, barHigh, barTime, barClose] = f_detect_fvg_with_ohlc()
+    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime, formed, zoneLow, zoneHigh, formedTime, bullish, barLow, barHigh, barTime, barClose]
+
 f_track_extreme(float cur_extreme, int cur_time, float candidate, int candidate_time) =>
     if na(cur_extreme) or candidate > cur_extreme
         [candidate, candidate_time]
@@ -266,6 +533,9 @@ f_session_rails() =>
         out_daily_open := open
         out_daily_open_time := time
     else
+        if na(out_daily_open)
+            out_daily_open := open
+            out_daily_open_time := time
         [next_high, next_high_time] = f_track_extreme(cur_daily_high, cur_daily_high_time, high, time)
         [next_low, next_low_time] = f_track_extreme_low(cur_daily_low, cur_daily_low_time, low, time)
         cur_daily_high := next_high
@@ -352,19 +622,60 @@ f_session_rails_with_end() =>
 
     [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_session_end, out_pdh_mitigated, out_pdh_mitigated_time, out_pdl_mitigated, out_pdl_mitigated_time, out_pwh_mitigated, out_pwh_mitigated_time, out_pwl_mitigated, out_pwl_mitigated_time]
 
-[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime] = request.security(
+[
+     highConfirmed4h,
+     highPrice4h,
+     highPivotTime4h,
+     highConfirmedTime4h,
+     lowConfirmed4h,
+     lowPrice4h,
+     lowPivotTime4h,
+     lowConfirmedTime4h,
+     formed4h,
+     zoneLow4h,
+     zoneHigh4h,
+     formedTime4h,
+     bullish4h,
+     low4h,
+     high4h,
+     time4h,
+     close4h
+ ] = request.security(
      syminfo.tickerid,
-     "1",
-     f_session_rails_with_end(),
+     "240",
+     f_htf_swing_and_fvg_signals(),
      gaps = barmerge.gaps_off,
      lookahead = barmerge.lookahead_off
  )
 
-[oneMinLows, oneMinHighs, oneMinTimes] = request.security_lower_tf(
+[
+     highConfirmed1h,
+     highPrice1h,
+     highPivotTime1h,
+     highConfirmedTime1h,
+     lowConfirmed1h,
+     lowPrice1h,
+     lowPivotTime1h,
+     lowConfirmedTime1h,
+     formed1h,
+     zoneLow1h,
+     zoneHigh1h,
+     formedTime1h,
+     bullish1h,
+     low1h,
+     high1h,
+     time1h,
+     close1h
+ ] = request.security(
      syminfo.tickerid,
-     "1",
-     [low, high, time]
+     "60",
+     f_htf_swing_and_fvg_signals(),
+     gaps = barmerge.gaps_off,
+     lookahead = barmerge.lookahead_off
  )
+
+[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime] = f_session_rails_with_end()
+
 
 dailySessionKey = f_cme_daily_session_key()
 var int prevDailySessionKey = na
@@ -387,17 +698,6 @@ type HtfFvgZone
     bool mitigated
     int mitigatedTime
     int formedBi
-
-type HtfSwingLevel
-    float price
-    int formedTime
-    int confirmedTime
-    string txt
-    bool mitigated
-    int mitigatedTime
-    bool isFailureSwing
-    int formedBi
-    int mitigatedBi
 
 type SessionPoiTarget
     string kind
@@ -773,35 +1073,6 @@ f_poi_target_mitigated(SessionPoiTarget poi, array<HtfFvgZone> zones, array<HtfS
                         mitigated := swing.mitigated
     mitigated
 
-f_range_fully_in(float innerLow, float innerHigh, float outerLow, float outerHigh) =>
-    innerLow >= outerLow and innerHigh <= outerHigh
-
-f_middle_fully_overlapped_by_outer(int firstIdx, int middleIdx, int thirdIdx) =>
-    float innerLow = low[middleIdx]
-    float innerHigh = high[middleIdx]
-    float aLow = low[firstIdx]
-    float aHigh = high[firstIdx]
-    float bLow = low[thirdIdx]
-    float bHigh = high[thirdIdx]
-    bool inFirst = f_range_fully_in(innerLow, innerHigh, aLow, aHigh)
-    bool inThird = f_range_fully_in(innerLow, innerHigh, bLow, bHigh)
-    bool spansFirstThenThird = innerLow >= aLow and aHigh >= innerLow and innerHigh <= bHigh and bLow <= aHigh
-    bool spansThirdThenFirst = innerLow >= bLow and bHigh >= innerLow and innerHigh <= aHigh and aLow <= bHigh
-    inFirst or inThird or spansFirstThenThird or spansThirdThenFirst
-
-f_detect_fvg() =>
-    bool bullish = low[0] > high[2]
-    bool bearish = high[0] < low[2]
-    bool middleOverlapped = f_middle_fully_overlapped_by_outer(2, 1, 0)
-    float zoneLow = bullish ? high[2] : bearish ? high[0] : na
-    float zoneHigh = bullish ? low[0] : bearish ? low[2] : na
-    bool formed = (bullish or bearish) and not middleOverlapped
-    [formed, zoneLow, zoneHigh, time, bullish]
-
-f_detect_fvg_with_ohlc() =>
-    [formed, zoneLow, zoneHigh, formedTime, bullish] = f_detect_fvg()
-    [formed, zoneLow, zoneHigh, formedTime, bullish, low, high, time, close]
-
 f_fvg_closed_through_extreme(bool bullish, float zoneLow, float zoneHigh, float checkClose) =>
     bullish ? checkClose < zoneLow : checkClose > zoneHigh
 
@@ -889,6 +1160,8 @@ var int cachedDailyOpenTime = na
 if dailyOpenTime != cachedDailyOpenTime
     cachedDailyOpenTime := dailyOpenTime
     dailyOpenOriginBi := not na(dailyOpenTime) ? f_bar_index_for_time(dailyOpenTime) : na
+if barstate.islast and not na(dailyOpenTime)
+    dailyOpenOriginBi := f_bar_index_for_time(dailyOpenTime)
 
 var int pdhOriginBi = na
 var int pdhMitigatedBi = na
@@ -1006,7 +1279,7 @@ f_draw_level(
      int origin_bi,
      int session_end_bi,
      string txt,
-     bool dashed,
+     string line_style_str,
      string label_placement,
      color line_color,
      bool mitigated = false,
@@ -1015,7 +1288,8 @@ f_draw_level(
      bool is_tp1 = false,
      bool is_tp2 = false,
      bool session_context = false,
-     bool suppress_label = false
+     bool suppress_label = false,
+     color label_textcolor = na
  ) =>
     line next_line = na
     label next_label = na
@@ -1028,6 +1302,7 @@ f_draw_level(
             end_bi = mitigated ? math.max(origin_bi, mitigated_bi) : math.max(origin_bi, session_end_bi)
             color draw_color = is_poi ? POI_COLOR : (not session_context and (is_tp1 or is_tp2)) ? DOL_COLOR : mitigated ? SWING_MITIGATED_COLOR : line_color
             int line_width = is_poi ? POI_LINE_WIDTH : (not session_context and (is_tp1 or is_tp2)) ? DOL_LINE_WIDTH : 1
+            color txt_color = na(label_textcolor) ? draw_color : label_textcolor
             next_line := line.new(
                  origin_bi,
                  price,
@@ -1037,7 +1312,7 @@ f_draw_level(
                  extend = extend.none,
                  color = draw_color,
                  width = line_width,
-                 style = dashed ? line.style_dashed : line.style_solid
+                 style = f_line_style(line_style_str)
              )
             if txt != "" and not suppress_label
                 string label_txt = f_format_level_label(txt, is_poi, false, is_tp1, is_tp2)
@@ -1048,7 +1323,7 @@ f_draw_level(
                      xloc = xloc.bar_index,
                      style = f_label_style(label_placement),
                      color = color(na),
-                     textcolor = draw_color,
+                     textcolor = txt_color,
                      size = LABEL_SIZE
                  )
     [next_line, next_label]
@@ -1085,11 +1360,13 @@ pdRange = not na(pdh) and not na(pdl) ? pdh - pdl : na
 pdEqLow = not na(pdRange) ? pdl + pdRange * 0.25 : na
 pdEqHigh = not na(pdRange) ? pdl + pdRange * 0.75 : na
 pdEq50 = not na(pdh) and not na(pdl) ? (pdh + pdl) / 2 : na
+daily_open_price = showDailyOpen ? dailyOpen : na
 pd_eq_price = showPdEquilibrium50 ? pdEq50 : na
 sessionOpenTime = f_daily_session_open_time()
 
 weekKey = f_cme_week_session_key()
 newRailWeek = not na(weekKey) and ta.change(weekKey) != 0
+
 
 if sessionRolled
     sessionPoi := na
@@ -1116,14 +1393,14 @@ bool pdhIsPoi = f_is_session_poi(sessionPoi, "pdh", pdhMitigatedTime, "PDH")
 bool pdlIsPoi = f_is_session_poi(sessionPoi, "pdl", pdlMitigatedTime, "PDL")
 
 adr_consumption_txt = not na(adrConsumptionPct) ? str.format("ADR {0,number,#.#}%", adrConsumptionPct) : "ADR"
-[_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, openPlusAdr, dailyOpenOriginBi, sessionEndBi, adr_consumption_txt, true, "above", SESSION_CONTEXT_COLOR)
+[_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, openPlusAdr, dailyOpenOriginBi, sessionEndBi, adr_consumption_txt, "Dashed", "above", SESSION_CONTEXT_COLOR)
 open_plus_adr_line := _open_plus_adr_line
 adr_consumption_label := _adr_consumption_label
 
-[_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, openMinusAdr, dailyOpenOriginBi, sessionEndBi, "", true, "below", SESSION_CONTEXT_COLOR)
+[_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, openMinusAdr, dailyOpenOriginBi, sessionEndBi, "", "Dashed", "below", SESSION_CONTEXT_COLOR)
 open_minus_adr_line := _open_minus_adr_line
 
-[_pd_equilibrium_line, _pd_equilibrium_label] = f_draw_level(pd_equilibrium_line, pd_equilibrium_label, pd_eq_price, dailyOpenOriginBi, sessionEndBi, "PD EQ 50%", true, "on", SESSION_CONTEXT_COLOR)
+[_pd_equilibrium_line, _pd_equilibrium_label] = f_draw_level(pd_equilibrium_line, pd_equilibrium_label, pd_eq_price, dailyOpenOriginBi, sessionEndBi, "PD EQ 50%", "Dashed", "on", SESSION_CONTEXT_COLOR)
 pd_equilibrium_line := _pd_equilibrium_line
 pd_equilibrium_label := _pd_equilibrium_label
 
@@ -1149,229 +1426,6 @@ if showFvgs
     activeFvgs := activeFvgsNext
 
 fvgZonesToDraw = showFvgs ? activeFvgs : array.new<HtfFvgZone>()
-
-f_strict_fractal_high_confirmed(int pivot) =>
-    float pivotHigh = high[pivot]
-    pivotHigh > high[pivot + 1] and pivotHigh > high[pivot + 2] and pivotHigh > high[pivot + 3] and pivotHigh > high[pivot - 1] and pivotHigh > high[pivot - 2] and pivotHigh > high[pivot - 3]
-
-f_strict_fractal_low_confirmed(int pivot) =>
-    float pivotLow = low[pivot]
-    pivotLow < low[pivot + 1] and pivotLow < low[pivot + 2] and pivotLow < low[pivot + 3] and pivotLow < low[pivot - 1] and pivotLow < low[pivot - 2] and pivotLow < low[pivot - 3]
-
-f_swing_period_ms(string txt) =>
-    str.contains(txt, "4H") ? 240 * 60 * 1000 : 60 * 60 * 1000
-
-// When the chart TF is finer than the swing TF, anchor at the sub-bar wick time.
-f_resolve_swing_wick_time(int htf_open, float price, string txt) =>
-    int period_ms = f_swing_period_ms(txt)
-    int chart_ms = timeframe.in_seconds() * 1000
-    int result = htf_open
-    if chart_ms < period_ms
-        bool is_high = str.contains(txt, "High")
-        int end_time = htf_open + period_ms
-        int max_i = math.min(bar_index, BAR_TIME_SEARCH_MAX)
-        for i = max_i to 0
-            if time[i] >= htf_open and time[i] < end_time
-                float extreme = is_high ? high[i] : low[i]
-                if extreme == price
-                    result := time[i]
-                    break
-    result
-
-f_htf_swing_signals() =>
-    bool highConfirmed = false
-    float highPrice = na
-    int highPivotTime = na
-    int highConfirmedTime = na
-    bool lowConfirmed = false
-    float lowPrice = na
-    int lowPivotTime = na
-    int lowConfirmedTime = na
-    int pivot = 3
-    if barstate.isconfirmed
-        if f_strict_fractal_high_confirmed(pivot)
-            highConfirmed := true
-            highPrice := high[pivot]
-            highPivotTime := time[pivot]
-            highConfirmedTime := time
-        if f_strict_fractal_low_confirmed(pivot)
-            lowConfirmed := true
-            lowPrice := low[pivot]
-            lowPivotTime := time[pivot]
-            lowConfirmedTime := time
-    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime]
-
-f_htf_swing_and_fvg_signals() =>
-    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime] = f_htf_swing_signals()
-    [formed, zoneLow, zoneHigh, formedTime, bullish, barLow, barHigh, barTime, barClose] = f_detect_fvg_with_ohlc()
-    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime, formed, zoneLow, zoneHigh, formedTime, bullish, barLow, barHigh, barTime, barClose]
-
-f_swing_in_comparison_pool(HtfSwingLevel swing, int atTime, float pwh, float pwl, float curWeekHigh, float curWeekLow) =>
-    if swing.confirmedTime > atTime or not f_within_htf_swing_comparison_lookback(swing.formedTime)
-        false
-    else
-        float rangeLow = math.min(pwl, curWeekLow)
-        float rangeHigh = math.max(pwh, curWeekHigh)
-        swing.price >= rangeLow and swing.price <= rangeHigh
-
-f_failure_swing_proximity(float adrVal, float adrPct) =>
-    adrVal * (adrPct / 100.0)
-
-f_same_swing_kind(string left, string right) =>
-    (str.contains(left, "High") and str.contains(right, "High")) or (str.contains(left, "Low") and str.contains(right, "Low"))
-
-f_is_more_extreme_swing(HtfSwingLevel swing, HtfSwingLevel other) =>
-    bool isHigh = str.contains(swing.txt, "High")
-    isHigh ? swing.price > other.price : swing.price < other.price
-
-f_stamp_failure_swings(
-     array<HtfSwingLevel> swings,
-     int newIndex,
-     float adrVal,
-     float adrPct,
-     float pwh,
-     float pwl,
-     float curWeekHigh,
-     float curWeekLow
- ) =>
-    HtfSwingLevel swing = array.get(swings, newIndex)
-    if swing.isFailureSwing
-        swings
-    else
-        float threshold = f_failure_swing_proximity(adrVal, adrPct)
-        int count = array.size(swings)
-        if count > 0
-            for i = 0 to count - 1
-                HtfSwingLevel peer = array.get(swings, i)
-                bool inPool = f_same_swing_kind(swing.txt, peer.txt) and f_swing_in_comparison_pool(peer, swing.confirmedTime, pwh, pwl, curWeekHigh, curWeekLow) and not peer.mitigated and math.abs(peer.price - swing.price) <= threshold
-                if inPool
-                    if i != newIndex and not peer.isFailureSwing and f_is_more_extreme_swing(peer, swing)
-                        array.set(swings, newIndex, HtfSwingLevel.new(swing.price, swing.formedTime, swing.confirmedTime, swing.txt, swing.mitigated, swing.mitigatedTime, true, swing.formedBi, swing.mitigatedBi))
-                        break
-                    if f_is_more_extreme_swing(swing, peer)
-                        array.set(swings, i, HtfSwingLevel.new(peer.price, peer.formedTime, peer.confirmedTime, peer.txt, peer.mitigated, peer.mitigatedTime, true, peer.formedBi, peer.mitigatedBi))
-        swings
-
-f_swing_exists(array<HtfSwingLevel> swings, int formedTime, string txt) =>
-    bool found = false
-    int count = array.size(swings)
-    if count > 0
-        for i = 0 to count - 1
-            HtfSwingLevel swing = array.get(swings, i)
-            if swing.formedTime == formedTime and swing.txt == txt
-                found := true
-    found
-
-f_cross_tf_swing_price_cluster(HtfSwingLevel fourH, HtfSwingLevel oneH, float threshold) =>
-    f_same_swing_kind(fourH.txt, oneH.txt) and math.abs(fourH.price - oneH.price) <= threshold
-
-f_canonical_cross_tf_swing_price(float left, float right, bool isHigh) =>
-    isHigh ? math.max(left, right) : math.min(left, right)
-
-f_is_inner_cross_tf_swing(bool isHigh, float price, float otherPrice) =>
-    isHigh ? price < otherPrice : price > otherPrice
-
-f_align_cross_tf_swing_prices(array<HtfSwingLevel> swings, float adrVal, float adrPct) =>
-    float threshold = f_failure_swing_proximity(adrVal, adrPct)
-    int count = array.size(swings)
-    if count > 0
-        for i = 0 to count - 1
-            HtfSwingLevel fourH = array.get(swings, i)
-            if not str.contains(fourH.txt, "4H")
-                continue
-            bool isHigh = str.contains(fourH.txt, "High")
-            for j = 0 to count - 1
-                if i == j
-                    continue
-                HtfSwingLevel oneH = array.get(swings, j)
-                if not str.contains(oneH.txt, "1H") or not f_cross_tf_swing_price_cluster(fourH, oneH, threshold)
-                    continue
-                if fourH.confirmedTime > time or oneH.confirmedTime > time
-                    continue
-                float aligned = f_canonical_cross_tf_swing_price(fourH.price, oneH.price, isHigh)
-                bool fourHInner = f_is_inner_cross_tf_swing(isHigh, fourH.price, oneH.price)
-                bool oneHInner = f_is_inner_cross_tf_swing(isHigh, oneH.price, fourH.price)
-                if fourHInner
-                    array.set(swings, i, HtfSwingLevel.new(aligned, fourH.formedTime, fourH.confirmedTime, fourH.txt, fourH.mitigated, fourH.mitigatedTime, true, fourH.formedBi, fourH.mitigatedBi))
-                    fourH := array.get(swings, i)
-                if oneHInner
-                    array.set(swings, j, HtfSwingLevel.new(aligned, oneH.formedTime, oneH.confirmedTime, oneH.txt, oneH.mitigated, oneH.mitigatedTime, true, oneH.formedBi, oneH.mitigatedBi))
-                if not fourHInner and not oneHInner
-                    array.set(swings, j, HtfSwingLevel.new(oneH.price, oneH.formedTime, oneH.confirmedTime, oneH.txt, oneH.mitigated, oneH.mitigatedTime, true, oneH.formedBi, oneH.mitigatedBi))
-    swings
-
-f_try_add_swing(
-     array<HtfSwingLevel> swings,
-     bool confirmed,
-     float price,
-     int formedTime,
-     int confirmedTime,
-     string txt,
-     float pwh,
-     float pwl,
-     float curWeekHigh,
-     float curWeekLow,
-     float adrVal,
-     float adrPct
- ) =>
-    int resolvedFormedTime = f_resolve_swing_wick_time(formedTime, price, txt)
-    if confirmed and not na(price) and not na(formedTime) and not na(confirmedTime) and f_swing_visible(price, formedTime, pwh, pwl, curWeekHigh, curWeekLow) and not f_swing_exists(swings, resolvedFormedTime, txt)
-        array.push(swings, HtfSwingLevel.new(price, resolvedFormedTime, confirmedTime, txt, false, na, false, f_bar_index_for_time(resolvedFormedTime), na))
-        f_stamp_failure_swings(swings, array.size(swings) - 1, adrVal, adrPct, pwh, pwl, curWeekHigh, curWeekLow)
-        f_align_cross_tf_swing_prices(swings, adrVal, adrPct)
-    swings
-
-f_swing_swept(HtfSwingLevel swing, float checkLow, float checkHigh) =>
-    bool isHigh = str.contains(swing.txt, "High")
-    bool isLow = str.contains(swing.txt, "Low")
-    (isHigh and checkHigh >= swing.price) or (isLow and checkLow <= swing.price)
-
-f_sweep_swings(array<HtfSwingLevel> swings, float checkLow, float checkHigh, int checkTime) =>
-    int i = array.size(swings) - 1
-    while i >= 0
-        HtfSwingLevel swing = array.get(swings, i)
-        if not swing.mitigated and checkTime > swing.confirmedTime and f_swing_swept(swing, checkLow, checkHigh)
-            array.set(swings, i, HtfSwingLevel.new(swing.price, swing.formedTime, swing.confirmedTime, swing.txt, true, checkTime, swing.isFailureSwing, swing.formedBi, f_bar_index_for_time(checkTime)))
-        i -= 1
-    swings
-
-f_sweep_swings_from_1m_bars(array<HtfSwingLevel> swings, array<float> checkLows, array<float> checkHighs, array<int> checkTimes) =>
-    array<HtfSwingLevel> result = swings
-    int count = array.size(checkTimes)
-    if count > 0
-        for j = 0 to count - 1
-            result := f_sweep_swings(result, array.get(checkLows, j), array.get(checkHighs, j), array.get(checkTimes, j))
-    result
-
-f_remove_all_mitigated_swings(array<HtfSwingLevel> swings) =>
-    int i = array.size(swings) - 1
-    while i >= 0
-        HtfSwingLevel swing = array.get(swings, i)
-        if swing.mitigated
-            array.remove(swings, i)
-        i -= 1
-    swings
-
-f_prune_stale_mitigated_swings(array<HtfSwingLevel> swings) =>
-    int currentSession = f_cme_daily_session_key()
-    int i = array.size(swings) - 1
-    while i >= 0
-        HtfSwingLevel swing = array.get(swings, i)
-        if swing.mitigated
-            int mitigatedSession = f_cme_daily_session_key_for(swing.mitigatedTime)
-            if na(mitigatedSession) or mitigatedSession != currentSession
-                array.remove(swings, i)
-        i -= 1
-    swings
-
-f_prune_comparison_expired_swings(array<HtfSwingLevel> swings) =>
-    int i = array.size(swings) - 1
-    while i >= 0
-        HtfSwingLevel swing = array.get(swings, i)
-        if not f_within_htf_swing_comparison_lookback(swing.formedTime)
-            array.remove(swings, i)
-        i -= 1
-    swings
 
 f_draw_swing_levels(
      array<line> existing_lines,
@@ -1450,58 +1504,6 @@ f_draw_swing_levels(
                         array.push(next_labels, next_label)
     [next_lines, next_labels]
 
-[
-     highConfirmed4h,
-     highPrice4h,
-     highPivotTime4h,
-     highConfirmedTime4h,
-     lowConfirmed4h,
-     lowPrice4h,
-     lowPivotTime4h,
-     lowConfirmedTime4h,
-     formed4h,
-     zoneLow4h,
-     zoneHigh4h,
-     formedTime4h,
-     bullish4h,
-     low4h,
-     high4h,
-     time4h,
-     close4h
- ] = request.security(
-     syminfo.tickerid,
-     "240",
-     f_htf_swing_and_fvg_signals(),
-     gaps = barmerge.gaps_off,
-     lookahead = barmerge.lookahead_off
- )
-
-[
-     highConfirmed1h,
-     highPrice1h,
-     highPivotTime1h,
-     highConfirmedTime1h,
-     lowConfirmed1h,
-     lowPrice1h,
-     lowPivotTime1h,
-     lowConfirmedTime1h,
-     formed1h,
-     zoneLow1h,
-     zoneHigh1h,
-     formedTime1h,
-     bullish1h,
-     low1h,
-     high1h,
-     time1h,
-     close1h
- ] = request.security(
-     syminfo.tickerid,
-     "60",
-     f_htf_swing_and_fvg_signals(),
-     gaps = barmerge.gaps_off,
-     lookahead = barmerge.lookahead_off
- )
-
 var array<HtfFvgZone> poiFvgs4h = array.new<HtfFvgZone>()
 var array<HtfFvgZone> poiFvgs1h = array.new<HtfFvgZone>()
 var array<HtfFvgZone> allPoiFvgs = array.new<HtfFvgZone>()
@@ -1520,9 +1522,9 @@ activeSwings := f_try_add_swing(activeSwings, highConfirmed4h, highPrice4h, high
 activeSwings := f_try_add_swing(activeSwings, lowConfirmed4h, lowPrice4h, lowPivotTime4h, lowConfirmedTime4h, "4H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
 activeSwings := f_try_add_swing(activeSwings, highConfirmed1h, highPrice1h, highPivotTime1h, highConfirmedTime1h, "1H Swing High", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
 activeSwings := f_try_add_swing(activeSwings, lowConfirmed1h, lowPrice1h, lowPivotTime1h, lowConfirmedTime1h, "1H Swing Low", pwh, pwl, currentWeekHigh, currentWeekLow, adr, failureSwingAdrPct)
-activeSwings := f_sweep_swings_from_1m_bars(activeSwings, oneMinLows, oneMinHighs, oneMinTimes)
+activeSwings := f_sweep_swings(activeSwings, low, high, time)
 activeSwings := f_prune_stale_mitigated_swings(activeSwings)
-activeSwings := f_prune_comparison_expired_swings(activeSwings)
+
 
 bool poiFvgsDirty = false
 [poiFvgs4hNext, poiFvgs4hDirty] = f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, close4h, time4h, barstate.isconfirmed)
@@ -1602,33 +1604,33 @@ bool bullishBias = effectiveBiasDirection == "Bullish"
 [activeDolTp1, activeDolTp2] = f_resolve_active_dol(bullishBias, close, dailyOpen, adrConsumptionPct, reversalDayTp1, openPlusAdr, openMinusAdr, pdh, pdl, pwh, pwl, pdhMitigated, pdlMitigated, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow, activeSwings)
 
 bool dailyOpenIsTp1 = f_is_active_dol(activeDolTp1, "daily-open", na, "Daily Open")
-[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, dailyOpen, dailyOpenOriginBi, sessionEndBi, "Daily Open", true, "above", SESSION_CONTEXT_COLOR, false, na, false, dailyOpenIsTp1, false, true)
+[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, daily_open_price, dailyOpenOriginBi, sessionEndBi, "Daily Open", dailyOpenStyle, "on", dailyOpenColor, false, na, false, dailyOpenIsTp1, false, true, false, LEVEL_COLOR)
 daily_open_line := _daily_open_line
 daily_open_label := _daily_open_label
 
 bool pdhIsTp1 = f_is_active_dol(activeDolTp1, "pdh", pdhMitigatedTime, "PDH")
 bool pdhIsTp2 = f_is_active_dol(activeDolTp2, "pdh", pdhMitigatedTime, "PDH")
 bool pdhLabelSuppressed = f_daily_rail_label_suppressed("pdh", pdh, pwh, pwl, pwhMitigated, pwlMitigated)
-[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhOriginBi, sessionEndBi, "PDH", false, "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedBi, pdhIsPoi, pdhIsTp1, pdhIsTp2, false, pdhLabelSuppressed)
+[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhOriginBi, sessionEndBi, "PDH", "Solid", "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedBi, pdhIsPoi, pdhIsTp1, pdhIsTp2, false, pdhLabelSuppressed)
 pdh_line := _pdh_line
 pdh_label := _pdh_label
 
 bool pdlIsTp1 = f_is_active_dol(activeDolTp1, "pdl", pdlMitigatedTime, "PDL")
 bool pdlIsTp2 = f_is_active_dol(activeDolTp2, "pdl", pdlMitigatedTime, "PDL")
 bool pdlLabelSuppressed = f_daily_rail_label_suppressed("pdl", pdl, pwh, pwl, pwhMitigated, pwlMitigated)
-[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlOriginBi, sessionEndBi, "PDL", false, "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedBi, pdlIsPoi, pdlIsTp1, pdlIsTp2, false, pdlLabelSuppressed)
+[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlOriginBi, sessionEndBi, "PDL", "Solid", "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedBi, pdlIsPoi, pdlIsTp1, pdlIsTp2, false, pdlLabelSuppressed)
 pdl_line := _pdl_line
 pdl_label := _pdl_label
 
 bool pwhIsTp1 = f_is_active_dol(activeDolTp1, "pwh", pwhMitigatedTime, "PWH")
 bool pwhIsTp2 = f_is_active_dol(activeDolTp2, "pwh", pwhMitigatedTime, "PWH")
-[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh, pwhOriginBi, sessionEndBi, "PWH", false, "on", LEVEL_COLOR, pwhMitigated, pwhMitigatedBi, false, pwhIsTp1, pwhIsTp2)
+[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh, pwhOriginBi, sessionEndBi, "PWH", "Solid", "on", LEVEL_COLOR, pwhMitigated, pwhMitigatedBi, false, pwhIsTp1, pwhIsTp2)
 pwh_line := _pwh_line
 pwh_label := _pwh_label
 
 bool pwlIsTp1 = f_is_active_dol(activeDolTp1, "pwl", pwlMitigatedTime, "PWL")
 bool pwlIsTp2 = f_is_active_dol(activeDolTp2, "pwl", pwlMitigatedTime, "PWL")
-[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl, pwlOriginBi, sessionEndBi, "PWL", false, open_near_pwl ? "below" : "on", LEVEL_COLOR, pwlMitigated, pwlMitigatedBi, false, pwlIsTp1, pwlIsTp2)
+[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl, pwlOriginBi, sessionEndBi, "PWL", "Solid", open_near_pwl ? "below" : "on", LEVEL_COLOR, pwlMitigated, pwlMitigatedBi, false, pwlIsTp1, pwlIsTp2)
 pwl_line := _pwl_line
 pwl_label := _pwl_label
 
