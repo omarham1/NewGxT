@@ -67,6 +67,8 @@ showDailyOpen = input.bool(true, "Show Daily Open", group = "Session Context")
 dailyOpenColor = input.color(color.black, "Daily Open Color", group = "Session Context")
 dailyOpenStyle = input.string("Dashed", "Daily Open Line Style", options = ["Solid", "Dashed", "Dotted"], group = "Session Context")
 showPdEquilibrium50 = input.bool(true, "Show PD 50% Equilibrium", group = "Session Context")
+pdEq50Color = input.color(color.black, "PD 50% Equilibrium Color", group = "Session Context")
+pdEq50Style = input.string("Dashed", "PD 50% Equilibrium Line Style", options = ["Solid", "Dashed", "Dotted"], group = "Session Context")
 dailyBias = input.string("Directional", "Daily Bias", options = ["Directional", "Neutral"], group = "Session POI")
 biasDirection = input.string("Bullish", "Bias Direction", options = ["Bullish", "Bearish"], group = "Active DOL")
 reversalDayTp1 = input.bool(false, "Reversal Day TP1", group = "Active DOL")
@@ -466,10 +468,12 @@ f_detect_fvg() =>
     bool bullish = low[0] > high[2]
     bool bearish = high[0] < low[2]
     bool middleOverlapped = f_middle_fully_overlapped_by_outer(2, 1, 0)
-    float zoneLow = bullish ? high[2] : bearish ? high[0] : na
-    float zoneHigh = bullish ? low[0] : bearish ? low[2] : na
-    bool formed = (bullish or bearish) and not middleOverlapped
-    [formed, zoneLow, zoneHigh, time, bullish]
+    bool gapBullish = bullish and not bearish
+    bool gapBearish = bearish and not bullish
+    float zoneLow = gapBullish ? high[2] : gapBearish ? high[0] : na
+    float zoneHigh = gapBullish ? low[0] : gapBearish ? low[2] : na
+    bool formed = (gapBullish or gapBearish) and not middleOverlapped
+    [formed, zoneLow, zoneHigh, time, gapBullish]
 
 f_detect_fvg_with_ohlc() =>
     [formed, zoneLow, zoneHigh, formedTime, bullish] = f_detect_fvg()
@@ -1125,6 +1129,36 @@ f_prune_expired_fvgs(array<HtfFvgZone> zones) =>
         i -= 1
     zones
 
+f_fvg_matches_bias(bool zone_bullish, bool bullish_bias) =>
+    zone_bullish == bullish_bias
+
+// Bullish canvas: same-direction gaps at or below price (retrace support).
+// Bearish canvas: same-direction gaps at or above price (retrace resistance).
+f_fvg_visible_for_canvas(HtfFvgZone zone, bool bullish_bias, float current_price) =>
+    bool direction_ok = f_fvg_matches_bias(zone.bullish, bullish_bias)
+    bool position_ok = bullish_bias ? zone.zoneLow <= current_price : zone.zoneHigh >= current_price
+    direction_ok and position_ok
+
+f_filter_fvgs_for_canvas(array<HtfFvgZone> zones, bool bullish_bias, float current_price) =>
+    array<HtfFvgZone> filtered = array.new<HtfFvgZone>()
+    int count = array.size(zones)
+    if count > 0
+        for i = 0 to count - 1
+            HtfFvgZone zone = array.get(zones, i)
+            if f_fvg_visible_for_canvas(zone, bullish_bias, current_price)
+                array.push(filtered, zone)
+    filtered
+
+f_filter_fvgs_by_bias(array<HtfFvgZone> zones, bool bullish_bias) =>
+    array<HtfFvgZone> filtered = array.new<HtfFvgZone>()
+    int count = array.size(zones)
+    if count > 0
+        for i = 0 to count - 1
+            HtfFvgZone zone = array.get(zones, i)
+            if f_fvg_matches_bias(zone.bullish, bullish_bias)
+                array.push(filtered, zone)
+    filtered
+
 f_advance_fvg_lifecycle(
      array<HtfFvgZone> zones,
      bool formed,
@@ -1135,20 +1169,27 @@ f_advance_fvg_lifecycle(
      bool formedBullish,
      float checkClose,
      int checkTime,
-     bool bar_confirmed
+     bool bar_confirmed,
+     bool bullish_bias,
+     bool filter_by_bias
  ) =>
     array<HtfFvgZone> result = zones
     bool dirty = false
     if bar_confirmed
-        int sizeBeforeAdd = array.size(result)
-        result := f_try_add_fvg(result, formed, zoneLow, zoneHigh, formedTime, txt, formedBullish)
-        dirty := array.size(result) != sizeBeforeAdd
+        bool direction_ok = not filter_by_bias or f_fvg_matches_bias(formedBullish, bullish_bias)
+        bool position_ok = not filter_by_bias or (bullish_bias ? zoneLow <= checkClose : zoneHigh >= checkClose)
+        if direction_ok and position_ok
+            int sizeBeforeAdd = array.size(result)
+            result := f_try_add_fvg(result, formed, zoneLow, zoneHigh, formedTime, txt, formedBullish)
+            dirty := array.size(result) != sizeBeforeAdd
     int sizeBeforeMitigate = array.size(result)
     result := f_remove_mitigated_fvgs(result, checkClose, checkTime)
     dirty := dirty or array.size(result) != sizeBeforeMitigate
     int sizeBeforePrune = array.size(result)
     result := f_prune_expired_fvgs(result)
     dirty := dirty or array.size(result) != sizeBeforePrune
+    if filter_by_bias
+        result := f_filter_fvgs_for_canvas(result, bullish_bias, checkClose)
     [result, dirty]
 
 f_concat_fvg_arrays(array<HtfFvgZone> left, array<HtfFvgZone> right) =>
@@ -1246,7 +1287,9 @@ f_draw_fvg_zones(
      int session_end_bi,
      SessionPoiTarget session_poi,
      SessionPoiTarget continuation_poi,
-     bool in_continuation_regime
+     bool in_continuation_regime,
+     bool bullish_bias,
+     float current_price
  ) =>
     array<box> next_boxes = array.new<box>()
     array<label> next_labels = array.new<label>()
@@ -1263,6 +1306,8 @@ f_draw_fvg_zones(
         if zone_count > 0
             for i = 0 to zone_count - 1
                 HtfFvgZone zone = array.get(zones, i)
+                if not f_fvg_visible_for_canvas(zone, bullish_bias, current_price)
+                    continue
                 int origin_bi = zone.formedBi
                 int end_bi = math.max(origin_bi, session_end_bi)
                 bool is_session_poi = not in_continuation_regime and f_is_session_poi(session_poi, "fvg", zone.formedTime, zone.txt)
@@ -1424,7 +1469,7 @@ adr_consumption_label := _adr_consumption_label
 [_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, openMinusAdr, dailyOpenOriginBi, sessionEndBi, "", "Dashed", "below", SESSION_CONTEXT_COLOR)
 open_minus_adr_line := _open_minus_adr_line
 
-[_pd_equilibrium_line, _pd_equilibrium_label] = f_draw_level(pd_equilibrium_line, pd_equilibrium_label, pd_eq_price, dailyOpenOriginBi, sessionEndBi, "PD EQ 50%", "Dashed", "on", SESSION_CONTEXT_COLOR)
+[_pd_equilibrium_line, _pd_equilibrium_label] = f_draw_level(pd_equilibrium_line, pd_equilibrium_label, pd_eq_price, dailyOpenOriginBi, sessionEndBi, "PD EQ 50%", pdEq50Style, "on", pdEq50Color)
 pd_equilibrium_line := _pd_equilibrium_line
 pd_equilibrium_label := _pd_equilibrium_label
 
@@ -1432,24 +1477,9 @@ chartTfSeconds = timeframe.in_seconds()
 on4hChart = chartTfSeconds == 14400
 on1hChart = chartTfSeconds == 3600
 showFvgs = on4hChart or on1hChart
-fvgLabel = on4hChart ? "4H FVG" : on1hChart ? "1H FVG" : ""
 
-[formed, zoneLow, zoneHigh, formedTime, formedBullish] = f_detect_fvg()
-
-var array<HtfFvgZone> activeFvgs = array.new<HtfFvgZone>()
 var array<box> fvg_boxes = array.new<box>()
 var array<label> fvg_labels = array.new<label>()
-var int lastChartTf = na
-
-if chartTfSeconds != lastChartTf
-    array.clear(activeFvgs)
-    lastChartTf := chartTfSeconds
-
-if showFvgs
-    [activeFvgsNext, _activeFvgsDirty] = f_advance_fvg_lifecycle(activeFvgs, formed, zoneLow, zoneHigh, formedTime, fvgLabel, formedBullish, close, time, barstate.isconfirmed)
-    activeFvgs := activeFvgsNext
-
-fvgZonesToDraw = showFvgs ? activeFvgs : array.new<HtfFvgZone>()
 
 f_draw_swing_levels(
      array<line> existing_lines,
@@ -1551,14 +1581,17 @@ activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 
 
 bool poiFvgsDirty = false
-[poiFvgs4hNext, poiFvgs4hDirty] = f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, close4h, time4h, barstate.isconfirmed)
+[poiFvgs4hNext, poiFvgs4hDirty] = f_advance_fvg_lifecycle(poiFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, close4h, time4h, barstate.isconfirmed, true, false)
 poiFvgs4h := poiFvgs4hNext
 poiFvgsDirty := poiFvgs4hDirty
-[poiFvgs1hNext, poiFvgs1hDirty] = f_advance_fvg_lifecycle(poiFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, close1h, time1h, barstate.isconfirmed)
+[poiFvgs1hNext, poiFvgs1hDirty] = f_advance_fvg_lifecycle(poiFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, close1h, time1h, barstate.isconfirmed, true, false)
 poiFvgs1h := poiFvgs1hNext
 poiFvgsDirty := poiFvgsDirty or poiFvgs1hDirty
 if poiFvgsDirty
     allPoiFvgs := f_concat_fvg_arrays(poiFvgs4h, poiFvgs1h)
+
+if not biasFlipped
+    effectiveBiasDirection := biasDirection
 
 if dailyBias == "Directional" and not biasFlipped and not na(pdEq50) and time >= sessionOpenTime
     bool bearishBias = effectiveBiasDirection == "Bearish"
@@ -1625,6 +1658,8 @@ if not na(sessionPoi) and f_poi_target_mitigated(sessionPoi, allPoiFvgs, activeS
     sessionPoi := na
 
 bool bullishBias = effectiveBiasDirection == "Bullish"
+bool fvgDisplayBullishBias = biasDirection == "Bullish"
+
 [activeDolTp1, activeDolTp2] = f_resolve_active_dol(bullishBias, close, dailyOpen, adrConsumptionPct, reversalDayTp1, openPlusAdr, openMinusAdr, pdh, pdl, pwh, pwl, pdhMitigated, pdlMitigated, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow, activeSwings)
 
 bool dailyOpenIsTp1 = f_is_active_dol(activeDolTp1, "daily-open", na, "Daily Open")
@@ -1660,7 +1695,10 @@ pwl_label := _pwl_label
 
 bool inContinuationRegime = biasFlipped
 
-[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEndBi, sessionPoi, continuationPoi, inContinuationRegime)
+array<HtfFvgZone> nativeChartFvgs = on4hChart ? poiFvgs4h : on1hChart ? poiFvgs1h : array.new<HtfFvgZone>()
+array<HtfFvgZone> fvgZonesToDraw = showFvgs ? f_filter_fvgs_for_canvas(nativeChartFvgs, fvgDisplayBullishBias, close) : array.new<HtfFvgZone>()
+
+[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEndBi, sessionPoi, continuationPoi, inContinuationRegime, fvgDisplayBullishBias, close)
 fvg_boxes := _fvg_boxes
 fvg_labels := _fvg_labels
 

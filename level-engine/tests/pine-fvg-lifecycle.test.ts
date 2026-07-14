@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Bar } from "../src/types.js";
-import { simulatePineFvgLifecycle } from "./helpers/pine-fvg-lifecycle.js";
+import {
+  filterFvgsByBias,
+  filterFvgsForCanvas,
+  simulatePineFvgLifecycle,
+} from "./helpers/pine-fvg-lifecycle.js";
 
 const HOUR_MS = 60 * 60 * 1000;
 const SUN_DEC_22_OPEN = 1734908400000;
@@ -150,5 +154,45 @@ describe("Pine FVG lifecycle simulation", () => {
     const afterClose = simulatePineFvgLifecycle(bars);
 
     expect(afterClose).toBe(1);
+  });
+});
+
+describe("HTF FVG bias display filter", () => {
+  const zones = [
+    { zoneLow: 100, zoneHigh: 105, formedAt: 1, bullish: true },
+    { zoneLow: 90, zoneHigh: 95, formedAt: 2, bullish: false },
+  ];
+
+  it("shows only bullish gaps when bias is bullish", () => {
+    expect(filterFvgsByBias(zones, true)).toEqual([zones[0]]);
+  });
+
+  it("shows only bearish gaps when bias is bearish", () => {
+    expect(filterFvgsByBias(zones, false)).toEqual([zones[1]]);
+  });
+});
+
+describe("HTF FVG canvas display filter", () => {
+  const zones = [
+    { zoneLow: 100, zoneHigh: 105, formedAt: 1, bullish: true },
+    { zoneLow: 90, zoneHigh: 95, formedAt: 2, bullish: false },
+    { zoneLow: 110, zoneHigh: 115, formedAt: 3, bullish: true },
+  ];
+
+  it("hides bullish gaps above price on a bullish canvas", () => {
+    expect(filterFvgsForCanvas(zones, true, 108)).toEqual([zones[0]]);
+  });
+
+  it("hides bearish gaps below price on a bearish canvas", () => {
+    expect(filterFvgsForCanvas(zones, false, 100)).toEqual([]);
+  });
+
+  it("shows bearish gaps above price on a bearish canvas", () => {
+    expect(filterFvgsForCanvas(zones, false, 85)).toEqual([zones[1]]);
+  });
+
+  it("hides counter-direction gaps even when position would qualify", () => {
+    expect(filterFvgsForCanvas(zones, true, 120)).toEqual([zones[0], zones[2]]);
+    expect(filterFvgsForCanvas(zones, false, 80)).toEqual([zones[1]]);
   });
 });

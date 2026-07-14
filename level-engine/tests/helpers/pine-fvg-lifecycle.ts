@@ -20,6 +20,44 @@ function barClosedThroughFvgExtreme(
     : bar.close > zone.zoneHigh;
 }
 
+export type DailyBiasMode = "directional" | "neutral";
+
+export function fvgMatchesBias(
+  zoneBullish: boolean,
+  bullishBias: boolean,
+): boolean {
+  return zoneBullish === bullishBias;
+}
+
+export function fvgVisibleForCanvas(
+  zone: Zone,
+  bullishBias: boolean,
+  currentPrice: number,
+): boolean {
+  const directionOk = fvgMatchesBias(zone.bullish, bullishBias);
+  const positionOk = bullishBias
+    ? zone.zoneLow <= currentPrice
+    : zone.zoneHigh >= currentPrice;
+  return directionOk && positionOk;
+}
+
+export function filterFvgsForCanvas(
+  zones: Zone[],
+  bullishBias: boolean,
+  currentPrice: number,
+): Zone[] {
+  return zones.filter((zone) =>
+    fvgVisibleForCanvas(zone, bullishBias, currentPrice),
+  );
+}
+
+export function filterFvgsByBias(
+  zones: Zone[],
+  bullishBias: boolean,
+): Zone[] {
+  return zones.filter((zone) => fvgMatchesBias(zone.bullish, bullishBias));
+}
+
 /** Mirrors Pine indicator bar-by-bar FVG state machine. */
 export function simulatePineFvgLifecycle(
   bars: Bar[],

@@ -32,22 +32,21 @@ export function barIndexForTime(input: {
     result = barIndex;
   } else {
     const maxI = Math.min(barIndex, barTimeSearchMax);
-    let found = false;
-    for (let i = 0; i <= maxI; i++) {
-      const barTime = bars[barIndex - i]?.time;
-      const prevBarTime =
-        i === 0 ? Number.POSITIVE_INFINITY : bars[barIndex - i + 1]?.time;
-      const inBar =
-        barTime <= targetTime && (i === 0 || targetTime < prevBarTime);
-      if (inBar) {
-        result = barIndex - i;
-        found = true;
-        break;
+    let left = 0;
+    let right = maxI;
+    let foundI = maxI;
+
+    while (left <= right) {
+      const mid = left + Math.floor((right - left) / 2);
+      const midTime = bars[barIndex - mid]?.time ?? 0;
+      if (midTime <= targetTime) {
+        foundI = mid;
+        right = mid - 1;
+      } else {
+        left = mid + 1;
       }
     }
-    if (!found) {
-      result = barIndex - maxI;
-    }
+    result = barIndex - foundI;
   }
 
   return result;
