@@ -90,16 +90,16 @@ A candle that supports continuation in the bias direction: closes with the move 
 _Avoid_: Displacement candle, clean expansion bar
 
 **2-Stage SMT**:
-A structural reversal confirmation sequence: Stage 1 is an HTF/ITF SMT divergence at a Relevant Level or POI; Stage 2 is ITF confirmation via either a second SMT (alternating roles — lagging asset drives through its extreme while the prior lead holds a higher low/lower high) or a Strength Switch PSP; LTF C2/C3/CISD is entry after Stage 2, not Stage 2 itself.
+A structural reversal confirmation sequence: Stage 1 is an HTF/ITF SMT divergence at a Relevant Level or POI; Stage 2 is ITF confirmation via either a second SMT on 30m/1H/90m (alternating roles — lagging asset drives through its extreme while the prior lead holds a higher low/lower high) or a Strength Switch PSP on full ITF including 4H; LTF C2/C3/CISD is entry after Stage 2, not Stage 2 itself.
 _Avoid_: Alternating sweep, Roof pattern, double SMT, IMT
 
 
 **Precision Swing Point (PSP)**:
-A condition where highly correlated assets close higher-timeframe candles (30m, 1h, 90m, 4h) with opposite polarity (one bullish, one bearish). Same close-polarity crack formerly labeled Polarized Strength Profile in this repo.
+A condition where highly correlated assets close higher-timeframe candles (30m, 1h, 90m, 4h) with opposite polarity (one bullish, one bearish). Same close-polarity crack formerly labeled Polarized Strength Profile in this repo. General PSP and Stage 2 SS PSP use this full ITF band; Path A second SMT does not use 4H.
 _Avoid_: Opposite close, candle discrepancy, Polarized Strength Profile
 
 **Strength Switch PSP (SS PSP)**:
-A specific PSP occurring after SMT divergence where the asset that swept closes in the reversal direction while the correlated asset closes in the trend direction, indicating a shift in lead strength.
+A specific PSP occurring after SMT divergence where the asset that swept closes in the reversal direction while the correlated asset closes in the trend direction, indicating a shift in lead strength. Evaluated on full ITF closes including 4H when used as Stage 2 Path B.
 _Avoid_: Divergence close profile
 
 **Market Structure Shift (MSS)**:

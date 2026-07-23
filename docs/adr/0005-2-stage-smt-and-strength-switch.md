@@ -16,9 +16,9 @@ We establish the following mechanical rules for identifying and validating a **2
    - We must observe an initial SMT divergence between correlated assets (e.g., Asset A sweeps the level, while Asset B fails to sweep/reaches it and stalls).
 
 2. **Stage 2: ITF Structural Confirmation** (either path completes Stage 2):
-   - Upon observing Stage 1 SMT, monitor **ITF** (`30m` / `1H` / `90m`) at that turning point. Do **not** use LTF (`15m` / `5m` / `3m` / `1m`) as the Stage 2 band.
-   - **Path A — Second SMT / alternating roles:** The previously lagging asset (Asset B) drives through and sweeps its own previous swing high/low on ITF, while the previously leading asset (Asset A) holds a higher low (bullish reversal) or lower high (bearish reversal). Roles of lead and lag reverse.
-   - **Path B — Strength Switch PSP (SS PSP):** Opposite-polarity ITF closes after Stage 1 SMT — the asset that swept closes in the reversal direction while the correlated asset closes in the trend direction ([SS PSP](../../CONTEXT.md)). Path B alone completes Stage 2; alternating sweep is not required.
+   - Upon observing Stage 1 SMT, monitor ITF at that turning point. Do **not** use LTF (`15m` / `5m` / `3m` / `1m`) as Stage 2.
+   - **Path A — Second SMT / alternating roles:** On `30m` / `1H` / `90m` only (not `4H`). The previously lagging asset (Asset B) drives through and sweeps its own previous swing high/low, while the previously leading asset (Asset A) holds a higher low (bullish reversal) or lower high (bearish reversal). Roles of lead and lag reverse.
+   - **Path B — Strength Switch PSP (SS PSP):** Opposite-polarity closes on full ITF — `4H` / `90m` / `1H` / `30m` — after Stage 1 SMT. The asset that swept closes in the reversal direction while the correlated asset closes in the trend direction ([SS PSP](../../CONTEXT.md)). A `4H` SS PSP can complete Stage 2. Path B alone completes Stage 2; alternating sweep is not required.
    - Either Path A or Path B locks the strength switch structurally. Both are not required.
 
 3. **Entry (after Stage 2)**:
@@ -32,5 +32,6 @@ We establish the following mechanical rules for identifying and validating a **2
 
 ## Consequences
 - We replace visual/geometric Roof patterns with a clean HTF/ITF structural gate, then LTF entry.
-- SS PSP alone can complete Stage 2, matching the daily execution playbook and Garrett strength-switch practice.
-- Programmatic indicator code should track Stage 1 HTF/ITF SMT, then wait for ITF Path A or Path B before treating the reversal as structurally confirmed; LTF C2/C3/CISD gates the signal for entry.
+- SS PSP alone can complete Stage 2 on full ITF (including `4H`), matching Garrett strength-switch practice and ADR-0004 PSP closes.
+- Path A second SMT stays on the smaller Stage-2 SMT band (`30m` / `1H` / `90m`), consistent with smaller-range confirmation examples (e.g. daily → 90m).
+- Programmatic indicator code should track Stage 1 HTF/ITF SMT, then wait for Path A or Path B before treating the reversal as structurally confirmed; LTF C2/C3/CISD gates the signal for entry.
