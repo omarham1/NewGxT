@@ -58,8 +58,8 @@ An unmitigated 4H or 1H Fair Value Gap shown on the Structural Canvas. All unmit
 _Avoid_: ITF imbalance, displacement zone
 
 **SMT Divergence**:
-A cross-asset discrepancy where highly correlated assets fail to make symmetrical swing highs or lows, revealing hidden institutional divergence.
-_Avoid_: Correlated divergence, correlation failure
+A cross-asset discrepancy where highly correlated assets fail to make symmetrical swing highs or lows, revealing hidden institutional divergence. Same crack Garrett calls **crack in correlation**.
+_Avoid_: Correlated divergence, correlation failure, crack in correlation
 
 **SMT Fill**:
 A state machine tracking the real-time participation of correlated assets as price trades within a Fair Value Gap.
