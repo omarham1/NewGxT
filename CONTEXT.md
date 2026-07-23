@@ -78,8 +78,8 @@ The fractal continuation model: interact with a Relevant Level / POI, confirm a 
 _Avoid_: Gap continuation alone, SMT Fill alone (those are legs, not the whole sequence)
 
 **2-Stage SMT**:
-A structural reversal confirmation sequence starting with a higher-timeframe SMT divergence (Stage 1), validated on lower timeframes by an alternating SMT sweep (Stage 2) where the lagging asset drives through and sweeps its own previous extreme while the leading asset holds a higher low/lower high, followed by a strength switch.
-_Avoid_: Alternating sweep, Roof pattern, double SMT
+A structural reversal confirmation sequence: Stage 1 is an HTF/ITF SMT divergence at a Relevant Level or POI; Stage 2 is ITF confirmation via either a second SMT (alternating roles — lagging asset drives through its extreme while the prior lead holds a higher low/lower high) or a Strength Switch PSP; LTF C2/C3/CISD is entry after Stage 2, not Stage 2 itself.
+_Avoid_: Alternating sweep, Roof pattern, double SMT, IMT
 
 
 **Polarized Strength Profile (PSP)**:

@@ -86,13 +86,13 @@ Asset B fails to sweep / stalls / makes a higher low (bullish) or lower high (be
 
 ### Step 7 — After Stage 1 SMT, Watch for Stage 2 Confirmation
 
-Once Stage 1 SMT divergence is identified at the POI, you are now watching for **Stage 2** — which can take two forms:
+Once Stage 1 SMT divergence is identified at the POI, you are now watching for **Stage 2** on **ITF (`30m` / `1H` / `90m`)** — either path completes Stage 2 (ADR-0005):
 
-1. **2-Stage SMT**: A second SMT on the **IMT charts (15m / 30m / 1H / 90m)** where the stronger and weaker assets **switch strength** — the previously lagging asset now leads, creating a second divergence that confirms the reversal.
-2. **2-Stage PSP (Polarized Strength Profile)**: A **Strength Switch PSP** on the ITF candle closes where the asset that swept closes in the reversal direction while its correlated pair closes in the trend direction — confirming the strength rotation.
+1. **Path A — Second SMT**: A second SMT on ITF where the stronger and weaker assets **switch strength** — the previously lagging asset now leads, creating a second divergence that confirms the reversal.
+2. **Path B — Strength Switch PSP**: A **Strength Switch PSP** on ITF candle closes where the asset that swept closes in the reversal direction while its correlated pair closes in the trend direction — confirming the strength rotation.
 
 > [!IMPORTANT]
-> The key signal in both cases is the **strength switch** — the stronger asset must switch roles with the weaker asset. This is what confirms institutional rotation, not just a one-off divergence.
+> The key signal in both cases is the **strength switch** — the stronger asset must switch roles with the weaker asset. This is what confirms institutional rotation, not just a one-off divergence. LTF (`15m` / `5m` / `3m` / `1m`) is for entry after Stage 2, not for Stage 2 itself.
 
 ---
 
@@ -127,19 +127,19 @@ flowchart TD
 
 **Stage 1 — HTF SMT Divergence** *(already confirmed in Step 6)*
 
-**Stage 2 — IMT Strength Switch (SMT or PSP):**
+**Stage 2 — ITF Strength Switch (SMT or PSP):**
 
-1. After Stage 1, monitor the **IMT charts (15m / 30m / 1H / 90m)** for a second divergence
-2. Watch for the **strength switch** — the previously stronger asset stalls or reverses while the previously weaker asset drives through, creating a **second SMT** where roles reverse
-   - Alternatively, look for a **Strength Switch PSP** — opposite-polarity ITF candle closes confirming the rotation
-3. Once the strength switch is confirmed, drop to **LTF (5m / 3m / 1m)** for the entry trigger
-4. Look for the **C1 → C2 (→ C3)** candle sequence:
+1. After Stage 1, monitor **ITF (`30m` / `1H` / `90m`)** for Stage 2 — either path completes it
+2. **Path A:** Watch for the **strength switch** — the previously stronger asset stalls or reverses while the previously weaker asset drives through, creating a **second SMT** where roles reverse
+3. **Path B:** Alternatively, look for a **Strength Switch PSP** — opposite-polarity ITF candle closes confirming the rotation
+4. Once Stage 2 is confirmed, drop to **LTF (`15m` / `5m` / `3m` / `1m`)** for the entry trigger
+5. Look for the **C1 → C2 (→ C3)** candle sequence:
    - **C1 (Protraction Candle)**: First candle that sweeps or trades into the Relevant Level
    - **C2 (Reversal Candle)**: Sweeps C1's extreme, then **body-closes back inside C1's range**
      - ✅ Valid C2 closure → **Confirmed immediately** (no wick-size delay)
    - **C3 (Confirmation Candle)**: Only needed if C2 body-closes **outside** C1's range. C3 must body-close past C2's body in the reversal direction
-5. Identify the **CISD (Change in State of Delivery)** on any triad asset — prioritize the one closest to its open DOL
-6. **Strength Switch is locked** when any triad asset prints the LTF CISD
+6. Identify the **CISD (Change in State of Delivery)** on any triad asset — prioritize the one closest to its open DOL
+7. **Entry is armed** when any triad asset prints the LTF CISD (after Stage 2)
 
 **Entry:** The candle **immediately following** the confirmed CSD closure.
 
