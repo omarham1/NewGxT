@@ -154,6 +154,8 @@ flowchart TD
 ### Play B · Catch-Up Play
 
 > When the stronger asset has continued past the draw on liquidity or is consolidating at it, but the lagging asset hasn't reached its equivalent level.
+>
+> This is the **Universal Sequence** gap + SMT Fill leg on the lagging asset (ADR-0012) — not a separate model.
 
 **Conditions:**
 - Stronger asset has either **continued past its DOL** (PDH/PDL) OR is **consolidating at it**
@@ -177,6 +179,8 @@ flowchart TD
 ### Play C · Continuation Play
 
 > When price has broken past the key level and is expanding toward the next HTF Draw on Liquidity.
+>
+> This is the **Universal Sequence** gap + SMT Fill leg after expansion past the key level (ADR-0012) — not a separate model.
 
 **Conditions:**
 - Price (stronger asset) has expanded past PDH/PDL toward the next HTF DOL
