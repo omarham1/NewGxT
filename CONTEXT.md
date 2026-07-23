@@ -69,6 +69,10 @@ _Avoid_: Divergence fill, correlation tracker
 The reversal of relative strength/weakness profiles between correlated assets during a structural shift, indicating institutional rotation.
 _Avoid_: Relative strength flip, asset rotation
 
+**Decoupled Sync**:
+When triad assets are pulling apart (tug-of-war) rather than expanding together, a Strength Switch or Catch-Up is not high quality until one asset interacts with a Relevant Level — that interaction resolves the tug-of-war and allows the assets to sync.
+_Avoid_: Tug-of-war wait, asset sync gate, decoupled open
+
 **Expansion FVG**:
 A Fair Value Gap formed during a high-momentum price move (expansion) away from a swept liquidity level, which must hold to validate trend direction.
 _Avoid_: Displacement gap, expansion zone

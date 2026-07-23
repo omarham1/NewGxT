@@ -131,6 +131,8 @@ flowchart TD
     I --> K["ITF FVG SMT Fill on ANY triad asset + LTF CSD"]
 ```
 
+> Decoupled triad → wait for **Decoupled Sync** (one asset at a Relevant Level) before Catch-Up / high-quality SS (ADR-0002).
+
 ---
 
 ### Play A · Reversal Play (Primary Setup)
@@ -174,6 +176,7 @@ flowchart TD
 - Stronger asset has either **continued past its DOL** (PDH/PDL) OR is **consolidating at it**
 - Lagging asset has NOT reached its equivalent level
 - The stronger asset must be doing one of the two above — if it has reversed away from the DOL, this play does NOT apply
+- If the triad is **decoupled** (assets pulling apart), wait for **Decoupled Sync** — one asset interacts with a Relevant Level — before treating Catch-Up as high quality (ADR-0002)
 
 **Trigger:**
 1. Monitor the **lagging asset** for an **ITF FVG (30m / 1H / 90m)** to form
