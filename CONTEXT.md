@@ -77,6 +77,14 @@ _Avoid_: Displacement gap, expansion zone
 The fractal continuation model: interact with a Relevant Level / POI, confirm a swing formation (C2 or C3), expand away printing an Expansion FVG (or aligned ITF gap), then on the retrace into that gap require SMT Fill (or PSP when both assets fill) and execute toward the open DOL on LTF CISD. Catch-Up Play and Continuation Play are the gap + SMT Fill legs of this sequence — not separate models.
 _Avoid_: Gap continuation alone, SMT Fill alone (those are legs, not the whole sequence)
 
+**4H Profiling**:
+The timing filter that prefers trading Expansion Candles on the 4H after an SMT-formed high or low of day (protected wick), then expansion of the body away from that extreme. Complements 2-Stage SMT/SS (reversal confirmation) and Universal Sequence (gap continuation) — it does not replace either.
+_Avoid_: 4H timing, session profiling alone
+
+**Expansion Candle**:
+A candle that supports continuation in the bias direction: closes with the move and does not print a large opposing wick. A large opposing wick means the candle is not expansion — wait for the next candle or C3 before entering.
+_Avoid_: Displacement candle, clean expansion bar
+
 **2-Stage SMT**:
 A structural reversal confirmation sequence: Stage 1 is an HTF/ITF SMT divergence at a Relevant Level or POI; Stage 2 is ITF confirmation via either a second SMT (alternating roles — lagging asset drives through its extreme while the prior lead holds a higher low/lower high) or a Strength Switch PSP; LTF C2/C3/CISD is entry after Stage 2, not Stage 2 itself.
 _Avoid_: Alternating sweep, Roof pattern, double SMT, IMT
@@ -104,11 +112,11 @@ _Avoid_: Reference bar, trigger candle
 
 **Candle 2 (C2 / Reversal Candle)**:
 The candle that sweeps the extreme of Candle 1 (C1) (or previous range) and body-closes back inside C1's range, initiating a V-shape reversal.
-- **Wick Size**: The sweep-side wick of C2 is calculated to analyze immediate expansion potential, but any valid C2 body close back inside C1 constitutes a C2 closure that is validated immediately when paired with other strategy aspects.
+- **Wick Size / Expansion Candle gate**: A valid C2 body close back inside C1 prints the structural C2 signature. Entry on that candle still requires it to be an Expansion Candle — a large opposing wick blocks entry on C2; wait for the next candle or C3.
 _Avoid_: Sweep candle, reversal bar
 
 **Candle 3 (C3 / Confirmation Candle)**:
-A candle confirming the reversal when Candle 2 (C2) fails to form a C2 closure (i.e. C2 body-closes outside C1's range).
+A candle confirming the reversal when Candle 2 (C2) fails to form a C2 closure (i.e. C2 body-closes outside C1's range), or when C2 printed structure but failed the Expansion Candle wick gate.
 - **Alternative Reversal (No C2 Closure)**: When C2 sweeps C1 but body-closes outside of C1's range, C3 confirms the reversal by body-closing above the body of C2 (bullish) or below the body of C2 (bearish).
 _Avoid_: Confirmation bar, continuation candle
 

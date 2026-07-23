@@ -12,9 +12,9 @@ Earlier specifications mandated that any close past a high-timeframe **Fair Valu
 We will calculate and validate the reversal leg's retracement using the following rules:
 
 1. **Candle Closure Reversal Signatures**:
-   - **[C1 (Protraction Candle)](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L60)**: The reference candle that first sweeps or trades into a Relevant Level or POI.
-   - **[C2 (Reversal Candle)](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L64)**: The candle that sweeps the extreme of C1 (or previous range) and body-closes *back inside* C1's range (initiating a V-shape reversal). A C2 closure is validated immediately (when paired with other strategy rules like SMT/SS) regardless of its wick size.
-   - **[C3 (Confirmation Candle)](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L69)**: Confirms the reversal *only* when there is no C2 closure.
+   - **[C1 (Protraction Candle)](../../CONTEXT.md)**: The reference candle that first sweeps or trades into a Relevant Level or POI.
+   - **[C2 (Reversal Candle)](../../CONTEXT.md)**: The candle that sweeps the extreme of C1 (or previous range) and body-closes *back inside* C1's range (initiating a V-shape reversal). A valid C2 body close prints the structural C2 signature when paired with strategy rules like SMT/SS. **Entry on that candle** additionally requires an [Expansion Candle](../../CONTEXT.md): a large opposing wick blocks entry on C2 — wait for the next candle or [C3](../../CONTEXT.md) (4H Profiling wick gate; aligns with Garrett expansion-candle practice).
+   - **[C3 (Confirmation Candle)](../../CONTEXT.md)**: Confirms the reversal when there is no C2 closure, **or** when C2 printed structure but failed the Expansion Candle wick gate.
      - **Alternative Reversal (No C2 Closure)**: If C2 sweeps C1 but body-closes *outside* of C1's range (failing to form a C2 closure), C3 confirms the reversal by body-closing *above the body* of C2 (bullish) or *below the body* of C2 (bearish).
 
 2. **Expansion Leg Boundaries**:

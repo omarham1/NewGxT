@@ -70,6 +70,18 @@ Monitor the **ITF charts (4H / 90m / 1H / 30m)** for price to trade into your pr
 > [!TIP]
 > Don't force a trade before price reaches a POI. Patience here is the edge. Your only job during this phase is observation.
 
+### Step 5b — 4H Profiling (timing filter)
+
+**4H Profiling** times *when* to lean on expansion — it does not replace 2-Stage SMT/SS or Universal Sequence.
+
+**Ideal shape:**
+1. SMT forms the high or low of day (protected wick / sweep at the POI)
+2. Expansion builds the body away from that extreme
+3. Prefer subsequent **4H Expansion Candles** in bias direction (closes with the move; no large opposing wick)
+4. Large opposing wick on a candidate candle → **not** expansion — wait for the next candle / C3 before entering
+
+**Session if-then windows (futures / ET):** Prefer watching 4H manipulation and expansion around **02:00 / 06:00 / 10:00 ET**. If an earlier window manipulates at the POI and does not reverse cleanly, roll expectation to the next window. Common ideal: **06:00 manip → 10:00 continuation**. (CME session clock — not FX 1/5/9.)
+
 ### Step 6 — Check for SMT Divergence at the POI (Stage 1)
 
 When price reaches the POI, check all 3 triad assets:
@@ -136,10 +148,11 @@ flowchart TD
 5. Look for the **C1 → C2 (→ C3)** candle sequence:
    - **C1 (Protraction Candle)**: First candle that sweeps or trades into the Relevant Level
    - **C2 (Reversal Candle)**: Sweeps C1's extreme, then **body-closes back inside C1's range**
-     - ✅ Valid C2 closure → **Confirmed immediately** (no wick-size delay)
-   - **C3 (Confirmation Candle)**: Only needed if C2 body-closes **outside** C1's range. C3 must body-close past C2's body in the reversal direction
+     - ✅ Valid C2 body close → structural C2 printed
+     - ⚠️ Entry still requires an **Expansion Candle** — large opposing wick → **do not enter on C2**; wait for the next candle or C3 (ADR-0001 / 4H Profiling)
+   - **C3 (Confirmation Candle)**: Needed if C2 body-closes **outside** C1's range, **or** if C2 failed the Expansion Candle wick gate. C3 must body-close past C2's body in the reversal direction
 6. Identify the **CISD (Change in State of Delivery)** on any triad asset — prioritize the one closest to its open DOL
-7. **Entry is armed** when any triad asset prints the LTF CISD (after Stage 2)
+7. **Entry is armed** when any triad asset prints the LTF CISD (after Stage 2) on an Expansion Candle
 
 **Entry:** The candle **immediately following** the confirmed CSD closure.
 
