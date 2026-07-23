@@ -82,9 +82,9 @@ A structural reversal confirmation sequence: Stage 1 is an HTF/ITF SMT divergenc
 _Avoid_: Alternating sweep, Roof pattern, double SMT, IMT
 
 
-**Polarized Strength Profile (PSP)**:
-A condition where highly correlated assets close higher-timeframe candles (30m, 1h, 90m, 4h) with opposite polarity (one bullish, one bearish).
-_Avoid_: Opposite close, candle discrepancy
+**Precision Swing Point (PSP)**:
+A condition where highly correlated assets close higher-timeframe candles (30m, 1h, 90m, 4h) with opposite polarity (one bullish, one bearish). Same close-polarity crack formerly labeled Polarized Strength Profile in this repo.
+_Avoid_: Opposite close, candle discrepancy, Polarized Strength Profile
 
 **Strength Switch PSP (SS PSP)**:
 A specific PSP occurring after SMT divergence where the asset that swept closes in the reversal direction while the correlated asset closes in the trend direction, indicating a shift in lead strength.

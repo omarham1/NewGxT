@@ -13,7 +13,7 @@ We define the following rules and configurations for timeframe mapping and asset
 
 1. **Timeframe Hierarchy**:
    - **Higher Timeframe (HTF) - Bias Formation**: Monthly (`1M`), Weekly (`1W`), and Daily (`1D`). These timeframes are used to establish the overall market bias and locate major key structural levels ([PDH/PDL](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L11), [PWH/PWL](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L15)).
-   - **Intermediate Timeframe (ITF) - Structural Validation**: 4-Hour (`4H`), 90-Minute (`90m`), 1-Hour (`1H`), and 30-Minute (`30m`). These timeframes are used for identifying intermediate structures, tracking POIs (such as HTF FVGs), and analyzing [Polarized Strength Profiles (PSP)](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L44).
+   - **Intermediate Timeframe (ITF) - Structural Validation**: 4-Hour (`4H`), 90-Minute (`90m`), 1-Hour (`1H`), and 30-Minute (`30m`). These timeframes are used for identifying intermediate structures, tracking POIs (such as HTF FVGs), and analyzing [Precision Swing Points (PSP)](../../CONTEXT.md).
    - **Lower Timeframe (LTF) - Execution & Entry**: 15-Minute (`15m`), 5-Minute (`5m`), 3-Minute (`3m`), and 1-Minute (`1m`). These timeframes are used for entry triggers, [CISD](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L56) confirmations, [C2](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L64)/[C3](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L69) closures, [SMT Divergence](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L23), and expansion leg calculations.
 
 2. **Asset Triad Specification**:
