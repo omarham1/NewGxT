@@ -82,7 +82,7 @@ The fractal continuation model: interact with a Relevant Level / POI, confirm a 
 _Avoid_: Gap continuation alone, SMT Fill alone (those are legs, not the whole sequence)
 
 **4H Profiling**:
-The timing filter that prefers trading Expansion Candles on the 4H after an SMT-formed high or low of day (protected wick), then expansion of the body away from that extreme. Complements 2-Stage SMT/SS (reversal confirmation) and Universal Sequence (gap continuation) — it does not replace either.
+The timing filter that prefers trading Expansion Candles on the 4H after an SMT-formed high or low of day (protected wick), then expansion of the body away from that extreme. Complements 2-Stage SMT or 2-Stage PSP (reversal confirmation) and Universal Sequence (gap continuation) — it does not replace either.
 _Avoid_: 4H timing, session profiling alone
 
 **Expansion Candle**:
@@ -90,17 +90,20 @@ A candle that supports continuation in the bias direction: closes with the move 
 _Avoid_: Displacement candle, clean expansion bar
 
 **2-Stage SMT**:
-A structural reversal confirmation sequence: Stage 1 is an HTF/ITF SMT divergence at a Relevant Level or POI; Stage 2 is ITF confirmation via either a second SMT on 30m/1H/90m (alternating roles — lagging asset drives through its extreme while the prior lead holds a higher low/lower high) or a Strength Switch PSP on full ITF including 4H; LTF C2/C3/CISD is entry after Stage 2, not Stage 2 itself.
-_Avoid_: Alternating sweep, Roof pattern, double SMT, IMT
+A structural reversal confirmation sequence: Stage 1 is an HTF/ITF SMT divergence at a Relevant Level or POI; Stage 2 is a second ITF SMT on 30m/1H/90m (alternating roles — lagging asset drives through its extreme while the prior lead holds a higher low/lower high). LTF C2/C3/CISD is entry after Stage 2, not Stage 2 itself.
+_Avoid_: Alternating sweep, Roof pattern, double SMT, IMT, folding SS PSP into this term
 
+**2-Stage PSP**:
+A structural reversal confirmation sequence: Stage 1 is an HTF/ITF SMT divergence at a Relevant Level or POI; Stage 2 is a Strength Switch PSP on full ITF including 4H. LTF C2/C3/CISD is entry after Stage 2, not Stage 2 itself.
+_Avoid_: Two-stage PSP as synonym for 2-Stage SMT, SSPS, Path B
 
 **Precision Swing Point (PSP)**:
-A condition where highly correlated assets close higher-timeframe candles (30m, 1h, 90m, 4h) with opposite polarity (one bullish, one bearish). Same close-polarity crack formerly labeled Polarized Strength Profile in this repo. General PSP and Stage 2 SS PSP use this full ITF band; Path A second SMT does not use 4H.
-_Avoid_: Opposite close, candle discrepancy, Polarized Strength Profile
+A swing formation where highly correlated assets close the same ITF candle (30m, 1h, 90m, 4h) with opposite polarity — the close-polarity form of a crack in correlation. Formerly labeled Polarized Strength Profile in this repo. General PSP and SS PSP (as Stage 2 of 2-Stage PSP) use this full ITF band; 2-Stage SMT's second SMT does not use 4H.
+_Avoid_: Opposite close, candle discrepancy, Polarized Strength Profile, continuation PSP
 
 **Strength Switch PSP (SS PSP)**:
-A specific PSP occurring after SMT divergence where the asset that swept closes in the reversal direction while the correlated asset closes in the trend direction, indicating a shift in lead strength. Evaluated on full ITF closes including 4H when used as Stage 2 Path B.
-_Avoid_: Divergence close profile
+A specific PSP occurring after SMT divergence where the asset that swept closes in the reversal direction while the correlated asset closes in the trend direction, indicating a shift in lead strength. Evaluated on full ITF closes including 4H when used as Stage 2 of 2-Stage PSP.
+_Avoid_: Divergence close profile, SSPS
 
 **Market Structure Shift (MSS)**:
 A transition in market trend confirmed on the chart when price makes an aggressive displacement that closes past a prior significant swing high or low.

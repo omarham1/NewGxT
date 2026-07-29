@@ -43,7 +43,7 @@ Check for a 4H FVG within the 50% equilibrium range of the Previous Day
 
 **If Neutral Bias (Consolidation Day):**
 - No pre-set POI. You are waiting for price to sweep PDH or PDL first.
-- The sweep + 2-Stage SMT/SS will create your POI in real time.
+- The sweep + 2-Stage SMT or 2-Stage PSP will create your POI in real time.
 
 ### Step 4 — Set Targets
 
@@ -72,7 +72,7 @@ Monitor the **ITF charts (4H / 90m / 1H / 30m)** for price to trade into your pr
 
 ### Step 5b — 4H Profiling (timing filter)
 
-**4H Profiling** times *when* to lean on expansion — it does not replace 2-Stage SMT/SS or Universal Sequence.
+**4H Profiling** times *when* to lean on expansion — it does not replace 2-Stage SMT or 2-Stage PSP or Universal Sequence.
 
 **Ideal shape:**
 1. SMT forms the high or low of day (protected wick / sweep at the POI)
@@ -98,13 +98,15 @@ Asset B fails to sweep / stalls / makes a higher low (bullish) or lower high (be
 
 ### Step 7 — After Stage 1 SMT, Watch for Stage 2 Confirmation
 
-Once Stage 1 SMT divergence is identified at the POI, you are now watching for **Stage 2** — either path completes Stage 2 (ADR-0005):
+Once Stage 1 SMT divergence is identified at the POI, you are now watching for **Stage 2** — either sequence completes Stage 2 (ADR-0005):
 
-1. **Path A — Second SMT**: A second SMT on **`30m` / `1H` / `90m` only** (not `4H`) where the stronger and weaker assets **switch strength** — the previously lagging asset now leads, creating a second divergence that confirms the reversal.
-2. **Path B — Strength Switch PSP**: A **Strength Switch PSP** on full-ITF candle closes (`4H` / `90m` / `1H` / `30m`) where the asset that swept closes in the reversal direction while its correlated pair closes in the trend direction — confirming the strength rotation. A `4H` SS PSP can complete Stage 2.
+1. **2-Stage SMT — Second SMT**: A second SMT on **`30m` / `1H` / `90m` only** (not `4H`) where the stronger and weaker assets **switch strength** — the previously lagging asset now leads, creating a second divergence that confirms the reversal.
+2. **2-Stage PSP — Strength Switch PSP**: A **Strength Switch PSP** on full-ITF candle closes (`4H` / `90m` / `1H` / `30m`) where the asset that swept closes in the reversal direction while its correlated pair closes in the trend direction — confirming the strength rotation. A `4H` SS PSP can complete Stage 2.
 
 > [!IMPORTANT]
-> The key signal in both cases is the **strength switch** — the stronger asset must switch roles with the weaker asset. This is what confirms institutional rotation, not just a one-off divergence. LTF (`15m` / `5m` / `3m` / `1m`) is for entry after Stage 2, not for Stage 2 itself.
+> The key signal in both sequences is the **strength switch** — the stronger asset must switch roles with the weaker asset. This is what confirms institutional rotation, not just a one-off divergence. LTF (`15m` / `5m` / `3m` / `1m`) is for entry after Stage 2, not for Stage 2 itself.
+>
+> Require a Relevant Level / open DOL / framework — never trade a naked PSP. Plain PSP (opposite closes without the Stage 1 → SS PSP sequence) can substitute when classic SMT extremes are missing or both assets fill a Universal Sequence gap; it is not itself 2-Stage PSP. Do not read opposite-close PSPs that oppose the open DOL as reversals after LOD/HOD is set.
 
 ---
 
@@ -117,7 +119,7 @@ flowchart TD
     A["Price at POI / Relevant Level?"] -->|Yes| B["SMT Divergence present?"]
     A -->|No| W["Wait — no setup"]
     
-    B -->|"Yes — full 2-Stage SMT/SS"| C["🟢 REVERSAL PLAY"]
+    B -->|"Yes — full 2-Stage SMT or 2-Stage PSP"| C["🟢 REVERSAL PLAY"]
     B -->|"No divergence but aggressive reversal with ITF FVGs"| D["🟡 AGGRESSIVE REVERSAL FALLBACK"]
     B -->|"No"| W
     
@@ -137,15 +139,15 @@ flowchart TD
 
 ### Play A · Reversal Play (Primary Setup)
 
-> The highest-conviction trade. Requires the full 2-Stage SMT confirmation.
+> The highest-conviction trade. Requires full 2-Stage SMT or 2-Stage PSP confirmation.
 
 **Stage 1 — HTF SMT Divergence** *(already confirmed in Step 6)*
 
-**Stage 2 — ITF Strength Switch (SMT or PSP):**
+**Stage 2 — ITF Strength Switch (2-Stage SMT or 2-Stage PSP):**
 
-1. After Stage 1, monitor ITF for Stage 2 — either path completes it
-2. **Path A:** On **`30m` / `1H` / `90m` only** — watch for the **strength switch** — the previously stronger asset stalls or reverses while the previously weaker asset drives through, creating a **second SMT** where roles reverse
-3. **Path B:** Alternatively, look for a **Strength Switch PSP** on full ITF (`4H` / `90m` / `1H` / `30m`) — opposite-polarity candle closes confirming the rotation (a `4H` SS PSP counts)
+1. After Stage 1, monitor ITF for Stage 2 — either sequence completes it
+2. **2-Stage SMT:** On **`30m` / `1H` / `90m` only** — watch for the **strength switch** — the previously stronger asset stalls or reverses while the previously weaker asset drives through, creating a **second SMT** where roles reverse
+3. **2-Stage PSP:** Alternatively, look for a **Strength Switch PSP** on full ITF (`4H` / `90m` / `1H` / `30m`) — opposite-polarity candle closes confirming the rotation (a `4H` SS PSP counts)
 4. Once Stage 2 is confirmed, drop to **LTF (`15m` / `5m` / `3m` / `1m`)** for the entry trigger
 5. Look for the **C1 → C2 (→ C3)** candle sequence:
    - **C1 (Protraction Candle)**: First candle that sweeps or trades into the Relevant Level
@@ -213,14 +215,14 @@ flowchart TD
 
 ---
 
-### Aggressive Reversal Fallback (No 2-Stage SMT)
+### Aggressive Reversal Fallback (No 2-Stage SMT or 2-Stage PSP)
 
-> When price reverses aggressively from a POI leaving new ITF FVGs, but without a clean 2-Stage SMT.
+> When price reverses aggressively from a POI leaving new ITF FVGs, but without a clean 2-Stage SMT or 2-Stage PSP.
 
 **Conditions:**
 - Price reversed hard from a POI
 - New ITF FVGs (30m / 1H / 90m) were created during the reversal move
-- No clean 2-Stage SMT/SS completed
+- No clean 2-Stage SMT or 2-Stage PSP completed
 
 **Trigger:**
 1. Transition to **continuation bias** in the reversal direction
@@ -284,6 +286,6 @@ Before every execution, confirm:
 
 > [!IMPORTANT]
 > **What you are NOT allowed to do:**
-> - Reverse a lagging asset while the stronger asset consolidates at highs/lows without a full 2-Stage SMT/SS
+> - Reverse a lagging asset while the stronger asset consolidates at highs/lows without a full 2-Stage SMT or 2-Stage PSP
 > - Use a simple LTF CSD alone as a reversal confirmation (that's only valid for continuation/catch-up plays)
 > - Enter before the CSD/C2 closure is confirmed — no anticipation trades

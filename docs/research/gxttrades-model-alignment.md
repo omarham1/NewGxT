@@ -321,6 +321,7 @@ Do **not** edit these files in this research task; recommendations only.
 ## Open questions / unresolved ambiguities needing primary confirmation
 
 1. **Official PSP acronym:** Garrett says “precision swing point” once in Universal Sequence; all other primary hits use “PSP” without expansion. Confirm whether he also uses any other expansion in a dedicated PSP video (he tells viewers to “watch my video on it” — that video was not fully located/transcripted in this pass).
+   - **Resolved 2026-07-29:** Dedicated first-party video located — [GxT \| Precision Swing Point \| Pt.1](https://www.youtube.com/watch?v=iXRQg-OpO6Y). Spoken expansion is repeatedly **Precision Swing Point** (“PSP for shorts”); no primary attestation of Polarized Strength Profile or any other long form. Doc recommend: **no change** (`CONTEXT.md` already canonical). Full write-up: `docs/research/psp-dedicated-video.md`.
 2. **SMT long-form expansion** in Garrett’s own words (Smart Money Technique vs Tool vs other) — not confirmed in consulted transcripts.
 3. **Exact slide title / numbered Universal Sequence checklist** — the YouTube lecture narrates steps continuously; no authoritative slide text was captured. Treat the 7-step list above as research synthesis of his narration, not a verbatim slide dump.
 4. **APD sequence** — named repeatedly in Strength Switching; relationship to Universal Sequence / 2-stage not fully mapped here. Out of NewGxT docs today.
