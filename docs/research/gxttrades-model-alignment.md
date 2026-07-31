@@ -182,6 +182,7 @@ Across consulted videos, SMT is **crack in correlation** between highly correlat
 - Hierarchy: draw → profile/wick support → **then** cracks in correlation; do not pattern-trade SMT alone. ([wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I))
 
 Garrett does not spell out “SMT = Smart Money Technique/Tool” in the consulted transcripts; he uses **SMT** as established jargon. Expansion is weakly attested here — do not assert from these sources alone.
+**(Confirmed negative, 2026-07-31):** Dedicated dive + expanded primary search still find **no** spoken long-form expansion — see `docs/research/garrett-smt-spoken-expansion.md` (issue #34).
 
 #### NewGxT definition
 
@@ -198,8 +199,8 @@ ADR-0006 mechanizes SMT Fill: `Idle` → `SMT_Fill_Active` when 1–2 triad asse
 | Status | **Aligned (with useful NewGxT mechanization)** |
 |---|---|
 | Alignment | Divergence-at-extremes and gap SMT fill match Garrett. Triad (ES/NQ/YM) matches his index examples. |
-| Gap | Minor: NewGxT’s “institutional divergence” wording is interpretive; Garrett stresses **crack in correlation** and tradability filters. SMT acronym expansion not pinned in either primary set consulted. |
-| Doc change | Optional: add “crack in correlation” as preferred synonym in glossary Avoid list / aliases. No urgent rewrite of ADR-0006. |
+| Gap | Minor: NewGxT’s “institutional divergence” wording is interpretive; Garrett stresses **crack in correlation** and tradability filters. Acronym expansion confirmed absent in primary set (see Open question #2 / `garrett-smt-spoken-expansion.md`). |
+| Doc change | Optional: add “crack in correlation” as preferred synonym in glossary Avoid list / aliases. Leave SMT letters unspecified (no Technique/Tool). No urgent rewrite of ADR-0006. |
 
 ---
 
@@ -323,6 +324,7 @@ Do **not** edit these files in this research task; recommendations only.
 1. **Official PSP acronym:** Garrett says “precision swing point” once in Universal Sequence; all other primary hits use “PSP” without expansion. Confirm whether he also uses any other expansion in a dedicated PSP video (he tells viewers to “watch my video on it” — that video was not fully located/transcripted in this pass).
    - **Resolved 2026-07-29:** Dedicated first-party video located — [GxT \| Precision Swing Point \| Pt.1](https://www.youtube.com/watch?v=iXRQg-OpO6Y). Spoken expansion is repeatedly **Precision Swing Point** (“PSP for shorts”); no primary attestation of Polarized Strength Profile or any other long form. Doc recommend: **no change** (`CONTEXT.md` already canonical). Full write-up: `docs/research/psp-dedicated-video.md`.
 2. **SMT long-form expansion** in Garrett’s own words (Smart Money Technique vs Tool vs other) — not confirmed in consulted transcripts.
+   - **Resolved 2026-07-31:** Dedicated first-party SMT lecture located — [A Deeper Dive Into SMT Divergence](https://www.youtube.com/watch?v=eADu2pFnyAU). Garrett asks “what is an SMT?” and answers with **correlated-market divergence / crack in correlation** only; **no** spoken or title/description expansion to Smart Money Technique, Tool, Theory, or other. Same negative finding across expanded primary set (Universal Sequence, PSP Pt.1, Trade Recap, 4H Profiling, Asset Sync Pt.1, TTrades guest). Doc recommend: **leave unspecified** in glossary — do not assert Technique/Tool from ICT secondary sources. Full write-up: `docs/research/garrett-smt-spoken-expansion.md`.
 3. **Exact slide title / numbered Universal Sequence checklist** — the YouTube lecture narrates steps continuously; no authoritative slide text was captured. Treat the 7-step list above as research synthesis of his narration, not a verbatim slide dump.
 4. **APD sequence** — named repeatedly in Strength Switching; relationship to Universal Sequence / 2-stage not fully mapped here. Out of NewGxT docs today.
 5. **Whether NewGxT should adopt Garrett’s expansion-wick filter as hard law** or keep ADR-0001’s SMT/SS override — product decision, not settled by primary sources alone.
