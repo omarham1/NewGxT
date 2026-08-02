@@ -66,8 +66,8 @@ A state machine tracking the real-time participation of correlated assets as pri
 _Avoid_: Divergence fill, correlation tracker
 
 **Strength Switching**:
-The reversal of relative strength/weakness profiles between correlated assets during a structural shift, indicating institutional rotation.
-_Avoid_: Relative strength flip, asset rotation
+The reversal of relative strength/weakness profiles between correlated assets during a structural shift, indicating institutional rotation. Garrett’s APD / Advanced Premium Discount sequence is spaced-SMT / cross-asset premium–discount packaging under this umbrella — not a separate NewGxT stage.
+_Avoid_: Relative strength flip, asset rotation, APD, APD sequence, Advanced Premium Discount sequence
 
 **Decoupled Sync**:
 When triad assets are pulling apart (tug-of-war) rather than expanding together, a Strength Switch or Catch-Up is not high quality until one asset interacts with a Relevant Level — that interaction resolves the tug-of-war and allows the assets to sync.

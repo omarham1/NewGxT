@@ -1,3 +1,6 @@
 node_modules/
 dist/
 .DS_Store
+
+# Research temp transcripts
+docs/research/_tmp_transcripts/
