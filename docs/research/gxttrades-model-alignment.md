@@ -330,6 +330,7 @@ Do **not** edit these files in this research task; recommendations only.
 4. **APD sequence** — named repeatedly in Strength Switching; relationship to Universal Sequence / 2-stage not fully mapped here. Out of NewGxT docs today.
 5. **Whether NewGxT should adopt Garrett’s expansion-wick filter as hard law** or keep ADR-0001’s SMT/SS override — product decision, not settled by primary sources alone.
 6. **C3 close criterion nuance:** Garrett Universal Sequence says close over C2’s **opening price**; 4H Profiling / NewGxT emphasize close past C2 **body** (and sometimes high). Needs a single rule.
+   - **Resolved 2026-08-02:** Side-by-side primary recheck — Universal Sequence names C3 = close over C2 **open**; 4H Profiling = “**body or high**”; TTrades guest (Garrett) = “mechanically defined as closing over the **body of candle 2**.” Doc recommend: **keep body** as the single Alternative Reversal C3 rule; open is near-synonym on directional C2; high is optional stricter confluence, not required. No ADR/CONTEXT edit until approval. Full write-up: `docs/research/c3-close-criterion-open-vs-body.md`.
 7. **Kill zone / CME vs FX clock** — Garrett mixes FX and futures clocks; NewGxT is CME 18:00 ET–centric. Any 4H Profiling import must remap session windows to CME explicitly.
 
 ---
