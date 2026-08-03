@@ -78,7 +78,7 @@ A Fair Value Gap formed during a high-momentum price move (expansion) away from 
 _Avoid_: Displacement gap, expansion zone
 
 **Universal Sequence**:
-The fractal continuation model: interact with a Relevant Level / POI, confirm a swing formation (C2 or C3), expand away printing an Expansion FVG (or aligned ITF gap), then on the retrace into that gap require SMT Fill (or PSP when both assets fill) and execute toward the open DOL on LTF CISD. Catch-Up Play and Continuation Play are the gap + SMT Fill legs of this sequence — not separate models.
+The fractal continuation model: interact with a Relevant Level / POI, confirm a swing formation (C2 or C3), expand away printing an Expansion FVG (or aligned ITF gap), then on the retrace into that gap require SMT Fill (or PSP when both assets fill that **continuation** gap) and execute toward the open DOL on LTF CISD. PSP at a continuation gap is not Session POI Stage 1 — Stage 1 of a reversal is always SMT Divergence. Catch-Up Play and Continuation Play are the gap + SMT Fill legs of this sequence — not separate models.
 _Avoid_: Gap continuation alone, SMT Fill alone (those are legs, not the whole sequence)
 
 **4H Profiling**:
@@ -98,8 +98,8 @@ A structural reversal confirmation sequence: Stage 1 is an HTF/ITF SMT divergenc
 _Avoid_: Two-stage PSP as synonym for 2-Stage SMT, SSPS, Path B
 
 **Precision Swing Point (PSP)**:
-A swing formation where highly correlated assets close the same ITF candle (30m, 1h, 90m, 4h) with opposite polarity — the close-polarity form of a crack in correlation. Formerly labeled Polarized Strength Profile in this repo. General PSP and SS PSP (as Stage 2 of 2-Stage PSP) use this full ITF band; 2-Stage SMT's second SMT does not use 4H.
-_Avoid_: Opposite close, candle discrepancy, Polarized Strength Profile, continuation PSP
+A swing formation where highly correlated assets close the same ITF candle (30m, 1h, 90m, 4h) with opposite polarity — the close-polarity form of a crack in correlation. Formerly labeled Polarized Strength Profile in this repo. Not a Stage 1 substitute at Session POI — Stage 1 of a reversal is always SMT Divergence. Used as SS PSP (Stage 2 of 2-Stage PSP) or as the crack when both assets fill a Universal Sequence continuation gap (SMT Fill invalid). General PSP and SS PSP use this full ITF band; 2-Stage SMT's second SMT does not use 4H.
+_Avoid_: Opposite close, candle discrepancy, Polarized Strength Profile, continuation PSP, plain PSP as Stage 1
 
 **Strength Switch PSP (SS PSP)**:
 A specific PSP occurring after SMT divergence where the asset that swept closes in the reversal direction while the correlated asset closes in the trend direction, indicating a shift in lead strength. Evaluated on full ITF closes including 4H when used as Stage 2 of 2-Stage PSP.

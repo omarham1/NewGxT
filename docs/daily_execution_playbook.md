@@ -82,16 +82,32 @@ Monitor the **ITF charts (4H / 90m / 1H / 30m)** for price to trade into your pr
 
 **Session if-then windows (futures / ET):** Prefer watching 4H manipulation and expansion around **02:00 / 06:00 / 10:00 ET**. If an earlier window manipulates at the POI and does not reverse cleanly, roll expectation to the next window. Common ideal: **06:00 manip → 10:00 continuation**. (CME session clock — not FX 1/5/9.)
 
-### Step 6 — Check for SMT Divergence at the POI (Stage 1)
+### Step 6 — POI Engagement & Stage 1 SMT
 
-When price reaches the POI, check all 3 triad assets:
+**Hit** means a triad asset trades into the Session POI by **crossing that price level** (FVG boundary or rail).
+
+Stage 1 of any reversal is always **classic SMT Divergence** (asymmetric extremes). Plain PSP is **never** Stage 1.
+
+#### FVG Session POI
+
+| Engagement | What is possible |
+|---|---|
+| **1–2 assets in** the gap; lead not reversing | **Catch-Up** for laggards into that FVG **and** Stage 1→2-Stage hunt are both live — take whichever arms first; size by play |
+| **All 3 in** the gap | **SMT Fill is dead** (ADR-0006). Keep hunting Stage 1 classic SMT (asymmetric extremes at/in the gap) → Stage 2. Do not abandon the FVG solely because everyone entered |
+
+#### Rail Session POI (PDH/PDL, PWH/PWL, HTF swing)
+
+| Engagement | What is possible |
+|---|---|
+| **1–2 assets crossed**; lead **holds at or past** the rail | Reversal at that rail is **lower probability**. Primary play = **Catch-Up** for laggards into the same POI. If the lead **reverses away** without Stage 2, Catch-Up is off |
+| **All 3 crossed**, no Stage 1 | **Stand down** on reversal at that rail. No Catch-Up left (no laggard). Continuation only after a real bias / Session POI handoff (Step 8 / Play C) — not merely because price left the rail |
 
 ```
-Asset A sweeps the level / makes a new extreme
+Asset A sweeps / makes a new extreme at the POI
 Asset B fails to sweep / stalls / makes a higher low (bullish) or lower high (bearish)
 ─────────────────────────────────────────────────────
 ✅ SMT Divergence present → Move to Stage 2
-❌ All 3 assets make identical moves → No divergence, stay patient
+❌ No asymmetric extremes → No Stage 1 (rail: stand down once all three have crossed; FVG: stay patient inside the gap)
 ```
 
 **Synergy Rule:** Only 2 of 3 triad assets need to show divergence. If the 3rd asset is actively expanding in the opposite direction, the setup is **not invalid but lower probability** — size accordingly and tighten your conviction requirements.
@@ -106,7 +122,7 @@ Once Stage 1 SMT divergence is identified at the POI, you are now watching for *
 > [!IMPORTANT]
 > The key signal in both sequences is the **strength switch** — the stronger asset must switch roles with the weaker asset. This is what confirms institutional rotation, not just a one-off divergence. LTF (`15m` / `5m` / `3m` / `1m`) is for entry after Stage 2, not for Stage 2 itself.
 >
-> Require a Relevant Level / open DOL / framework — never trade a naked PSP. Plain PSP (opposite closes without the Stage 1 → SS PSP sequence) can substitute when classic SMT extremes are missing or both assets fill a Universal Sequence gap; it is not itself 2-Stage PSP. Do not read opposite-close PSPs that oppose the open DOL as reversals after LOD/HOD is set.
+> Require a Relevant Level / open DOL / framework — never trade a naked PSP. **Plain PSP is never Stage 1.** PSP appears as **SS PSP (Stage 2)** or as the crack when **both fill a continuation / Universal Sequence gap** (SMT Fill dead). Do not read opposite-close PSPs that oppose the open DOL as reversals after LOD/HOD is set.
 
 ---
 
@@ -134,6 +150,8 @@ flowchart TD
 ```
 
 > Decoupled triad → wait for **Decoupled Sync** (one asset at a Relevant Level) before Catch-Up / high-quality SS (ADR-0002).
+
+**Daily Bias gate:** Prefer trades **with** live Daily Bias. Catch-Up, Continuation, and Aggressive Fallback must **align with bias** (or stand down). Full **2-Stage SMT / 2-Stage PSP** may fade bias only at **reduced size**.
 
 ---
 
@@ -175,9 +193,10 @@ flowchart TD
 > This is the **Universal Sequence** gap + SMT Fill leg on the lagging asset (ADR-0012) — not a separate model.
 
 **Conditions:**
-- Stronger asset has either **continued past its DOL** (PDH/PDL) OR is **consolidating at it**
-- Lagging asset has NOT reached its equivalent level
-- The stronger asset must be doing one of the two above — if it has reversed away from the DOL, this play does NOT apply
+- Stronger asset has either **continued past its DOL** (PDH/PDL / rail Session POI) OR is **consolidating at it** — including partial FVG engagement where the lead is in the gap and holding
+- Lagging asset has NOT reached its equivalent level / has not yet crossed that POI
+- The stronger asset must be doing one of the two above — if it has reversed away from the DOL/POI without Stage 2, this play does NOT apply
+- Must **align with Daily Bias** (bias gate above)
 - If the triad is **decoupled** (assets pulling apart), wait for **Decoupled Sync** — one asset interacts with a Relevant Level — before treating Catch-Up as high quality (ADR-0002)
 
 **Trigger:**
@@ -202,11 +221,13 @@ flowchart TD
 
 **Conditions:**
 - Price (stronger asset) has expanded past PDH/PDL toward the next HTF DOL
+- After a **rail stand-down** (all three crossed, no Stage 1), Continuation is allowed only after a real **bias / Session POI handoff** (e.g. 4H/1H close through PD 50% Midpoint, Continuation POI promotion) — not merely because price left the rail
+- Must **align with Daily Bias** (bias gate above)
 - You're looking to add to the move or enter fresh
 
 **Trigger:**
 1. Wait for an **ITF FVG (30m / 1H / 90m)** to form during the expansion
-2. Watch for **SMT Fill** on **ANY** triad asset (not just the one you're trading)
+2. Watch for **SMT Fill** on **ANY** triad asset (not just the one you're trading). If all three fill that continuation gap, SMT Fill is dead — require **PSP** (close-polarity crack) at the gap instead (ADR-0012); that PSP is **not** Stage 1 of a Session POI reversal
 3. Wait for a **LTF CSD (3m / 5m)** with displacement
 
 **Asset Selection:**
@@ -223,13 +244,14 @@ flowchart TD
 - Price reversed hard from a POI
 - New ITF FVGs (30m / 1H / 90m) were created during the reversal move
 - No clean 2-Stage SMT or 2-Stage PSP completed
+- Trade direction must **align with Daily Bias** — this fallback may not fade bias
 
 **Trigger:**
 1. Transition to **continuation bias** in the reversal direction
 2. Wait for the **ITF FVG SMT Fill** + **LTF CSD (3m / 5m)** with displacement
 
 > [!CAUTION]
-> This is lower conviction than a full reversal play. Size accordingly.
+> This is lower conviction than a full reversal play. Size accordingly. It does not replace 2-Stage and does not reopen Stage 1 via plain PSP.
 
 ---
 
@@ -274,9 +296,9 @@ After entry, monitor the **50% Equilibrium Rule**:
 
 Before every execution, confirm:
 
-- [ ] **Bias is set** — day type classified, directional or neutral determined
-- [ ] **POI identified** — price is at or has swept a Relevant Level
-- [ ] **SMT Divergence confirmed** — at least 2 of 3 triad assets showing divergence
+- [ ] **Bias is set** — day type classified, directional or neutral determined; play aligns with bias gate (weak plays with bias; counter-bias only full 2-Stage at reduced size)
+- [ ] **POI identified** — price is at or has swept a Relevant Level; FVG vs rail engagement rules checked (Step 6)
+- [ ] **SMT Divergence confirmed** — Stage 1 classic extremes (Reversal); plain PSP is not Stage 1
 - [ ] **Correct play type selected** — Reversal / Catch-Up / Continuation / Fallback
 - [ ] **LTF trigger fired** — C2/C3 closure (Reversal) OR CSD with displacement (Catch-Up / Continuation)
 - [ ] **Strength Switch locked** — CISD on at least one triad asset
@@ -289,3 +311,7 @@ Before every execution, confirm:
 > - Reverse a lagging asset while the stronger asset consolidates at highs/lows without a full 2-Stage SMT or 2-Stage PSP
 > - Use a simple LTF CSD alone as a reversal confirmation (that's only valid for continuation/catch-up plays)
 > - Enter before the CSD/C2 closure is confirmed — no anticipation trades
+> - Use plain PSP as Stage 1 at Session POI
+> - Fade Daily Bias with Catch-Up, Continuation, or Aggressive Fallback
+> - Force reversal on a rail after all three crossed with no Stage 1 (stand down)
+> - Run Continuation after rail stand-down without a real bias / Session POI handoff
