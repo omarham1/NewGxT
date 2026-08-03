@@ -332,6 +332,7 @@ Do **not** edit these files in this research task; recommendations only.
 6. **C3 close criterion nuance:** Garrett Universal Sequence says close over C2’s **opening price**; 4H Profiling / NewGxT emphasize close past C2 **body** (and sometimes high). Needs a single rule.
    - **Resolved 2026-08-02:** Side-by-side primary recheck — Universal Sequence names C3 = close over C2 **open**; 4H Profiling = “**body or high**”; TTrades guest (Garrett) = “mechanically defined as closing over the **body of candle 2**.” Doc recommend: **keep body** as the single Alternative Reversal C3 rule; open is near-synonym on directional C2; high is optional stricter confluence, not required. No ADR/CONTEXT edit until approval. Full write-up: `docs/research/c3-close-criterion-open-vs-body.md`.
 7. **Kill zone / CME vs FX clock** — Garrett mixes FX and futures clocks; NewGxT is CME 18:00 ET–centric. Any 4H Profiling import must remap session windows to CME explicitly.
+   - **Resolved 2026-08-02:** Primary recheck of [GxT 4H Profiling](https://sozai.app/transcript/gxt-4h-profiling/) — FX focus **1/5/9 a.m.**; futures/indices a.m. stack **2/6/10**; if-then roll; ideal **6:00 manip → 10:00 continuation** with **8:30 / 9:30** drivers inside the 6:00 4H. Playbook Change 4’s **02/06/10 ET + not FX 1/5/9** is primary-correct. Doc recommend: **tighten Step 5b** with short driver / 02:00 wick priority notes; **no CONTEXT hours**. Full write-up: `docs/research/4h-profiling-session-windows-cme.md`.
 
 ---
 
