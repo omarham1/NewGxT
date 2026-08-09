@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PROTOTYPE — status panel + decluttered chart</title>
+  <!--
+    Throwaway visual prototype for wayfinder ticket:
+    "Prototype status panel and decluttered chart layout"
+    Question: do decluttered chart + compact status panel + progressive disclosure
+    feel easy to follow and not messy enough to lock into the PRD?
+
+    Three structurally different variants via ?variant=A|B|C
+    Scenario scrubber demos appear/clear clock (quiet → CISD).
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1419;
+      --chart-bg: #131a22;
+      --panel: #1a2330;
+      --panel-2: #212c3a;
+      --border: #2c3a4d;
+      --text: #e8eef6;
+      --muted: #8b9bb0;
+      --faint: #5a6b80;
+      --rail: #6b7c90;
+      --rail-mute: #3d4d61;
+      --poi: #f0b429;
+      --dol: #5ec8a0;
+      --fvg: #2a6b6b;
+      --fvg-fill: #3aa0a0;
+      --smt: #e07050;
+      --cisd: #c084fc;
+      --bull: #3d9e6f;
+      --bear: #c45c5c;
+      --warn: #f0b429;
+      --ok: #5ec8a0;
+      --switcher: #f5f0e8;
+      --switcher-text: #1a1a1a;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "IBM Plex Sans", sans-serif;
+    }
+
+    .banner {
+      background: #3a2a12;
+      color: #f0d9a0;
+      font: 500 12px/1.4 "IBM Plex Mono", monospace;
+      padding: 8px 14px;
+      border-bottom: 1px solid #5a4020;
+      letter-spacing: 0.02em;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      font-size: 13px;
+    }
+    .toolbar label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 6px; }
+    .scenario-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+    .scenario-btns button {
+      font: 500 12px "IBM Plex Sans", sans-serif;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .scenario-btns button[aria-pressed="true"] {
+      background: #2a4060;
+      border-color: #4a70a0;
+      color: #cfe0ff;
+    }
+    .legend {
+      margin-left: auto;
+      color: var(--faint);
+      font: 400 11px/1.3 "IBM Plex Mono", monospace;
+      max-width: 420px;
+      text-align: right;
+    }
+
+    .stage {
+      height: calc(100% - 92px);
+      min-height: 520px;
+      padding: 12px;
+      padding-bottom: 72px;
+    }
+
+    /* ── shared chart canvas ── */
+    .chart-frame {
+      position: relative;
+      background: var(--chart-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      min-height: 380px;
+    }
+    .chart-svg { width: 100%; height: 100%; display: block; }
+    .lvl-label {
+      font: 600 10px "IBM Plex Mono", monospace;
+      fill: var(--text);
+    }
+    .lvl-label.mute { fill: var(--rail-mute); font-weight: 500; }
+    .lvl-label.poi { fill: var(--poi); }
+    .lvl-label.dol { fill: var(--dol); }
+    .marker {
+      font: 700 9px "IBM Plex Mono", monospace;
+    }
+
+    /* panel chrome shared */
+    .status {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+    }
+    .strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      padding: 8px 10px;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--border);
+      align-items: baseline;
+    }
+    .strip .k { color: var(--faint); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 4px; }
+    .strip .v { color: var(--text); font-weight: 500; }
+    .strip .v.bull { color: var(--bull); }
+    .strip .v.bear { color: var(--bear); }
+    .strip .v.poi { color: var(--poi); }
+    .strip .v.dol { color: var(--dol); }
+
+    .setup {
+      padding: 8px 10px;
+      display: grid;
+      gap: 6px;
+    }
+    .setup[hidden] { display: none; }
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      flex-wrap: wrap;
+      line-height: 1.35;
+    }
+    .row .tag {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--faint);
+      min-width: 64px;
+    }
+    .row .body { color: var(--text); }
+    .row .body.smt { color: var(--smt); }
+    .row .body.fill { color: var(--fvg-fill); }
+    .row .body.armed { color: var(--warn); font-weight: 600; }
+    .row .body.muted { color: var(--muted); }
+
+    .annot {
+      position: absolute;
+      font: 500 10px/1.3 "IBM Plex Sans", sans-serif;
+      color: var(--muted);
+      background: rgba(15, 20, 25, 0.72);
+      border: 1px solid var(--border);
+      padding: 4px 6px;
+      border-radius: 3px;
+      max-width: 160px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* ── Variant A: bottom stack ── */
+    .va {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 8px;
+      height: 100%;
+    }
+    .va .chart-frame { height: 100%; min-height: 420px; }
+    .va .status { border-radius: 2px; }
+    .va .variant-note {
+      color: var(--faint);
+      font: 400 11px "IBM Plex Sans", sans-serif;
+      padding: 0 2px 4px;
+    }
+
+    /* ── Variant B: right rail ── */
+    .vb {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 8px;
+      height: 100%;
+    }
+    .vb .chart-frame { height: 100%; min-height: 480px; }
+    .vb .status {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      border-radius: 2px;
+    }
+    .vb .strip {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .vb .strip-item { display: flex; flex-direction: column; gap: 2px; }
+    .vb .setup { flex: 1; border-top: 1px solid var(--border); }
+    .vb .rail-foot {
+      margin-top: auto;
+      padding: 8px 10px;
+      border-top: 1px solid var(--border);
+      color: var(--faint);
+      font: 400 10px/1.4 "IBM Plex Sans", sans-serif;
+    }
+
+    /* ── Variant C: HUD corner on chart ── */
+    .vc { height: 100%; }
+    .vc .chart-frame { height: 100%; min-height: 520px; }
+    .vc .hud {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      width: min(320px, 42%);
+      z-index: 3;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      border-radius: 4px;
+      overflow: hidden;
+      backdrop-filter: blur(6px);
+      background: rgba(26, 35, 48, 0.92);
+    }
+    .vc .hud .strip { background: rgba(33, 44, 58, 0.95); }
+    .vc .hud-title {
+      font: 600 9px/1 "IBM Plex Mono", monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--faint);
+      padding: 6px 10px 0;
+    }
+
+    /* switcher */
+    .switcher {
+      position: fixed;
+      bottom: 18px;
+      left: 18px;
+      transform: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--switcher);
+      color: var(--switcher-text);
+      padding: 8px 12px;
+      border-radius: 999px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+      z-index: 50;
+      font: 600 13px "IBM Plex Sans", sans-serif;
+      user-select: none;
+    }
+    .switcher button {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 50%;
+      background: #1a1a1a;
+      color: #f5f0e8;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .switcher .label { min-width: 210px; text-align: center; }
+    .switcher .sub {
+      display: block;
+      font: 400 10px "IBM Plex Mono", monospace;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    @media (max-width: 800px) {
+      .vb { grid-template-columns: 1fr; }
+      .legend { display: none; }
+      .vc .hud { width: calc(100% - 20px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    PROTOTYPE / throwaway — not production Pine. Evaluating panel placement + declutter density + progressive disclosure only.
+  </div>
+
+  <div class="toolbar">
+    <div>
+      <label>Scenario</label>
+      <div class="scenario-btns" id="scenarios" role="group" aria-label="Progressive disclosure scenario"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="switcher" id="switcher" aria-label="Prototype variant switcher">
+    <button type="button" id="prev" aria-label="Previous variant">←</button>
+    <div class="label">
+      <span id="variant-label"></span>
+      <span class="sub" id="variant-sub"></span>
+    </div>
+    <button type="button" id="next" aria-label="Next variant">→</button>
+  </div>
+
+  <script>
+    // Three variants of decluttered chart + compact status panel, switchable via ?variant=
+    const VARIANTS = {
+      A: {
+        name: "Bottom stack",
+        sub: "TV table under chart — strip always, setup expands below",
+      },
+      B: {
+        name: "Right rail",
+        sub: "Fixed sidebar — vertical strip + setup stack",
+      },
+      C: {
+        name: "Floating BR",
+        sub: "Floating status panel — bottom-right over the chart",
+      },
+    };
+    const VARIANT_ORDER = ["A", "B", "C"];
+
+    const SCENARIOS = [
+      {
+        id: "quiet",
+        label: "1 · Quiet",
+        blurb: "Lean canvas + session strip only. No setup chrome.",
+        phase: 2,
+        setup: false,
+        chart: { smt: false, cisd: false, fillEmph: false },
+        strip: {
+          bias: { text: "Bullish", cls: "bull" },
+          poi: { text: "Session · 1H FVG 21485", cls: "poi" },
+          dol: { text: "TP1 PWH · TP2 PDH", cls: "dol" },
+        },
+        rows: [],
+      },
+      {
+        id: "smt",
+        label: "2 · Setup SMT",
+        blurb: "Stage 1 at Relevant Level: SMT panel + sparse chart marker arm together.",
+        phase: 3,
+        setup: true,
+        chart: { smt: true, cisd: false, fillEmph: false },
+        strip: {
+          bias: { text: "Bullish", cls: "bull" },
+          poi: { text: "Session · 1H FVG 21485", cls: "poi" },
+          dol: { text: "TP1 PWH · TP2 PDH", cls: "dol" },
+        },
+        rows: [
+          { tag: "Play", body: "2-Stage SMT · Catch-Up off", cls: "muted" },
+          { tag: "SMT", body: "Stage 1 · ES lag @ Session POI", cls: "smt" },
+          { tag: "Triad", body: "Lead NQ · Lag ES · YM sync", cls: "muted" },
+          { tag: "Fill", body: "Idle · waiting Stage 2 / path", cls: "muted" },
+        ],
+      },
+      {
+        id: "armed",
+        label: "3 · Entry armed",
+        blurb: "Path ready → panel shows Entry armed · awaiting CISD. No CISD on panel. No C1–C3 markers.",
+        phase: 4,
+        setup: true,
+        chart: { smt: true, cisd: false, fillEmph: true },
+        strip: {
+          bias: { text: "Bullish", cls: "bull" },
+          poi: { text: "Session · 1H FVG 21485", cls: "poi" },
+          dol: { text: "TP1 PWH · TP2 PDH", cls: "dol" },
+        },
+        rows: [
+          { tag: "Play", body: "2-Stage SMT · Stage 2 complete", cls: "muted" },
+          { tag: "SMT", body: "Live · Relevant Level held", cls: "smt" },
+          { tag: "Fill", body: "90m · ES✓ NQ· YM–  (primary)", cls: "fill" },
+          { tag: "Entry", body: "Entry armed · awaiting CISD", cls: "armed" },
+        ],
+      },
+      {
+        id: "cisd",
+        label: "4 · CISD",
+        blurb: "Momentum CISD: chart-only sparse marker. Entry row clears; setup still live until hard-clear.",
+        phase: 4,
+        setup: true,
+        chart: { smt: true, cisd: true, fillEmph: true },
+        strip: {
+          bias: { text: "Bullish", cls: "bull" },
+          poi: { text: "Session · 1H FVG 21485", cls: "poi" },
+          dol: { text: "TP1 PWH · TP2 PDH", cls: "dol" },
+        },
+        rows: [
+          { tag: "Play", body: "2-Stage SMT · in trade (discipline)", cls: "muted" },
+          { tag: "SMT", body: "Live · Relevant Level held", cls: "smt" },
+          { tag: "Fill", body: "90m · ES✓ NQ· YM–  (primary)", cls: "fill" },
+          { tag: "Entry", body: "CISD confirmed · manage to Active DOL", cls: "muted" },
+        ],
+      },
+      {
+        id: "clear",
+        label: "5 · Hard clear",
+        blurb: "Setup ends → panel setup block + SMT/CISD markers clear. Strip + lean canvas remain.",
+        phase: 2,
+        setup: false,
+        chart: { smt: false, cisd: false, fillEmph: false },
+        strip: {
+          bias: { text: "Bullish", cls: "bull" },
+          poi: { text: "Session · 1H FVG 21485", cls: "poi" },
+          dol: { text: "TP1 PWH · TP2 PDH", cls: "dol" },
+        },
+        rows: [],
+        postClear: true,
+      },
+    ];
+
+    let scenarioId = "quiet";
+
+    function getVariant() {
+      const v = new URLSearchParams(location.search).get("variant") || "A";
+      return VARIANT_ORDER.includes(v) ? v : "A";
+    }
+
+    function setVariant(v) {
+      const url = new URL(location.href);
+      url.searchParams.set("variant", v);
+      history.replaceState(null, "", url);
+      render();
+    }
+
+    function cycle(dir) {
+      const i = VARIANT_ORDER.indexOf(getVariant());
+      const next = VARIANT_ORDER[(i + dir + VARIANT_ORDER.length) % VARIANT_ORDER.length];
+      setVariant(next);
+    }
+
+    function scenario() {
+      return SCENARIOS.find((s) => s.id === scenarioId) || SCENARIOS[0];
+    }
+
+    function stripHTML(s, layout) {
+      const items = [
+        { k: "Bias", ...s.strip.bias },
+        { k: "POI", ...s.strip.poi },
+        { k: "DOL", ...s.strip.dol },
+      ];
+      if (layout === "rail") {
+        return items
+          .map(
+            (it) =>
+              `<div class="strip-item"><span class="k">${it.k}</span><span class="v ${it.cls}">${it.text}</span></div>`
+          )
+          .join("");
+      }
+      return items
+        .map((it) => `<span><span class="k">${it.k}</span><span class="v ${it.cls}">${it.text}</span></span>`)
+        .join("");
+    }
+
+    function setupHTML(s) {
+      if (!s.setup) return "";
+      const rows = s.rows
+        .map(
+          (r) =>
+            `<div class="row"><span class="tag">${r.tag}</span><span class="body ${r.cls}">${r.body}</span></div>`
+        )
+        .join("");
+      return `<div class="setup">${rows}</div>`;
+    }
+
+    function chartSVG(s, opts = {}) {
+      const showSmt = s.chart.smt;
+      const showCisd = s.chart.cisd;
+      const fillEmph = s.chart.fillEmph;
+      const fvgFill = fillEmph ? "var(--fvg-fill)" : "var(--fvg)";
+      const fvgOp = fillEmph ? 0.45 : 0.22;
+      // Fake ES 1m-ish path for atmosphere — not real data
+      const path =
+        "M40,210 L70,205 L95,218 L120,200 L145,208 L170,185 L195,190 L220,168 L245,175 L270,150 L295,158 L320,140 L345,148 L370,125 L395,135 L420,118 L445,128 L470,110 L495,122 L520,105 L545,115 L570,98 L595,108 L620,92 L645,100 L670,88 L695,95 L720,78 L745,90 L770,70 L795,82 L820,65 L845,78 L870,58 L895,70 L920,55 L945,68 L970,50";
+
+      return `
+<svg class="chart-svg" viewBox="0 0 1000 420" preserveAspectRatio="none" aria-label="Annotated decluttered chart mock">
+  <rect width="1000" height="420" fill="var(--chart-bg)"/>
+  <!-- grid -->
+  ${[80,160,240,320].map((y) => `<line x1="0" y1="${y}" x2="1000" y2="${y}" stroke="#1c2633" stroke-width="1"/>`).join("")}
+
+  <!-- mitigated PWL (type-only, muted, truncated) -->
+  <line x1="40" y1="340" x2="380" y2="340" stroke="var(--rail-mute)" stroke-width="1" stroke-dasharray="3 4"/>
+  <text class="lvl-label mute" x="48" y="334">PWL</text>
+
+  <!-- ADR faint -->
+  <rect x="40" y="40" width="920" height="28" fill="#1e2a20" opacity="0.55"/>
+  <text class="lvl-label mute" x="48" y="58">ADR+</text>
+
+  <!-- PWH / PDH / PDL rails -->
+  <line x1="40" y1="70" x2="960" y2="70" stroke="var(--rail)" stroke-width="1.25"/>
+  <text class="lvl-label dol" x="880" y="64">PWH · TP1</text>
+
+  <line x1="40" y1="100" x2="960" y2="100" stroke="var(--rail)" stroke-width="1"/>
+  <text class="lvl-label dol" x="880" y="94">PDH · TP2</text>
+
+  <line x1="40" y1="360" x2="960" y2="360" stroke="var(--rail)" stroke-width="1"/>
+  <text class="lvl-label" x="880" y="354" fill="var(--rail)">PDL</text>
+
+  <!-- PD 50% -->
+  <line x1="40" y1="230" x2="960" y2="230" stroke="#4a5a6e" stroke-width="1" stroke-dasharray="6 5"/>
+  <text class="lvl-label mute" x="48" y="224">PD 50%</text>
+
+  <!-- Daily Open -->
+  <line x1="40" y1="200" x2="960" y2="200" stroke="#5a6b80" stroke-width="1" stroke-dasharray="2 3"/>
+  <text class="lvl-label mute" x="48" y="194">DO</text>
+
+  <!-- HTF swing (unlabeled when we'd show mitigated; here live unlabeled per declutter? live swings labeled — keep one labeled far from POI) -->
+  <line x1="40" y1="145" x2="960" y2="145" stroke="#7a8a9e" stroke-width="1"/>
+  <text class="lvl-label" x="48" y="139" fill="#9aabbf">4H SH</text>
+
+  <!-- Session POI emphasis: 1H FVG zone -->
+  <rect x="520" y="268" width="200" height="36" fill="var(--poi)" opacity="0.18"/>
+  <line x1="520" y1="268" x2="960" y2="268" stroke="var(--poi)" stroke-width="2"/>
+  <line x1="520" y1="304" x2="960" y2="304" stroke="var(--poi)" stroke-width="2"/>
+  <text class="lvl-label poi" x="730" y="262">1H FVG · POI</text>
+
+  <!-- ITF inventory FVG (native) -->
+  <rect x="300" y="175" width="90" height="28" fill="${fvgFill}" opacity="${fvgOp}"/>
+  <text class="lvl-label" x="305" y="170" fill="${fvgFill}">90m FVG${fillEmph ? " · FILL" : ""}</text>
+
+  <!-- price -->
+  <path d="${path}" fill="none" stroke="#8aa4c0" stroke-width="1.6"/>
+  <circle cx="970" cy="50" r="3.5" fill="#c5d8f0"/>
+
+  ${
+    showSmt
+      ? `<g>
+          <circle cx="560" cy="286" r="7" fill="none" stroke="var(--smt)" stroke-width="2"/>
+          <text class="marker" x="572" y="290" fill="var(--smt)">SMT</text>
+        </g>`
+      : ""
+  }
+  ${
+    showCisd
+      ? `<g>
+          <rect x="900" y="42" width="44" height="16" rx="2" fill="var(--cisd)" opacity="0.25" stroke="var(--cisd)"/>
+          <text class="marker" x="908" y="54" fill="var(--cisd)">CISD</text>
+        </g>`
+      : ""
+  }
+
+  ${
+    opts.annot
+      ? `<foreignObject x="40" y="380" width="900" height="30"></foreignObject>`
+      : ""
+  }
+</svg>`;
+    }
+
+    function annotations(s) {
+      const bits = [];
+      bits.push(`<div class="annot" style="bottom:12px;left:12px">Lean always-on: PD/PW rails + POI emphasis. Mitigated = type-only / mute.</div>`);
+      if (s.chart.smt) {
+        bits.push(`<div class="annot" style="top:42%;left:52%">Sparse SMT at extreme — traded chart only</div>`);
+      }
+      if (s.chart.cisd) {
+        bits.push(`<div class="annot" style="top:8%;right:8%">CISD chart-only · no panel CISD · no C1–C3</div>`);
+      }
+      if (s.chart.fillEmph) {
+        bits.push(`<div class="annot" style="top:38%;left:28%">Fill Active = color emphasis on native gap</div>`);
+      }
+      return bits.join("");
+    }
+
+    function renderVariantA(s) {
+      return `
+        <div class="va">
+          <div class="variant-note">A — Bottom stack: chart full-bleed; session strip always under chart; progressive setup mounts under strip (does not collapse strip).</div>
+          <div class="chart-frame">
+            ${chartSVG(s)}
+            ${annotations(s)}
+          </div>
+          <div class="status">
+            <div class="strip">${stripHTML(s, "row")}</div>
+            ${s.setup ? setupHTML(s) : `<div class="setup" style="color:var(--faint);font:400 11px IBM Plex Sans,sans-serif">Setup block hidden until Stage 1 arms — quiet default.</div>`}
+          </div>
+        </div>`;
+    }
+
+    function renderVariantB(s) {
+      return `
+        <div class="vb">
+          <div class="chart-frame">
+            ${chartSVG(s)}
+            ${annotations(s)}
+          </div>
+          <aside class="status">
+            <div class="strip">${stripHTML(s, "rail")}</div>
+            ${
+              s.setup
+                ? setupHTML(s)
+                : `<div class="setup" style="color:var(--faint);font:400 11px IBM Plex Sans,sans-serif">No setup live. Rail stays for session strip only.</div>`
+            }
+            <div class="rail-foot">Right rail keeps triad/setup off the geometry plane. Chart stays geometry + sparse markers.</div>
+          </aside>
+        </div>`;
+    }
+
+    function renderVariantC(s) {
+      return `
+        <div class="vc">
+          <div class="chart-frame">
+            ${chartSVG(s)}
+            ${annotations(s)}
+            <div class="hud status">
+              <div class="hud-title">GxT · status</div>
+              <div class="strip">${stripHTML(s, "row")}</div>
+              ${
+                s.setup
+                  ? setupHTML(s)
+                  : `<div class="setup" style="color:var(--faint);font:400 11px IBM Plex Sans,sans-serif;padding-bottom:10px">Quiet — HUD is strip-only until setup.</div>`
+              }
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function render() {
+      const v = getVariant();
+      const s = scenario();
+      const meta = VARIANTS[v];
+      document.getElementById("variant-label").textContent = `${v} — ${meta.name}`;
+      document.getElementById("variant-sub").textContent = meta.sub;
+      document.getElementById("legend").textContent = s.blurb;
+
+      const stage = document.getElementById("stage");
+      if (v === "A") stage.innerHTML = renderVariantA(s);
+      else if (v === "B") stage.innerHTML = renderVariantB(s);
+      else stage.innerHTML = renderVariantC(s);
+
+      // scenario buttons
+      const host = document.getElementById("scenarios");
+      host.innerHTML = SCENARIOS.map(
+        (sc) =>
+          `<button type="button" data-id="${sc.id}" aria-pressed="${sc.id === scenarioId}">${sc.label}</button>`
+      ).join("");
+      host.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          scenarioId = btn.dataset.id;
+          render();
+        });
+      });
+    }
+
+    document.getElementById("prev").addEventListener("click", () => cycle(-1));
+    document.getElementById("next").addEventListener("click", () => cycle(1));
+    window.addEventListener("keydown", (e) => {
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "ArrowLeft") cycle(-1);
+      if (e.key === "ArrowRight") cycle(1);
+    });
+
+    render();
+  </script>
+</body>
+</html>
