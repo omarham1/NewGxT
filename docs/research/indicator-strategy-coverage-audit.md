@@ -2,9 +2,9 @@
 
 **Research date:** 2026-08-03
 
-**Question / goal:** Against `CONTEXT.md`, `docs/daily_execution_playbook.md`, and `docs/adr/`, what does the current Pine indicator (`pine/gxt-correlated-asset-indicator.pine` + `level-engine/` parity) already cover, and what is missing, organized by Visual Dependency Phase (Structural Canvas → Session Context → cross-asset → execution → trade management)? Produce a gap inventory: concept → present / partial / absent, with file/module pointers. Do not invent layers outside existing domain docs. (Issue [#40](https://github.com/omarham1/NewGxT/issues/40); map [#39](https://github.com/omarham1/NewGxT/issues/39).)
+**Question / goal:** Against `CONTEXT.md`, `docs/daily_execution_playbook.md`, and `docs/adr/`, what does the current Pine indicator (`pine/gxt-correlated-asset-indicator.pine` + `level-engine/` parity) already cover, and what is missing, organized by Visual Dependency Phase (Structural Canvas → Session Context → cross-asset → execution → trade management)? Produce a gap inventory: concept → present / partial / absent, with file/module pointers. Do not invent layers outside existing domain docs.
 
-**Out of scope:** Implementing indicator features; resolving other wayfinder tickets; inventing strategy concepts not in domain docs; alert/notification design.
+**Out of scope:** Implementing indicator features; inventing strategy concepts not in domain docs; alert/notification design.
 
 ---
 
@@ -43,17 +43,15 @@ None used as definitional authority.
 - **Partial** = computed or partially wired, but missing a documented visual, subtype, or cross-asset dimension.
 - **Absent** = documented in glossary / playbook / ADR but no implementation surface in Pine or level-engine.
 - Phase buckets follow `CONTEXT.md` **Visual Dependency Phase** order. Structural Canvas and Session Context are named there; later phases (cross-asset → execution → trade management) are the implied remaining layers from that same definition plus glossary/playbook/ADRs.
-- Status panel vs on-chart geometry is a map preference ([#39](https://github.com/omarham1/NewGxT/issues/39)); this audit only answers **coverage**, not visual layout.
+- This audit answers **coverage** only, not visual layout or packaging.
 
 ---
 
-## Verdict for the map
+## Verdict
 
 **Phases 1–2 (Structural Canvas + Session Context) are largely shipped** as a single-chart level engine: rails, HTF swings/FVGs, Session POI, Continuation POI, bias flip, Active DOL, Daily Open, ADR. The main canvas gap inside those phases is the **PD Equilibrium Range band** (25%–75% is computed, not drawn as the documented faint band).
 
 **Phases 3–5 are almost entirely absent.** Despite the product name “Correlated Asset Indicator,” there is **no triad / `request.security` to ES·NQ·YM peers**, and therefore no SMT Divergence, SMT Fill, PSP / SS PSP, 2-Stage sequences, Strength Switching, Decoupled Sync, Universal Sequence orchestration, ITF gap tracking, C1/C2/C3·CISD·Expansion Candle execution, or playbook trade-management automation.
-
-**Recommend for map [#39](https://github.com/omarham1/NewGxT/issues/39):** Treat this inventory as the PRD spine. Next tickets should (1) lock progressive-disclosure + panel fields for phases 3–5, (2) declutter / finish the 25%–75% Session Context band, and (3) scope triad `request.security` cost once phase-3 concepts are chosen — not invent new strategy layers.
 
 ---
 
@@ -95,7 +93,7 @@ Always-visible session references above the canvas: Daily Open, ADR band (`CONTE
 | PD Equilibrium Range (25%–75% faint band) | **Partial** | Computed `pdEqLow`/`pdEqHigh` ~1429–1430; `session-context.ts` `pdEquilibriumLow`/`pdEquilibriumHigh`. **Not drawn** as a band; no toggle. CONTEXT: “Drawn as a faint band… toggleable.” |
 | Daily Bias (Directional / Neutral + direction) | **Present** | Manual inputs `dailyBias`, `biasDirection` ~72–73 (manual by design per CONTEXT / playbook Step 1) |
 | Bias flip (4H/1H close through PD 50% against bias) | **Present** | Pine ~1596–1633; `level-engine/src/bias-flip.ts`; hands off Session POI → Continuation POI |
-| Automated day-type classifier (Expansion vs Consolidation chart heuristics) | **Absent** | Playbook Phase 1 Step 1 is trader judgment; indicator correctly does not auto-classify — listed so the map does not treat it as a missing “feature” without deciding otherwise |
+| Automated day-type classifier (Expansion vs Consolidation chart heuristics) | **Absent** | Playbook Phase 1 Step 1 is trader judgment; indicator correctly does not auto-classify |
 
 **Phase 2 summary:** Session Context is effectively complete except the **25%–75% PD Equilibrium Range band** (compute-only).
 
@@ -120,7 +118,7 @@ Implied next Visual Dependency Phase after Session Context (`CONTEXT.md`); triad
 | Continuation Play (as live cross-asset state) | **Absent** | Same — Continuation **POI** (phase 1) ≠ Continuation **Play** (triad + SMT Fill) |
 | Synergy Rule / rail vs FVG engagement matrices | **Absent** | Playbook Step 6 tables — no triad participation counters |
 
-**Phase 3 summary:** **Total gap.** Product name implies correlation; implementation is single-asset structure. This is the largest map unblocker.
+**Phase 3 summary:** **Total gap.** Product name implies correlation; implementation is single-asset structure.
 
 ---
 
@@ -194,20 +192,3 @@ level-engine/src/
   ✗ no smt* / psp* / cisd* / triad modules
 ```
 
----
-
-## Recommend (map handoff)
-
-1. **Use this inventory as the coverage spine of the PRD** for [Map: Expand indicator to full strategy without visual mess](https://github.com/omarham1/NewGxT/issues/39).
-2. **Do not reopen phase 1–2 strategy design** except: draw/toggle the PD Equilibrium Range band; optional declutter of already-shipped canvas (map standing prefs).
-3. **Phase 3 is the critical path** — every later playbook step depends on triad participation. Panel-first triad state (map notes) matches the absence of on-chart cross-asset geometry today.
-4. **Phase 4–5 concepts are already specified in ADRs/playbook** — the PRD work is progressive disclosure + visual/state packaging, not new domain invention.
-5. **Pine/performance for triad `request.security`** remains map “Not yet specified”; this audit confirms it is currently unused for peers, so cost estimation can start from zero peer series.
-
----
-
-## Open questions (out of research scope; for later map tickets)
-
-- Exact progressive-disclosure triggers per phase once coverage gaps are accepted.
-- Whether ITF FVG (30m/90m) is on-chart geometry, panel-only, or both.
-- Whether trade-management automation belongs in Pine at all vs trader discipline + Active DOL labels only.

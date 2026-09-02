@@ -6,7 +6,6 @@
   ],
   "scripts": {
     "test": "npm test --workspace=@gxt/level-engine",
-    "typecheck": "npm run typecheck --workspace=@gxt/level-engine",
-    "prototype:panel": "python3 -m http.server 4177 --directory docs/prototypes/status-panel-chart-layout"
+    "typecheck": "npm run typecheck --workspace=@gxt/level-engine"
   }
 }

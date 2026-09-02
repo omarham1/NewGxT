@@ -2,9 +2,9 @@
 
 **Research date:** 2026-08-08
 
-**Question / goal:** With phase-3 concepts chosen via the chart-vs-panel inventory, what is the Pine `request.security` / load cost of the minimum triad peer feeds needed for SMT / SMT Fill / PSP / 2-Stage on TradingView — and what constraints should the PRD adopt (timeframes, history depth, which peers)? (Issue [#47](https://github.com/omarham1/NewGxT/issues/47); builds on coverage audit [#40](https://github.com/omarham1/NewGxT/issues/40) / map [#39](https://github.com/omarham1/NewGxT/issues/39).)
+**Question / goal:** What is the Pine `request.security` / load cost of the minimum triad peer feeds needed for SMT / SMT Fill / PSP / 2-Stage on TradingView — and what technical constraints apply (timeframes, history depth, which peers)? Builds on `docs/research/indicator-strategy-coverage-audit.md`.
 
-**Out of scope:** Implementing Pine triad feeds; resolving other wayfinder tickets; inventing new strategy concepts; writing the PRD itself ([#45](https://github.com/omarham1/NewGxT/issues/45)).
+**Out of scope:** Implementing Pine triad feeds; inventing new strategy concepts.
 
 ---
 
@@ -30,8 +30,6 @@
 | `docs/adr/0006-smt-fill-state-machine-and-execution-triggers.md` | Fill needs triad FVG **entry participation** (1–2 in → Active; all 3 → invalid) |
 | `docs/adr/0011-htf-swing-inventory-1m-engine.md` | Merge rule: extend existing TF bundle; reject second same-TF `request.security("1")` |
 | `docs/research/indicator-strategy-coverage-audit.md` | Zero peer series today; phases 3–5 absent |
-| Issue [#42](https://github.com/omarham1/NewGxT/issues/42) resolution | Panel-first triad state; no peer-chart drawings; Fill = color-shift of **native** gaps; sparse markers on traded chart only |
-| Issue [#43](https://github.com/omarham1/NewGxT/issues/43) resolution | ITF FVGs all-day inventory on **native TF charts**; phase 3 arms on setup SMT only |
 
 ### Secondary
 
@@ -42,17 +40,16 @@ None used as definitional authority. Playbook / ADR-0002 / ADR-0012 cited only w
 ## Method notes
 
 1. Inventory today’s Pine `request.security` surface (same-symbol only).
-2. From ADRs + [#42](https://github.com/omarham1/NewGxT/issues/42) / [#43](https://github.com/omarham1/NewGxT/issues/43), derive the **minimum peer data** phase 3 actually needs — not every TF × every OHLC field × full Structural Canvas engines.
+2. From ADRs, derive the **minimum peer data** phase 3 actually needs — not every TF × every OHLC field × full Structural Canvas engines.
 3. Map that minimum onto TradingView hard limits and local merge / history rules; estimate additional unique calls and soft load cliffs.
-4. Phrase PRD-ready constraints the map / [#45](https://github.com/omarham1/NewGxT/issues/45) can copy.
 
 ---
 
-## Verdict for the map
+## Verdict
 
 **Phase-3 peer feeds are affordable under TradingView’s 40-call ceiling if they stay light and merged.** Today the indicator uses **3** same-symbol `request.security` calls (`"240"`, `"60"`, `"1"`) and **zero** peer symbols. The minimum for SMT / SMT Fill / PSP / 2-Stage is **2 peer symbols × 4 ITF contexts (`30` / `60` / `90` / `240`) = 8 unique peer calls**, optionally **+2** lightweight peer daily/rails-lite calls for PDH/PDL Stage-1 sweep comparison → **~8–10 additional** unique requests (**11–13 total**), well under 40.
 
-**Do not** clone the native HTF swing + FVG drawing engines or the 1m session-rails state machine onto peers. [#42](https://github.com/omarham1/NewGxT/issues/42) is panel-first with no peer-chart drawings; peers need OHLC / extremes / closes plus lightweight FVG form+enter flags — not full canvas parity. Reuse ADR-0010’s **14-session / `calc_bars_count = 20160`** indicator cap; avoid `request.security_lower_tf` for peers; prefer UDT payloads so the **127 tuple-element** budget (already **59** used) does not become the binding constraint.
+**Do not** clone the native HTF swing + FVG drawing engines or the 1m session-rails state machine onto peers. Peers need OHLC / extremes / closes plus lightweight FVG form+enter flags — not full canvas parity. Reuse ADR-0010’s **14-session / `calc_bars_count = 20160`** indicator cap; avoid `request.security_lower_tf` for peers; prefer UDT payloads so the **127 tuple-element** budget (already **59** used) does not become the binding constraint.
 
 ---
 
@@ -74,23 +71,15 @@ All three use `gaps = barmerge.gaps_off` and `lookahead = barmerge.lookahead_off
 
 ### 2. What phase 3 actually needs from peers (minimum data, not every engine)
 
-Placement decisions that bound the feed ([#42](https://github.com/omarham1/NewGxT/issues/42), [#43](https://github.com/omarham1/NewGxT/issues/43)):
-
-- Triad lead/lag, Decoupled Sync, Strength Switching, 2-Stage progress, Fill **state** → **panel only**
-- Sparse markers only on the **traded** chart; **no peer-chart drawings**
-- Fill-active gaps → **color/emphasis of native-TF gaps on the traded chart**, not peer zones
-- ITF FVG inventory → **all-day on native TF charts**; Fill emphasis does not gate inventory
-- Phase 3 UI arms on **setup SMT** at a Relevant Level / Session or Continuation POI — not every mid-range crack
-
 Against ADR data requirements:
 
 | Concept | Peer data needed | Full peer HTF swing/FVG **drawing** engine? |
 |---|---|---|
-| **SMT Divergence (Stage 1)** | Peer extremes vs peer’s corresponding level (e.g. did peer sweep its PDH/swing while chart did / did not) — ADR-0005 §1 | **No** — panel + traded-chart sparse marker |
+| **SMT Divergence (Stage 1)** | Peer extremes vs peer’s corresponding level (e.g. did peer sweep its PDH/swing while chart did / did not) — ADR-0005 §1 | **No** |
 | **2-Stage SMT (Stage 2)** | Peer swing high/low behavior on `30m` / `1H` / `90m` (alternating roles) — ADR-0004 / 0005 | **No** — need confirmable extremes, not canvas inventory |
 | **PSP / SS PSP (Stage 2)** | Peer **closes** (polarity) on full ITF incl. `4H` — ADR-0005 §3 | **No** — close series suffice |
 | **SMT Fill** | Whether each peer **entered its respective** HTF/ITF FVG — ADR-0006 §1 | **No drawings**; need zone existence + enter/not-enter flags (lightweight detect inside peer TF context) |
-| **Strength Switching / lead-lag panel** | Relative expansion from the same OHLC/extreme feeds | **No** |
+| **Strength Switching / lead-lag** | Relative expansion from the same OHLC/extreme feeds | **No** |
 
 **Chart-TF peer OHLC alone is not enough:** Stage 2 and Fill are band-specific (`30m` / `1H` / `90m` / `4H` for PSP). Peers need **multi-TF** feeds, not only `timeframe.period`.
 
@@ -113,7 +102,7 @@ Against ADR data requirements:
 
 | Feed | Why defer |
 |---|---|
-| Peer `"1"` full rails / ADR / mitigation machine | Expensive (ADR-0010); not required to draw peer canvas ([#42](https://github.com/omarham1/NewGxT/issues/42)) |
+| Peer `"1"` full rails / ADR / mitigation machine | Expensive (ADR-0010); not required for peer correlation feeds |
 | Peer Monthly / Weekly / Daily as separate structural engines | Bias formation stays trader/manual + native Session Context |
 | Peer LTF (`15`/`5`/`3`/`1`) CISD / C2/C3 series | Entry is phase 4 after Stage 2 (ADR-0005 §4); out of minimum phase-3 arming feed |
 | `request.security_lower_tf` for peers | Docs prefer it only for true intrabar arrays; ADR-0011 removed it for load; phase 3 does not need peer intrabar fanout |
@@ -126,7 +115,7 @@ Against ADR data requirements:
 - Lightweight fractal / swing-extreme confirms needed for Stage 2 SMT role flip (booleans + prices — not a full failure-swing inventory)
 - Lightweight FVG: `formed`, `zoneLow`, `zoneHigh`, `bullish`, `entered` (price traded into zone) for Fill participation
 
-That is enough for panel Fill rows like `Fill 90m · ES✓ NQ· YM–` ([#42](https://github.com/omarham1/NewGxT/issues/42)) without drawing peer zones.
+That is enough for triad Fill participation state (e.g. per-asset enter flags on a tagged TF) without drawing peer zones.
 
 ### 4. Load cost / constraints against TradingView + local ADRs
 
@@ -146,7 +135,7 @@ TradingView: scripts may use up to **40** unique `request.*()` calls, or **64** 
 
 #### Tuple element ceiling
 
-All `request.*()` tuple elements across the script ≤ **127**; excess → use UDTs ([Limitations](https://www.tradingview.com/pine-script-docs/writing/limitations/)). With 59 elements already used, eight peer contexts × ~8 flat fields ≈ 64 → **~123 total** — near the cliff. **PRD should require peer payloads as UDTs** (or one UDT per peer TF) so Fill/SMT fields can grow without hitting 127.
+All `request.*()` tuple elements across the script ≤ **127**; excess → use UDTs ([Limitations](https://www.tradingview.com/pine-script-docs/writing/limitations/)). With 59 elements already used, eight peer contexts × ~8 flat fields ≈ 64 → **~123 total** — near the cliff. **Peer payloads should use UDTs** (or one UDT per peer TF) so Fill/SMT fields can grow without hitting 127.
 
 #### History depth
 
@@ -167,11 +156,11 @@ All `request.*()` tuple elements across the script ≤ **127**; excess → use U
 - ADR-0011: `security_lower_tf` + chart-side re-sweep was the next hotspot — do not reintroduce for peers.
 - TradingView: each unique request fetches another dataset into memory ([Support](https://www.tradingview.com/support/solutions/43000745852-i-see-the-the-script-executes-too-many-unique-request-function-calls-error/)); script execution budgets are 20s (basic) / 40s (others) ([Limitations](https://www.tradingview.com/pine-script-docs/writing/limitations/)). Eight light ITF peer contexts are far safer than six heavy rails clones.
 
-#### Adjacent same-symbol cost (not peer, but PRD-adjacent)
+#### Adjacent same-symbol cost (not peer)
 
-[#42](https://github.com/omarham1/NewGxT/issues/42) / [#43](https://github.com/omarham1/NewGxT/issues/43): ITF FVGs draw on **native** 30m / 1H / 90m charts only. When the trader is already on those TFs, native FVG detect needs **no** extra security. Panel Fill on an LTF chart may still need **same-symbol** `"30"` / `"90"` (and possibly richer `"60"`) security for Fill state without drawing — that is **+1–2 same-symbol calls**, separate from the peer 8. Call out in PRD so implementers do not confuse “peer cost” with “ITF Fill on 1m chart.”
+ITF FVG detection on **native** 30m / 1H / 90m charts may need **same-symbol** `"30"` / `"90"` (and possibly richer `"60"`) security when the trader sits on an LTF chart — **+1–2 same-symbol calls**, separate from the peer 8.
 
-### 5. Cost summary table (for the map)
+### 5. Cost summary table
 
 | Item | Estimate |
 |---|---|
@@ -187,29 +176,24 @@ All `request.*()` tuple elements across the script ≤ **127**; excess → use U
 
 ---
 
-## Recommended PRD constraints
-
-Copy-ready bullets for [#45](https://github.com/omarham1/NewGxT/issues/45) / map [#39](https://github.com/omarham1/NewGxT/issues/39):
+## Recommended technical constraints
 
 1. **Triad peers:** Two `input.symbol` peers completing ES/NQ/YM with the chart; chart series stay on `syminfo.tickerid`. No dynamic/runtime symbol switching (`dynamic_requests = false`).
-2. **UI contract:** Panel-first triad / Fill / 2-Stage state; sparse markers on traded chart only; **no peer-chart drawings**; Fill emphasizes **native** Fill-active gaps only ([#42](https://github.com/omarham1/NewGxT/issues/42)).
-3. **Mandatory peer TFs:** `"30"`, `"60"`, `"90"`, `"240"` only for phase-3 SMT / Fill / PSP / 2-Stage. Do not require peer Monthly/Weekly/Daily structural engines or peer LTF CISD feeds in the phase-3 feed slice.
-4. **Merge rule:** Exactly **one** `request.security` per `(symbol, timeframe)` context; pack fields into one expression (tuple or preferably **UDT**) — extend #24 / ADR-0011; never split OHLC across calls.
-5. **Peer expression weight:** Lightweight OHLC + Stage-2 extremes + FVG form/zone/enter flags. **Forbidden** in phase 3: cloning `f_session_rails_with_end` or full HTF swing inventory / Failure Swing engines onto peers.
-6. **Optional Stage-1 level feed:** At most one additional lean PDH/PDL (rails-lite or daily extremes) call **per peer** — not a third full 1m rails machine.
-7. **History:** Keep indicator `calc_bars_count = 20160` / 14-session ADR-0010 cap; do not adopt a wider triad-only history window.
-8. **Request modifiers:** `lookahead = barmerge.lookahead_off`, `gaps = barmerge.gaps_off` (match current Pine).
-9. **Hard limits to design under:** ≤ 40 unique `request.*()` (document Ultimate 64 as non-target); prefer UDTs so script-wide tuple elements stay ≪ 127; do not use `request.security_lower_tf` for triad peers.
-10. **Budget target:** Plan for **≤ 13** total unique security calls after phase-3 peers (3 native + 8 peer ITF + ≤2 peer rails-lite), leaving headroom for same-symbol ITF Fill contexts and later phase-4 work.
-11. **Arming:** Compute peer feeds continuously as needed for correctness, but progressive disclosure still **arms phase-3 UI on setup SMT only** ([#43](https://github.com/omarham1/NewGxT/issues/43)) — feed cost ≠ always-on panel chrome.
+2. **Mandatory peer TFs:** `"30"`, `"60"`, `"90"`, `"240"` only for phase-3 SMT / Fill / PSP / 2-Stage. Do not require peer Monthly/Weekly/Daily structural engines or peer LTF CISD feeds in the phase-3 feed slice.
+3. **Merge rule:** Exactly **one** `request.security` per `(symbol, timeframe)` context; pack fields into one expression (tuple or preferably **UDT**) — extend #24 / ADR-0011; never split OHLC across calls.
+4. **Peer expression weight:** Lightweight OHLC + Stage-2 extremes + FVG form/zone/enter flags. **Forbidden** in phase 3: cloning `f_session_rails_with_end` or full HTF swing inventory / Failure Swing engines onto peers.
+5. **Optional Stage-1 level feed:** At most one additional lean PDH/PDL (rails-lite or daily extremes) call **per peer** — not a third full 1m rails machine.
+6. **History:** Keep indicator `calc_bars_count = 20160` / 14-session ADR-0010 cap; do not adopt a wider triad-only history window.
+7. **Request modifiers:** `lookahead = barmerge.lookahead_off`, `gaps = barmerge.gaps_off` (match current Pine).
+8. **Hard limits to design under:** ≤ 40 unique `request.*()` (document Ultimate 64 as non-target); prefer UDTs so script-wide tuple elements stay ≪ 127; do not use `request.security_lower_tf` for triad peers.
+9. **Budget target:** Plan for **≤ 13** total unique security calls after phase-3 peers (3 native + 8 peer ITF + ≤2 peer rails-lite), leaving headroom for same-symbol ITF Fill contexts and later phase-4 work.
 
 ---
 
-## Open questions (explicitly out of this ticket)
+## Open questions
 
 - Exact UDT field list / Pine type names for the peer payload (implementation).
 - Whether Stage-1 PDH/PDL peer comparison uses a daily bar feed vs a lean 1m extremes subset (profiling choice).
-- Same-symbol `"30"` / `"90"` security for Fill panel while the trader sits on LTF charts (adjacent cost; placement already locked).
+- Same-symbol `"30"` / `"90"` security for Fill state while the trader sits on LTF charts (adjacent cost).
 - Phase-4 peer LTF CISD / “any triad asset” entry feeds (ADR-0005 §4 / ADR-0006 §2) — not required to arm phase 3.
-- Empirical TradingView runtime profiling of the 8 light peer calls on 1m vs ITF charts (proof-of-concept after PRD).
-- Writing the PRD ([#45](https://github.com/omarham1/NewGxT/issues/45)) and implementing feeds.
+- Empirical TradingView runtime profiling of the 8 light peer calls on 1m vs ITF charts (proof-of-concept).
