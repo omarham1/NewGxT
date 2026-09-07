@@ -1024,7 +1024,10 @@ pd_midpoint_label := _pd_midpoint_label
 chartTfSeconds = timeframe.in_seconds()
 on4hChart = chartTfSeconds == 14400
 on1hChart = chartTfSeconds == 3600
-showFvgs = on4hChart or on1hChart
+on90mChart = chartTfSeconds == 5400
+on30mChart = chartTfSeconds == 1800
+on15mChart = chartTfSeconds == 900
+showFvgs = on4hChart or on1hChart or on90mChart or on30mChart or on15mChart
 
 var array<box> fvg_boxes = array.new<box>()
 var array<label> fvg_labels = array.new<label>()
@@ -1098,6 +1101,9 @@ f_draw_swing_levels(
 
 var array<HtfFvgZone> htfFvgs4h = array.new<HtfFvgZone>()
 var array<HtfFvgZone> htfFvgs1h = array.new<HtfFvgZone>()
+var array<HtfFvgZone> fvgs90m = array.new<HtfFvgZone>()
+var array<HtfFvgZone> fvgs30m = array.new<HtfFvgZone>()
+var array<HtfFvgZone> fvgs15m = array.new<HtfFvgZone>()
 
 var array<HtfSwingLevel> activeSwings = array.new<HtfSwingLevel>()
 var array<line> swing_lines = array.new<line>()
@@ -1118,6 +1124,14 @@ activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 
 htfFvgs4h := f_advance_fvg_lifecycle(htfFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, close4h, time4h, barstate.isconfirmed)
 htfFvgs1h := f_advance_fvg_lifecycle(htfFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, close1h, time1h, barstate.isconfirmed)
+
+[formedNative, zoneLowNative, zoneHighNative, formedTimeNative, bullishNative] = f_detect_fvg()
+if on90mChart
+    fvgs90m := f_advance_fvg_lifecycle(fvgs90m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "90m FVG", bullishNative, close, time, barstate.isconfirmed)
+if on30mChart
+    fvgs30m := f_advance_fvg_lifecycle(fvgs30m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "30m FVG", bullishNative, close, time, barstate.isconfirmed)
+if on15mChart
+    fvgs15m := f_advance_fvg_lifecycle(fvgs15m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "15m FVG", bullishNative, close, time, barstate.isconfirmed)
 
 [_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, daily_open_price, dailyOpenOriginBi, sessionEndBi, "Daily Open", dailyOpenStyle, "on", dailyOpenColor, false, na, false, LEVEL_COLOR)
 daily_open_line := _daily_open_line
@@ -1141,7 +1155,9 @@ pwh_label := _pwh_label
 pwl_line := _pwl_line
 pwl_label := _pwl_label
 
-array<HtfFvgZone> fvgZonesToDraw = showFvgs ? (on4hChart ? htfFvgs4h : htfFvgs1h) : array.new<HtfFvgZone>()
+array<HtfFvgZone> fvgZonesToDraw = array.new<HtfFvgZone>()
+if showFvgs
+    fvgZonesToDraw := on4hChart ? htfFvgs4h : on1hChart ? htfFvgs1h : on90mChart ? fvgs90m : on30mChart ? fvgs30m : fvgs15m
 
 [_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEndBi)
 fvg_boxes := _fvg_boxes

@@ -232,6 +232,34 @@ describe("HTF FVG", () => {
     expect(fvgs).toEqual([]);
   });
 
+  it("detects 15m, 30m, and 90m FVGs with the same wick zone as HTF", () => {
+    const gap = currentWeekBullishGap();
+
+    const fvgs = computeHtfFvgs({
+      bars4h: [],
+      bars1h: [],
+      bars90m: gap,
+      bars30m: gap,
+      bars15m: gap,
+      mitigationBars: [],
+      asOf: MON_JAN_6_EVAL,
+    });
+
+    const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
+    const zone = {
+      direction: "bullish" as const,
+      zoneLow: 105,
+      zoneHigh: 106,
+      formedAt,
+    };
+
+    expect(fvgs).toEqual([
+      { timeframe: "90m", ...zone },
+      { timeframe: "30m", ...zone },
+      { timeframe: "15m", ...zone },
+    ]);
+  });
+
   it("excludes an unmitigated gap outside the daily session lookback window", () => {
     const bars4h = [
       bar(SUN_DEC_22_OPEN, 100, 105, 98, 102),

@@ -3,8 +3,10 @@ import { isWithinHtfFvgLookback } from "./session-calendar.js";
 
 export type HtfTimeframe = "4H" | "1H";
 
+export type FvgTimeframe = HtfTimeframe | "90m" | "30m" | "15m";
+
 export type HtfFvg = {
-  timeframe: HtfTimeframe;
+  timeframe: FvgTimeframe;
   direction: "bullish" | "bearish";
   zoneLow: number;
   zoneHigh: number;
@@ -14,6 +16,9 @@ export type HtfFvg = {
 export type ComputeHtfFvgsInput = {
   bars4h: Bar[];
   bars1h: Bar[];
+  bars90m?: Bar[];
+  bars30m?: Bar[];
+  bars15m?: Bar[];
   mitigationBars: Bar[];
   asOf: number;
 };
@@ -125,7 +130,7 @@ function detectFvgAt(
 
 function detectFvgsOnTimeframe(
   bars: Bar[],
-  timeframe: HtfTimeframe,
+  timeframe: FvgTimeframe,
   mitigationBars: Bar[],
 ): HtfFvg[] {
   const fvgs: HtfFvg[] = [];
@@ -166,8 +171,23 @@ export function computeHtfFvgs(input: ComputeHtfFvgsInput): HtfFvg[] {
     "1H",
     input.mitigationBars,
   );
+  const fvgs90m = detectFvgsOnTimeframe(
+    input.bars90m ?? [],
+    "90m",
+    input.mitigationBars,
+  );
+  const fvgs30m = detectFvgsOnTimeframe(
+    input.bars30m ?? [],
+    "30m",
+    input.mitigationBars,
+  );
+  const fvgs15m = detectFvgsOnTimeframe(
+    input.bars15m ?? [],
+    "15m",
+    input.mitigationBars,
+  );
 
-  return [...fvgs4h, ...fvgs1h].filter((fvg) =>
-    isWithinHtfFvgLookback(fvg.formedAt, input.asOf),
+  return [...fvgs4h, ...fvgs1h, ...fvgs90m, ...fvgs30m, ...fvgs15m].filter(
+    (fvg) => isWithinHtfFvgLookback(fvg.formedAt, input.asOf),
   );
 }

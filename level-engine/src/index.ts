@@ -1,5 +1,5 @@
 export type { Bar, SessionContext, SessionRails } from "./types.js";
-export type { HtfFvg, HtfTimeframe } from "./htf-fvg.js";
+export type { FvgTimeframe, HtfFvg, HtfTimeframe } from "./htf-fvg.js";
 export type { HtfSwingKind, HtfSwingPoint } from "./htf-swing.js";
 export type { LevelSnapshot } from "./level-snapshot.js";
 export type { SessionRailMitigation } from "./session-rail-mitigation.js";

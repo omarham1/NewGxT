@@ -52,4 +52,24 @@ describe("pine request.security merge (#24)", () => {
     );
     expect(source).not.toMatch(/f_detect_fvg_with_ohlc\(\)\s*,\s*\n\s*gaps\s*=/);
   });
+
+  it("draws 15m, 30m, and 90m FVGs from the chart series on native charts only", () => {
+    const source = readPineSource();
+
+    expect(source).toMatch(/on15mChart = chartTfSeconds == 900/);
+    expect(source).toMatch(/on30mChart = chartTfSeconds == 1800/);
+    expect(source).toMatch(/on90mChart = chartTfSeconds == 5400/);
+    expect(source).toContain('"15m FVG"');
+    expect(source).toContain('"30m FVG"');
+    expect(source).toContain('"90m FVG"');
+    expect(source).not.toMatch(
+      /request\.security\(\s*[\s\S]*?"15"[\s\S]*?f_detect_fvg/,
+    );
+    expect(source).not.toMatch(
+      /request\.security\(\s*[\s\S]*?"30"[\s\S]*?f_detect_fvg/,
+    );
+    expect(source).not.toMatch(
+      /request\.security\(\s*[\s\S]*?"90"[\s\S]*?f_detect_fvg/,
+    );
+  });
 });

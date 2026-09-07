@@ -166,7 +166,7 @@ A build layer for the TradingView indicator ordered by what must exist on-chart 
 _Avoid_: Playbook phase, workflow step
 
 **Structural Canvas**:
-The always-visible foundation layer of the indicator: Relevant Levels at the same prices across monitored chart timeframes (Daily through 1m). PDH/PDL, PWH/PWL, and HTF Swing Points render as labeled solid lines on every timeframe. HTF FVGs render as shaded zones on their native 4H and 1H charts only.
+The always-visible foundation layer of the indicator: Relevant Levels at the same prices across monitored chart timeframes (Daily through 1m). PDH/PDL, PWH/PWL, and HTF Swing Points render as labeled solid lines on every timeframe. HTF FVGs render as shaded zones on their native 4H and 1H charts only. 90m, 30m, and 15m Fair Value Gaps use the same formation, mitigation, lookback, and teal shading on their native charts — they are not Relevant Levels and are not projected onto other timeframes.
 _Avoid_: Background levels, static overlay
 
 **Session Context**:

@@ -14,6 +14,9 @@ export type ComputeLevelSnapshotInput = {
   bars: Bar[];
   bars4h: Bar[];
   bars1h: Bar[];
+  bars90m?: Bar[];
+  bars30m?: Bar[];
+  bars15m?: Bar[];
   mitigationBars: Bar[];
 };
 
@@ -26,6 +29,9 @@ export function computeLevelSnapshot(
     ...input.bars,
     ...input.bars4h,
     ...input.bars1h,
+    ...(input.bars90m ?? []),
+    ...(input.bars30m ?? []),
+    ...(input.bars15m ?? []),
     ...input.mitigationBars,
   ]);
   const railMitigation = computeSessionRailMitigation({
@@ -37,6 +43,9 @@ export function computeLevelSnapshot(
   const htfFvgs = computeHtfFvgs({
     bars4h: input.bars4h,
     bars1h: input.bars1h,
+    bars90m: input.bars90m,
+    bars30m: input.bars30m,
+    bars15m: input.bars15m,
     mitigationBars: input.mitigationBars,
     asOf,
   });
