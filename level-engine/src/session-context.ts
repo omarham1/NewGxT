@@ -3,8 +3,6 @@ import { groupBarsByDailySession } from "./session-calendar.js";
 import { computeSessionRails } from "./session-rails.js";
 
 const ADR_LOOKBACK = 14;
-const EQUILIBRIUM_LOW_FRACTION = 0.25;
-const EQUILIBRIUM_HIGH_FRACTION = 0.75;
 
 function dailySessionRange(bars: Bar[]): number {
   return Math.max(...bars.map((b) => b.high)) - Math.min(...bars.map((b) => b.low));
@@ -33,8 +31,6 @@ export function computeSessionContext(bars: Bar[]): SessionContext {
     openPlusAdr: rails.dailyOpen + adr,
     openMinusAdr: rails.dailyOpen - adr,
     adrConsumptionPct: adr === 0 ? 0 : (currentRange / adr) * 100,
-    pdEquilibriumLow: rails.pdl + pdRange * EQUILIBRIUM_LOW_FRACTION,
-    pdEquilibriumHigh: rails.pdl + pdRange * EQUILIBRIUM_HIGH_FRACTION,
     pdMidpoint: rails.pdl + pdRange * 0.5,
   };
 }

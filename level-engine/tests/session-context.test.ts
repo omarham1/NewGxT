@@ -3,14 +3,6 @@ import { computeSessionContext } from "../src/session-context.js";
 import { loadFixture } from "./helpers/load-fixture.js";
 
 describe("Session Context", () => {
-  it("computes PD Equilibrium Range boundaries at 25% and 75% of the previous day's wick-to-wick range", () => {
-    const bars = loadFixture("mid-week-daily-boundary");
-    const context = computeSessionContext(bars);
-
-    expect(context.pdEquilibriumLow).toBe(5025);
-    expect(context.pdEquilibriumHigh).toBe(5075);
-  });
-
   it("computes PD 50% Midpoint at half the previous day's wick-to-wick range", () => {
     const bars = loadFixture("mid-week-daily-boundary");
     const context = computeSessionContext(bars);

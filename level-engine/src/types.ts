@@ -20,8 +20,6 @@ export type SessionContext = SessionRails & {
   openPlusAdr: number;
   openMinusAdr: number;
   adrConsumptionPct: number;
-  pdEquilibriumLow: number;
-  pdEquilibriumHigh: number;
   pdMidpoint: number;
   pdhMitigatedAt?: number;
   pdlMitigatedAt?: number;

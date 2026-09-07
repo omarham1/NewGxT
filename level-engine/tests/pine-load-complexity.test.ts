@@ -192,19 +192,11 @@ describe("pine load complexity model", () => {
     expect(railsBody).not.toContain("var array<HtfSwingLevel>");
   });
 
-  it("caches merged POI FVG pool and only concatenates on lifecycle mutations (#28)", () => {
+  it("does not merge 4H and 1H FVG pools", () => {
     const source = readPineSource();
 
-    expect(source).toMatch(/var array<HtfFvgZone> allPoiFvgs/);
-    expect(source).toMatch(
-      /f_advance_fvg_lifecycle\([\s\S]*?poiFvgsDirty/,
-    );
-    expect(source).toMatch(
-      /if poiFvgsDirty[\s\S]*?allPoiFvgs := f_concat_fvg_arrays\(/,
-    );
-    expect(source).not.toMatch(
-      /allPoiFvgs = f_concat_fvg_arrays\(poiFvgs4h, poiFvgs1h\)/,
-    );
+    expect(source).not.toContain("allPoiFvgs");
+    expect(source).not.toContain("f_concat_fvg_arrays");
   });
 
   it("models FVG concat copy cost near zero on steady-state bars", () => {
