@@ -5,12 +5,23 @@ export type HtfTimeframe = "4H" | "1H";
 
 export type FvgTimeframe = HtfTimeframe | "90m" | "30m" | "15m";
 
+const FVG_PERIOD_MS: Record<FvgTimeframe, number> = {
+  "4H": 4 * 60 * 60 * 1000,
+  "1H": 60 * 60 * 1000,
+  "90m": 90 * 60 * 1000,
+  "30m": 30 * 60 * 1000,
+  "15m": 15 * 60 * 1000,
+};
+
 export type HtfFvg = {
   timeframe: FvgTimeframe;
   direction: "bullish" | "bearish";
   zoneLow: number;
   zoneHigh: number;
+  /** FVG C3 bar open. Formation and lookback use this. */
   formedAt: number;
+  /** FVG C3 bar close. 1m FVG Entry gates on this, not formedAt. */
+  fvgC3CloseAt: number;
 };
 
 export type ComputeHtfFvgsInput = {
@@ -154,7 +165,11 @@ function detectFvgsOnTimeframe(
       continue;
     }
 
-    fvgs.push({ timeframe, ...detected });
+    fvgs.push({
+      timeframe,
+      ...detected,
+      fvgC3CloseAt: detected.formedAt + FVG_PERIOD_MS[timeframe],
+    });
   }
 
   return fvgs;

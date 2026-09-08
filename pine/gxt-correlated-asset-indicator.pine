@@ -17,6 +17,7 @@ LEVEL_COLOR = color.black
 SWING_MITIGATED_COLOR = color.new(color.gray, 35)
 SESSION_CONTEXT_COLOR = color.new(color.gray, 30)
 FVG_COLOR = color.new(color.teal, 85)
+FVG_BORDER_COLOR = color.new(color.teal, 40)
 LABEL_SIZE = size.small
 LABEL_GAP_TICKS = 2
 ADR_LOOKBACK = 14
@@ -692,6 +693,9 @@ type HtfFvgZone
     bool mitigated
     int mitigatedTime
     int formedBi
+    color bgcolor
+    color borderColor
+    int endBi
 
 f_timeframe_rank(string txt) =>
     str.contains(txt, "4H") ? 2 : 1
@@ -768,7 +772,7 @@ f_try_add_fvg(
      bool bullish
  ) =>
     if formed and not f_fvg_exists(zones, formedTime, txt)
-        array.push(zones, HtfFvgZone.new(zoneLow, zoneHigh, formedTime, txt, bullish, false, na, f_bar_index_for_time(formedTime)))
+        array.push(zones, HtfFvgZone.new(zoneLow, zoneHigh, formedTime, txt, bullish, false, na, f_bar_index_for_time(formedTime), FVG_COLOR, FVG_BORDER_COLOR, na))
     zones
 
 f_remove_mitigated_fvgs(array<HtfFvgZone> zones, float checkClose, int checkTime) =>
@@ -910,15 +914,15 @@ f_draw_fvg_zones(
             for i = 0 to zone_count - 1
                 HtfFvgZone zone = array.get(zones, i)
                 int origin_bi = zone.formedBi
-                int end_bi = math.max(origin_bi, session_end_bi)
+                int end_bi = na(zone.endBi) ? math.max(origin_bi, session_end_bi) : math.max(origin_bi, zone.endBi)
                 box next_box = box.new(
                      origin_bi,
                      zone.zoneHigh,
                      end_bi,
                      zone.zoneLow,
                      xloc = xloc.bar_index,
-                     bgcolor = FVG_COLOR,
-                     border_color = color.new(color.teal, 40),
+                     bgcolor = zone.bgcolor,
+                     border_color = zone.borderColor,
                      border_width = 1
                  )
                 array.push(next_boxes, next_box)

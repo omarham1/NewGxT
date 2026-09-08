@@ -72,6 +72,7 @@ describe("Level Snapshot", () => {
         zoneLow: 5160,
         zoneHigh: 5165,
         formedAt: SUN_JAN_5_OPEN + 2 * HOUR_MS,
+        fvgC3CloseAt: SUN_JAN_5_OPEN + 2 * HOUR_MS + 4 * HOUR_MS,
       },
     ]);
   });

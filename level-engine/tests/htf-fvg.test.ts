@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { computeHtfFvgs } from "../src/htf-fvg.js";
 import type { Bar } from "../src/types.js";
 
+const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
+const FOUR_HOUR_MS = 4 * HOUR_MS;
 const SUN_DEC_22_OPEN = 1734908400000;
 const SUN_DEC_29_OPEN = 1735513200000;
 const SUN_JAN_5_OPEN = 1736118000000;
@@ -60,6 +62,65 @@ describe("HTF FVG", () => {
         zoneLow: 105,
         zoneHigh: 106,
         formedAt: SUN_JAN_5_OPEN + 2 * HOUR_MS,
+        fvgC3CloseAt: SUN_JAN_5_OPEN + 2 * HOUR_MS + FOUR_HOUR_MS,
+      },
+    ]);
+  });
+
+  it("exposes FVG C3 close time as FVG C3 open plus the native timeframe duration", () => {
+    const gap = currentWeekBullishGap();
+    const formedAt = SUN_JAN_5_OPEN + 2 * HOUR_MS;
+
+    const fvgs = computeHtfFvgs({
+      bars4h: gap,
+      bars1h: gap,
+      bars90m: gap,
+      bars30m: gap,
+      bars15m: gap,
+      mitigationBars: [],
+      asOf: MON_JAN_6_EVAL,
+    });
+
+    expect(fvgs).toEqual([
+      {
+        timeframe: "4H",
+        direction: "bullish",
+        zoneLow: 105,
+        zoneHigh: 106,
+        formedAt,
+        fvgC3CloseAt: formedAt + FOUR_HOUR_MS,
+      },
+      {
+        timeframe: "1H",
+        direction: "bullish",
+        zoneLow: 105,
+        zoneHigh: 106,
+        formedAt,
+        fvgC3CloseAt: formedAt + HOUR_MS,
+      },
+      {
+        timeframe: "90m",
+        direction: "bullish",
+        zoneLow: 105,
+        zoneHigh: 106,
+        formedAt,
+        fvgC3CloseAt: formedAt + 90 * MINUTE_MS,
+      },
+      {
+        timeframe: "30m",
+        direction: "bullish",
+        zoneLow: 105,
+        zoneHigh: 106,
+        formedAt,
+        fvgC3CloseAt: formedAt + 30 * MINUTE_MS,
+      },
+      {
+        timeframe: "15m",
+        direction: "bullish",
+        zoneLow: 105,
+        zoneHigh: 106,
+        formedAt,
+        fvgC3CloseAt: formedAt + 15 * MINUTE_MS,
       },
     ]);
   });
@@ -81,6 +142,7 @@ describe("HTF FVG", () => {
         zoneLow: 102,
         zoneHigh: 105,
         formedAt: SUN_JAN_5_OPEN + 2 * HOUR_MS,
+        fvgC3CloseAt: SUN_JAN_5_OPEN + 2 * HOUR_MS + HOUR_MS,
       },
     ]);
   });
@@ -102,6 +164,7 @@ describe("HTF FVG", () => {
         zoneLow: 5160,
         zoneHigh: 5165,
         formedAt: SUN_JAN_5_OPEN + 2 * HOUR_MS,
+        fvgC3CloseAt: SUN_JAN_5_OPEN + 2 * HOUR_MS + FOUR_HOUR_MS,
       },
     ]);
   });
@@ -254,9 +317,9 @@ describe("HTF FVG", () => {
     };
 
     expect(fvgs).toEqual([
-      { timeframe: "90m", ...zone },
-      { timeframe: "30m", ...zone },
-      { timeframe: "15m", ...zone },
+      { timeframe: "90m", ...zone, fvgC3CloseAt: formedAt + 90 * MINUTE_MS },
+      { timeframe: "30m", ...zone, fvgC3CloseAt: formedAt + 30 * MINUTE_MS },
+      { timeframe: "15m", ...zone, fvgC3CloseAt: formedAt + 15 * MINUTE_MS },
     ]);
   });
 

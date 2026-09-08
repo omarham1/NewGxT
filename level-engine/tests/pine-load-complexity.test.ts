@@ -138,6 +138,18 @@ describe("pine load complexity model", () => {
     expect(source).not.toContain("f_bar_index_for_time(zone.formedTime)");
   });
 
+  it("draws FVG boxes from per-zone fill, border, and right-edge bar", () => {
+    const source = readPineSource();
+
+    expect(source).toMatch(/type HtfFvgZone[\s\S]*?color bgcolor/);
+    expect(source).toMatch(/type HtfFvgZone[\s\S]*?color borderColor/);
+    expect(source).toMatch(/type HtfFvgZone[\s\S]*?int endBi/);
+    expect(source).toMatch(/f_draw_fvg_zones\([\s\S]*?bgcolor = zone\.bgcolor/);
+    expect(source).toMatch(/f_draw_fvg_zones\([\s\S]*?border_color = zone\.borderColor/);
+    expect(source).toMatch(/f_draw_fvg_zones\([\s\S]*?zone\.endBi/);
+    expect(source).not.toMatch(/box\.new\([\s\S]*?bgcolor = FVG_COLOR/);
+  });
+
   it("documents 1m session rails security and chart-path swing sweep (#31)", () => {
     const source = readPineSource();
 
