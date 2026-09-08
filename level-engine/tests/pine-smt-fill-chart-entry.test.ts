@@ -59,22 +59,28 @@ describe("pine chart-symbol FVG Entry → Idle / Active (#54)", () => {
     );
   });
 
-  it("gates chart-symbol FVG Entry on 1m wick after FVG C3 close to C3 low/high", () => {
+  it("gates chart-symbol FVG Entry on wick after FVG C3 close to C3 low/high", () => {
     const source = readPineSource();
 
     expect(source).toMatch(/type HtfFvgZone[\s\S]*?int fvgC3CloseAt/);
     expect(source).toMatch(/type HtfFvgZone[\s\S]*?bool hasChartFvgEntry/);
     expect(source).toMatch(
-      /oneMinTime\s*>\s*(?:zone\.)?fvgC3CloseAt/,
+      /barTimeClose\s*>\s*(?:zone\.)?fvgC3CloseAt/,
     );
     expect(source).toMatch(
-      /oneMinLow\s*<=\s*extreme\s+and\s+oneMinHigh\s*>=\s*extreme/,
+      /barLow\s*<=\s*extreme\s+and\s+barHigh\s*>=\s*extreme/,
     );
     expect(source).toMatch(
       /bullish\s*\?\s*zoneHigh\s*:\s*zoneLow/,
     );
     expect(source).toMatch(
-      /f_session_rails_with_end\(\)[\s\S]*?\bhigh\b[\s\S]*?\blow\b[\s\S]*?\btime\b/,
+      /f_update_chart_fvg_entry\([\s\S]*?\blow\s*,\s*high\s*,\s*time_close\)/,
+    );
+    expect(source).toMatch(
+      /f_update_chart_fvg_entry\([\s\S]*?oneMinLow\s*,\s*oneMinHigh\s*,\s*oneMinTimeClose\)/,
+    );
+    expect(source).toMatch(
+      /f_session_rails_with_end\(\)[\s\S]*?\bhigh\b[\s\S]*?\blow\b[\s\S]*?\btime_close\b/,
     );
     expect(source).toMatch(
       /"1",[\s\S]*f_session_rails_with_end\(\)/,
