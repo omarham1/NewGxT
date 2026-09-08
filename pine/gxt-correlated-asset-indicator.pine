@@ -20,6 +20,8 @@ SMT_FILL_IDLE_BG = color.new(color.yellow, 85)
 SMT_FILL_IDLE_BORDER = color.new(color.yellow, 40)
 SMT_FILL_ACTIVE_BG = color.new(color.blue, 85)
 SMT_FILL_ACTIVE_BORDER = color.new(color.blue, 40)
+SMT_FILL_DEAD_BG = color.new(color.gray, 85)
+SMT_FILL_DEAD_BORDER = color.new(color.gray, 40)
 LABEL_SIZE = size.small
 LABEL_GAP_TICKS = 2
 ADR_LOOKBACK = 14
@@ -65,6 +67,8 @@ showPdMidpoint = input.bool(true, "Show PD 50% Midpoint", group = "Session Conte
 pdMidpointColor = input.color(color.black, "PD 50% Midpoint Color", group = "Session Context")
 pdMidpointStyle = input.string("Dashed", "PD 50% Midpoint Line Style", options = ["Solid", "Dashed", "Dotted"], group = "Session Context")
 failureSwingAdrPct = input.float(12.5, "Failure Swing ADR %", minval = 0, step = 0.1, group = "HTF Swings")
+peerSymbol1 = input.symbol("CME_MINI:ES1!", "Peer 1", group = "Triad")
+peerSymbol2 = input.symbol("CME_MINI:YM1!", "Peer 2", group = "Triad")
 
 f_line_style(string style_str) =>
     style_str == "Dashed" ? line.style_dashed : style_str == "Dotted" ? line.style_dotted : line.style_solid
@@ -568,6 +572,13 @@ f_session_rails() =>
 
     [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low]
 
+// Lean peer feeds for SMT Fill only — gap-TF C3 high/low/time and 1m wick/time.
+f_peer_tf_c3_bar() =>
+    [high, low, time]
+
+f_peer_1m_bar() =>
+    [high, low, time_close]
+
 f_session_rails_with_end() =>
     [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low] = f_session_rails()
     int out_session_end = f_current_daily_session_end()
@@ -675,6 +686,19 @@ f_session_rails_with_end() =>
      lookahead = barmerge.lookahead_off
  )
 
+[peer1High4h, peer1Low4h, peer1Time4h] = request.security(peerSymbol1, "240", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer1High1h, peer1Low1h, peer1Time1h] = request.security(peerSymbol1, "60", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer1High90m, peer1Low90m, peer1Time90m] = request.security(peerSymbol1, "90", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer1High30m, peer1Low30m, peer1Time30m] = request.security(peerSymbol1, "30", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer1High15m, peer1Low15m, peer1Time15m] = request.security(peerSymbol1, "15", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer1OneMinHigh, peer1OneMinLow, peer1OneMinTimeClose] = request.security(peerSymbol1, "1", f_peer_1m_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+
+[peer2High4h, peer2Low4h, peer2Time4h] = request.security(peerSymbol2, "240", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer2High1h, peer2Low1h, peer2Time1h] = request.security(peerSymbol2, "60", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer2High90m, peer2Low90m, peer2Time90m] = request.security(peerSymbol2, "90", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer2High30m, peer2Low30m, peer2Time30m] = request.security(peerSymbol2, "30", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer2High15m, peer2Low15m, peer2Time15m] = request.security(peerSymbol2, "15", f_peer_tf_c3_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[peer2OneMinHigh, peer2OneMinLow, peer2OneMinTimeClose] = request.security(peerSymbol2, "1", f_peer_1m_bar(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
 
 dailySessionKey = f_cme_daily_session_key()
 var int prevDailySessionKey = na
@@ -702,6 +726,13 @@ type HtfFvgZone
     int endBi
     int fvgC3CloseAt
     bool hasChartFvgEntry
+    bool hasPeer1FvgEntry
+    bool hasPeer2FvgEntry
+    float peer1C3High
+    float peer1C3Low
+    float peer2C3High
+    float peer2C3Low
+    int deadAt
 
 f_timeframe_rank(string txt) =>
     str.contains(txt, "4H") ? 2 : 1
@@ -758,14 +789,32 @@ f_swing_label_suppressed_by_liquidity_rail(
 f_fvg_closed_through_extreme(bool bullish, float zoneLow, float zoneHigh, float checkClose) =>
     bullish ? checkClose < zoneLow : checkClose > zoneHigh
 
-f_fvg_c3_extreme(bool bullish, float zoneLow, float zoneHigh) =>
+f_fvg_c3_extreme_from_zone(bool bullish, float zoneLow, float zoneHigh) =>
     bullish ? zoneHigh : zoneLow
+
+f_fvg_c3_extreme_from_peer(bool bullish, float peerC3High, float peerC3Low) =>
+    bullish ? peerC3Low : peerC3High
+
+f_aligned_peer_c3(float peerHigh, float peerLow, int peerTime, int formedTime) =>
+    peerTime == formedTime ? [peerHigh, peerLow] : [float(na), float(na)]
 
 // barTimeClose > C3 close excludes the forming C3 bar. On a native chart TF, bar high/low
 // cover every 1m wick in that bar — needed because a single aligned 1m sample misses mid-bar tags.
-f_chart_fvg_entry_on_bar(bool bullish, float zoneLow, float zoneHigh, int fvgC3CloseAt, float barLow, float barHigh, int barTimeClose) =>
-    float extreme = f_fvg_c3_extreme(bullish, zoneLow, zoneHigh)
-    not na(barTimeClose) and not na(fvgC3CloseAt) and barTimeClose > fvgC3CloseAt and not na(extreme) and barLow <= extreme and barHigh >= extreme
+f_fvg_entry_on_bar(float extreme, int fvgC3CloseAt, float barLow, float barHigh, int barTimeClose) =>
+    not na(extreme) and not na(barTimeClose) and not na(fvgC3CloseAt) and barTimeClose > fvgC3CloseAt and barLow <= extreme and barHigh >= extreme
+
+f_smt_fill_entry_count(bool hasChart, bool hasPeer1, bool hasPeer2) =>
+    (hasChart ? 1 : 0) + (hasPeer1 ? 1 : 0) + (hasPeer2 ? 1 : 0)
+
+f_apply_smt_fill_state(HtfFvgZone zone, bool hasChart, bool hasPeer1, bool hasPeer2, int nextDeadAt) =>
+    int entryCount = f_smt_fill_entry_count(hasChart, hasPeer1, hasPeer2)
+    if not na(nextDeadAt) or entryCount >= 3
+        int deadAt = na(nextDeadAt) ? zone.deadAt : nextDeadAt
+        HtfFvgZone.new(zone.zoneLow, zone.zoneHigh, zone.formedTime, zone.txt, zone.bullish, zone.mitigated, zone.mitigatedTime, zone.formedBi, SMT_FILL_DEAD_BG, SMT_FILL_DEAD_BORDER, f_bar_index_for_time(deadAt), zone.fvgC3CloseAt, hasChart, hasPeer1, hasPeer2, zone.peer1C3High, zone.peer1C3Low, zone.peer2C3High, zone.peer2C3Low, deadAt)
+    else if entryCount >= 1
+        HtfFvgZone.new(zone.zoneLow, zone.zoneHigh, zone.formedTime, zone.txt, zone.bullish, zone.mitigated, zone.mitigatedTime, zone.formedBi, SMT_FILL_ACTIVE_BG, SMT_FILL_ACTIVE_BORDER, zone.endBi, zone.fvgC3CloseAt, hasChart, hasPeer1, hasPeer2, zone.peer1C3High, zone.peer1C3Low, zone.peer2C3High, zone.peer2C3Low, zone.deadAt)
+    else
+        HtfFvgZone.new(zone.zoneLow, zone.zoneHigh, zone.formedTime, zone.txt, zone.bullish, zone.mitigated, zone.mitigatedTime, zone.formedBi, SMT_FILL_IDLE_BG, SMT_FILL_IDLE_BORDER, zone.endBi, zone.fvgC3CloseAt, hasChart, hasPeer1, hasPeer2, zone.peer1C3High, zone.peer1C3Low, zone.peer2C3High, zone.peer2C3Low, zone.deadAt)
 
 f_fvg_exists(array<HtfFvgZone> zones, int formedTime, string txt) =>
     bool found = false
@@ -785,10 +834,18 @@ f_try_add_fvg(
      int formedTime,
      string txt,
      bool bullish,
-     int fvgC3CloseAt
+     int fvgC3CloseAt,
+     float peer1High,
+     float peer1Low,
+     int peer1Time,
+     float peer2High,
+     float peer2Low,
+     int peer2Time
  ) =>
     if formed and not f_fvg_exists(zones, formedTime, txt)
-        array.push(zones, HtfFvgZone.new(zoneLow, zoneHigh, formedTime, txt, bullish, false, na, f_bar_index_for_time(formedTime), SMT_FILL_IDLE_BG, SMT_FILL_IDLE_BORDER, na, fvgC3CloseAt, false))
+        [p1High, p1Low] = f_aligned_peer_c3(peer1High, peer1Low, peer1Time, formedTime)
+        [p2High, p2Low] = f_aligned_peer_c3(peer2High, peer2Low, peer2Time, formedTime)
+        array.push(zones, HtfFvgZone.new(zoneLow, zoneHigh, formedTime, txt, bullish, false, na, f_bar_index_for_time(formedTime), SMT_FILL_IDLE_BG, SMT_FILL_IDLE_BORDER, na, fvgC3CloseAt, false, false, false, p1High, p1Low, p2High, p2Low, na))
     zones
 
 f_remove_mitigated_fvgs(array<HtfFvgZone> zones, float checkClose, int checkTime) =>
@@ -809,13 +866,73 @@ f_prune_expired_fvgs(array<HtfFvgZone> zones) =>
         i -= 1
     zones
 
-f_update_chart_fvg_entry(array<HtfFvgZone> zones, float barLow, float barHigh, int barTimeClose) =>
+f_fill_missing_peer_c3(
+     array<HtfFvgZone> zones,
+     float peer1High,
+     float peer1Low,
+     int peer1Time,
+     float peer2High,
+     float peer2Low,
+     int peer2Time
+ ) =>
     int count = array.size(zones)
     if count > 0
         for i = 0 to count - 1
             HtfFvgZone zone = array.get(zones, i)
-            if not zone.hasChartFvgEntry and f_chart_fvg_entry_on_bar(zone.bullish, zone.zoneLow, zone.zoneHigh, zone.fvgC3CloseAt, barLow, barHigh, barTimeClose)
-                array.set(zones, i, HtfFvgZone.new(zone.zoneLow, zone.zoneHigh, zone.formedTime, zone.txt, zone.bullish, zone.mitigated, zone.mitigatedTime, zone.formedBi, SMT_FILL_ACTIVE_BG, SMT_FILL_ACTIVE_BORDER, zone.endBi, zone.fvgC3CloseAt, true))
+            float p1High = zone.peer1C3High
+            float p1Low = zone.peer1C3Low
+            float p2High = zone.peer2C3High
+            float p2Low = zone.peer2C3Low
+            bool changed = false
+            if na(p1High) and peer1Time == zone.formedTime
+                p1High := peer1High
+                p1Low := peer1Low
+                changed := true
+            if na(p2High) and peer2Time == zone.formedTime
+                p2High := peer2High
+                p2Low := peer2Low
+                changed := true
+            if changed
+                array.set(zones, i, HtfFvgZone.new(zone.zoneLow, zone.zoneHigh, zone.formedTime, zone.txt, zone.bullish, zone.mitigated, zone.mitigatedTime, zone.formedBi, zone.bgcolor, zone.borderColor, zone.endBi, zone.fvgC3CloseAt, zone.hasChartFvgEntry, zone.hasPeer1FvgEntry, zone.hasPeer2FvgEntry, p1High, p1Low, p2High, p2Low, zone.deadAt))
+    zones
+
+f_update_smt_fill_entries(
+     array<HtfFvgZone> zones,
+     float chartLow,
+     float chartHigh,
+     int chartTimeClose,
+     float peer1Low,
+     float peer1High,
+     int peer1TimeClose,
+     float peer2Low,
+     float peer2High,
+     int peer2TimeClose
+ ) =>
+    int count = array.size(zones)
+    if count > 0
+        for i = 0 to count - 1
+            HtfFvgZone zone = array.get(zones, i)
+            float chartExtreme = f_fvg_c3_extreme_from_zone(zone.bullish, zone.zoneLow, zone.zoneHigh)
+            float peer1Extreme = f_fvg_c3_extreme_from_peer(zone.bullish, zone.peer1C3High, zone.peer1C3Low)
+            float peer2Extreme = f_fvg_c3_extreme_from_peer(zone.bullish, zone.peer2C3High, zone.peer2C3Low)
+            bool chartNow = f_fvg_entry_on_bar(chartExtreme, zone.fvgC3CloseAt, chartLow, chartHigh, chartTimeClose)
+            bool peer1Now = not na(peer1TimeClose) and f_fvg_entry_on_bar(peer1Extreme, zone.fvgC3CloseAt, peer1Low, peer1High, peer1TimeClose)
+            bool peer2Now = not na(peer2TimeClose) and f_fvg_entry_on_bar(peer2Extreme, zone.fvgC3CloseAt, peer2Low, peer2High, peer2TimeClose)
+            bool hasChart = zone.hasChartFvgEntry or chartNow
+            bool hasPeer1 = zone.hasPeer1FvgEntry or peer1Now
+            bool hasPeer2 = zone.hasPeer2FvgEntry or peer2Now
+            int entryCount = f_smt_fill_entry_count(hasChart, hasPeer1, hasPeer2)
+            int nextDeadAt = zone.deadAt
+            if entryCount >= 3 and na(nextDeadAt)
+                int completingTime = na
+                if chartNow
+                    completingTime := chartTimeClose
+                if peer1Now
+                    completingTime := na(completingTime) ? peer1TimeClose : math.max(completingTime, peer1TimeClose)
+                if peer2Now
+                    completingTime := na(completingTime) ? peer2TimeClose : math.max(completingTime, peer2TimeClose)
+                nextDeadAt := completingTime
+            array.set(zones, i, f_apply_smt_fill_state(zone, hasChart, hasPeer1, hasPeer2, nextDeadAt))
     zones
 
 f_advance_fvg_lifecycle(
@@ -829,11 +946,17 @@ f_advance_fvg_lifecycle(
      int fvgC3CloseAt,
      float checkClose,
      int checkTime,
-     bool bar_confirmed
+     bool bar_confirmed,
+     float peer1High,
+     float peer1Low,
+     int peer1Time,
+     float peer2High,
+     float peer2Low,
+     int peer2Time
  ) =>
     array<HtfFvgZone> result = zones
     if bar_confirmed
-        result := f_try_add_fvg(result, formed, zoneLow, zoneHigh, formedTime, txt, formedBullish, fvgC3CloseAt)
+        result := f_try_add_fvg(result, formed, zoneLow, zoneHigh, formedTime, txt, formedBullish, fvgC3CloseAt, peer1High, peer1Low, peer1Time, peer2High, peer2Low, peer2Time)
     result := f_remove_mitigated_fvgs(result, checkClose, checkTime)
     result := f_prune_expired_fvgs(result)
     result
@@ -1152,28 +1275,33 @@ activeSwings := f_try_add_swing(activeSwings, lowConfirmed1h, lowPrice1h, lowPiv
 activeSwings := f_sweep_swings(activeSwings, low, high, time)
 activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 
-htfFvgs4h := f_advance_fvg_lifecycle(htfFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, fvgC3CloseAt4h, close4h, time4h, barstate.isconfirmed)
-htfFvgs1h := f_advance_fvg_lifecycle(htfFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, fvgC3CloseAt1h, close1h, time1h, barstate.isconfirmed)
+htfFvgs4h := f_advance_fvg_lifecycle(htfFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, fvgC3CloseAt4h, close4h, time4h, barstate.isconfirmed, peer1High4h, peer1Low4h, peer1Time4h, peer2High4h, peer2Low4h, peer2Time4h)
+htfFvgs1h := f_advance_fvg_lifecycle(htfFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, fvgC3CloseAt1h, close1h, time1h, barstate.isconfirmed, peer1High1h, peer1Low1h, peer1Time1h, peer2High1h, peer2Low1h, peer2Time1h)
+htfFvgs4h := f_fill_missing_peer_c3(htfFvgs4h, peer1High4h, peer1Low4h, peer1Time4h, peer2High4h, peer2Low4h, peer2Time4h)
+htfFvgs1h := f_fill_missing_peer_c3(htfFvgs1h, peer1High1h, peer1Low1h, peer1Time1h, peer2High1h, peer2Low1h, peer2Time1h)
 if on4hChart
-    htfFvgs4h := f_update_chart_fvg_entry(htfFvgs4h, low, high, time_close)
-    htfFvgs4h := f_update_chart_fvg_entry(htfFvgs4h, oneMinLow, oneMinHigh, oneMinTimeClose)
+    htfFvgs4h := f_update_smt_fill_entries(htfFvgs4h, low, high, time_close, na, na, na, na, na, na)
+    htfFvgs4h := f_update_smt_fill_entries(htfFvgs4h, oneMinLow, oneMinHigh, oneMinTimeClose, peer1OneMinLow, peer1OneMinHigh, peer1OneMinTimeClose, peer2OneMinLow, peer2OneMinHigh, peer2OneMinTimeClose)
 if on1hChart
-    htfFvgs1h := f_update_chart_fvg_entry(htfFvgs1h, low, high, time_close)
-    htfFvgs1h := f_update_chart_fvg_entry(htfFvgs1h, oneMinLow, oneMinHigh, oneMinTimeClose)
+    htfFvgs1h := f_update_smt_fill_entries(htfFvgs1h, low, high, time_close, na, na, na, na, na, na)
+    htfFvgs1h := f_update_smt_fill_entries(htfFvgs1h, oneMinLow, oneMinHigh, oneMinTimeClose, peer1OneMinLow, peer1OneMinHigh, peer1OneMinTimeClose, peer2OneMinLow, peer2OneMinHigh, peer2OneMinTimeClose)
 
 [formedNative, zoneLowNative, zoneHighNative, formedTimeNative, bullishNative, fvgC3CloseAtNative] = f_detect_fvg()
 if on90mChart
-    fvgs90m := f_advance_fvg_lifecycle(fvgs90m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "90m FVG", bullishNative, fvgC3CloseAtNative, close, time, barstate.isconfirmed)
-    fvgs90m := f_update_chart_fvg_entry(fvgs90m, low, high, time_close)
-    fvgs90m := f_update_chart_fvg_entry(fvgs90m, oneMinLow, oneMinHigh, oneMinTimeClose)
+    fvgs90m := f_advance_fvg_lifecycle(fvgs90m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "90m FVG", bullishNative, fvgC3CloseAtNative, close, time, barstate.isconfirmed, peer1High90m, peer1Low90m, peer1Time90m, peer2High90m, peer2Low90m, peer2Time90m)
+    fvgs90m := f_fill_missing_peer_c3(fvgs90m, peer1High90m, peer1Low90m, peer1Time90m, peer2High90m, peer2Low90m, peer2Time90m)
+    fvgs90m := f_update_smt_fill_entries(fvgs90m, low, high, time_close, na, na, na, na, na, na)
+    fvgs90m := f_update_smt_fill_entries(fvgs90m, oneMinLow, oneMinHigh, oneMinTimeClose, peer1OneMinLow, peer1OneMinHigh, peer1OneMinTimeClose, peer2OneMinLow, peer2OneMinHigh, peer2OneMinTimeClose)
 if on30mChart
-    fvgs30m := f_advance_fvg_lifecycle(fvgs30m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "30m FVG", bullishNative, fvgC3CloseAtNative, close, time, barstate.isconfirmed)
-    fvgs30m := f_update_chart_fvg_entry(fvgs30m, low, high, time_close)
-    fvgs30m := f_update_chart_fvg_entry(fvgs30m, oneMinLow, oneMinHigh, oneMinTimeClose)
+    fvgs30m := f_advance_fvg_lifecycle(fvgs30m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "30m FVG", bullishNative, fvgC3CloseAtNative, close, time, barstate.isconfirmed, peer1High30m, peer1Low30m, peer1Time30m, peer2High30m, peer2Low30m, peer2Time30m)
+    fvgs30m := f_fill_missing_peer_c3(fvgs30m, peer1High30m, peer1Low30m, peer1Time30m, peer2High30m, peer2Low30m, peer2Time30m)
+    fvgs30m := f_update_smt_fill_entries(fvgs30m, low, high, time_close, na, na, na, na, na, na)
+    fvgs30m := f_update_smt_fill_entries(fvgs30m, oneMinLow, oneMinHigh, oneMinTimeClose, peer1OneMinLow, peer1OneMinHigh, peer1OneMinTimeClose, peer2OneMinLow, peer2OneMinHigh, peer2OneMinTimeClose)
 if on15mChart
-    fvgs15m := f_advance_fvg_lifecycle(fvgs15m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "15m FVG", bullishNative, fvgC3CloseAtNative, close, time, barstate.isconfirmed)
-    fvgs15m := f_update_chart_fvg_entry(fvgs15m, low, high, time_close)
-    fvgs15m := f_update_chart_fvg_entry(fvgs15m, oneMinLow, oneMinHigh, oneMinTimeClose)
+    fvgs15m := f_advance_fvg_lifecycle(fvgs15m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "15m FVG", bullishNative, fvgC3CloseAtNative, close, time, barstate.isconfirmed, peer1High15m, peer1Low15m, peer1Time15m, peer2High15m, peer2Low15m, peer2Time15m)
+    fvgs15m := f_fill_missing_peer_c3(fvgs15m, peer1High15m, peer1Low15m, peer1Time15m, peer2High15m, peer2Low15m, peer2Time15m)
+    fvgs15m := f_update_smt_fill_entries(fvgs15m, low, high, time_close, na, na, na, na, na, na)
+    fvgs15m := f_update_smt_fill_entries(fvgs15m, oneMinLow, oneMinHigh, oneMinTimeClose, peer1OneMinLow, peer1OneMinHigh, peer1OneMinTimeClose, peer2OneMinLow, peer2OneMinHigh, peer2OneMinTimeClose)
 
 [_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, daily_open_price, dailyOpenOriginBi, sessionEndBi, "Daily Open", dailyOpenStyle, "on", dailyOpenColor, false, na, false, LEVEL_COLOR)
 daily_open_line := _daily_open_line

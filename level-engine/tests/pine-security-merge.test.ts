@@ -10,19 +10,6 @@ function readPineSource(): string {
   return readFileSync(join(repoRoot, pinePath), "utf-8");
 }
 
-function countTopLevelRequestSecurityCalls(source: string): number {
-  let count = 0;
-  for (const line of source.split("\n")) {
-    if (/= request\.security\(/.test(line)) {
-      const indent = line.match(/^(\s*)/)?.[1].length ?? 0;
-      if (indent <= 1) {
-        count++;
-      }
-    }
-  }
-  return count;
-}
-
 function countRequestSecurityCalls(source: string): number {
   const matches = source.match(/request\.security\(/g);
   return matches?.length ?? 0;
@@ -35,10 +22,12 @@ describe("pine request.security merge (#24)", () => {
     expect(source).toMatch(/f_htf_swing_and_fvg_signals\(\)\s*=>/);
   });
 
-  it("uses one top-level request.security call per timeframe via wrappers", () => {
+  it("uses one top-level request.security call per chart timeframe via wrappers", () => {
     const source = readPineSource();
-    expect(countTopLevelRequestSecurityCalls(source)).toBe(3);
-    expect(countRequestSecurityCalls(source)).toBe(3);
+    expect(source.match(/request\.security\(\s*syminfo\.tickerid/g)?.length).toBe(
+      3,
+    );
+    expect(countRequestSecurityCalls(source)).toBeLessThan(40);
     expect(source).toMatch(/f_session_rails_with_end\(\)/);
     expect(source).toMatch(
       /"1",[\s\S]*f_session_rails_with_end\(\)/,
@@ -63,13 +52,13 @@ describe("pine request.security merge (#24)", () => {
     expect(source).toContain('"30m FVG"');
     expect(source).toContain('"90m FVG"');
     expect(source).not.toMatch(
-      /request\.security\(\s*[\s\S]*?"15"[\s\S]*?f_detect_fvg/,
+      /request\.security\(\s*syminfo\.tickerid\s*,\s*"15"/,
     );
     expect(source).not.toMatch(
-      /request\.security\(\s*[\s\S]*?"30"[\s\S]*?f_detect_fvg/,
+      /request\.security\(\s*syminfo\.tickerid\s*,\s*"30"/,
     );
     expect(source).not.toMatch(
-      /request\.security\(\s*[\s\S]*?"90"[\s\S]*?f_detect_fvg/,
+      /request\.security\(\s*syminfo\.tickerid\s*,\s*"90"/,
     );
   });
 });

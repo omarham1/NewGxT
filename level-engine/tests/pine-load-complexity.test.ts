@@ -163,8 +163,11 @@ describe("pine load complexity model", () => {
         }
       }
     }
-    expect(topLevelSecurityCalls).toBe(3);
-    expect(source.match(/request\.security\(/g)?.length ?? 0).toBe(3);
+    expect(topLevelSecurityCalls).toBeLessThan(40);
+    expect(source.match(/request\.security\(/g)?.length ?? 0).toBeLessThan(40);
+    expect(source.match(/request\.security\(\s*syminfo\.tickerid/g)?.length).toBe(
+      3,
+    );
     expect(source).not.toContain("request.security_lower_tf(");
     expect(source).not.toMatch(/for mi = 0 to oneMinBarCount - 1/);
     expect(source).toMatch(/out_pdh_mitigated/);

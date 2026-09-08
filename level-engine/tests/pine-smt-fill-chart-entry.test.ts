@@ -49,7 +49,7 @@ describe("pine chart-symbol FVG Entry → Idle / Active (#54)", () => {
       /HtfFvgZone\.new\([\s\S]*?SMT_FILL_IDLE/,
     );
     expect(source).toMatch(
-      /hasChartFvgEntry[\s\S]*?SMT_FILL_ACTIVE/,
+      /entryCount\s*>=\s*1[\s\S]*?SMT_FILL_ACTIVE/,
     );
     expect(source).not.toMatch(
       /HtfFvgZone\.new\([\s\S]*?FVG_COLOR/,
@@ -74,10 +74,10 @@ describe("pine chart-symbol FVG Entry → Idle / Active (#54)", () => {
       /bullish\s*\?\s*zoneHigh\s*:\s*zoneLow/,
     );
     expect(source).toMatch(
-      /f_update_chart_fvg_entry\([\s\S]*?\blow\s*,\s*high\s*,\s*time_close\)/,
+      /f_update_smt_fill_entries\([^)]*\blow\s*,\s*high\s*,\s*time_close\b/,
     );
     expect(source).toMatch(
-      /f_update_chart_fvg_entry\([\s\S]*?oneMinLow\s*,\s*oneMinHigh\s*,\s*oneMinTimeClose\)/,
+      /f_update_smt_fill_entries\([^)]*oneMinLow\s*,\s*oneMinHigh\s*,\s*oneMinTimeClose\b/,
     );
     expect(source).toMatch(
       /f_session_rails_with_end\(\)[\s\S]*?\bhigh\b[\s\S]*?\blow\b[\s\S]*?\btime_close\b/,
@@ -90,9 +90,11 @@ describe("pine chart-symbol FVG Entry → Idle / Active (#54)", () => {
   it("keeps exactly one top-level chart 1m request.security", () => {
     const source = readPineSource();
 
-    expect(countTopLevelRequestSecurityCalls(source)).toBe(3);
     expect(countChartOneMinuteSecurityCalls(source)).toBe(1);
-    expect(source.match(/request\.security\(/g)?.length ?? 0).toBe(3);
+    expect(source.match(/request\.security\(\s*syminfo\.tickerid/g)?.length).toBe(
+      3,
+    );
+    expect(countTopLevelRequestSecurityCalls(source)).toBeGreaterThanOrEqual(3);
   });
 
   it("applies Idle/Active coloring to 15m with 30m/90m/1H/4H native FVG pools", () => {
@@ -104,19 +106,19 @@ describe("pine chart-symbol FVG Entry → Idle / Active (#54)", () => {
     expect(source).toContain('"1H FVG"');
     expect(source).toContain('"4H FVG"');
     expect(source).toMatch(
-      /f_update_chart_fvg_entry\([\s\S]*htfFvgs4h/,
+      /f_update_smt_fill_entries\([\s\S]*htfFvgs4h/,
     );
     expect(source).toMatch(
-      /f_update_chart_fvg_entry\([\s\S]*htfFvgs1h/,
+      /f_update_smt_fill_entries\([\s\S]*htfFvgs1h/,
     );
     expect(source).toMatch(
-      /f_update_chart_fvg_entry\([\s\S]*fvgs90m/,
+      /f_update_smt_fill_entries\([\s\S]*fvgs90m/,
     );
     expect(source).toMatch(
-      /f_update_chart_fvg_entry\([\s\S]*fvgs30m/,
+      /f_update_smt_fill_entries\([\s\S]*fvgs30m/,
     );
     expect(source).toMatch(
-      /f_update_chart_fvg_entry\([\s\S]*fvgs15m/,
+      /f_update_smt_fill_entries\([\s\S]*fvgs15m/,
     );
   });
 });
