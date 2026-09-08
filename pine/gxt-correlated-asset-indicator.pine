@@ -16,8 +16,10 @@ WEEKLY_END_HOUR = 17
 LEVEL_COLOR = color.black
 SWING_MITIGATED_COLOR = color.new(color.gray, 35)
 SESSION_CONTEXT_COLOR = color.new(color.gray, 30)
-FVG_COLOR = color.new(color.teal, 85)
-FVG_BORDER_COLOR = color.new(color.teal, 40)
+SMT_FILL_IDLE_BG = color.new(color.yellow, 85)
+SMT_FILL_IDLE_BORDER = color.new(color.yellow, 40)
+SMT_FILL_ACTIVE_BG = color.new(color.blue, 85)
+SMT_FILL_ACTIVE_BORDER = color.new(color.blue, 40)
 LABEL_SIZE = size.small
 LABEL_GAP_TICKS = 2
 ADR_LOOKBACK = 14
@@ -456,16 +458,16 @@ f_detect_fvg() =>
     float zoneLow = gapBullish ? high[2] : gapBearish ? high[0] : na
     float zoneHigh = gapBullish ? low[0] : gapBearish ? low[2] : na
     bool formed = (gapBullish or gapBearish) and not middleOverlapped
-    [formed, zoneLow, zoneHigh, time, gapBullish]
+    [formed, zoneLow, zoneHigh, time, gapBullish, time_close]
 
 f_detect_fvg_with_ohlc() =>
-    [formed, zoneLow, zoneHigh, formedTime, bullish] = f_detect_fvg()
-    [formed, zoneLow, zoneHigh, formedTime, bullish, low, high, time, close]
+    [formed, zoneLow, zoneHigh, formedTime, bullish, fvgC3CloseAt] = f_detect_fvg()
+    [formed, zoneLow, zoneHigh, formedTime, bullish, fvgC3CloseAt, low, high, time, close]
 
 f_htf_swing_and_fvg_signals() =>
     [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime] = f_htf_swing_signals()
-    [formed, zoneLow, zoneHigh, formedTime, bullish, barLow, barHigh, barTime, barClose] = f_detect_fvg_with_ohlc()
-    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime, formed, zoneLow, zoneHigh, formedTime, bullish, barLow, barHigh, barTime, barClose]
+    [formed, zoneLow, zoneHigh, formedTime, bullish, fvgC3CloseAt, barLow, barHigh, barTime, barClose] = f_detect_fvg_with_ohlc()
+    [highConfirmed, highPrice, highPivotTime, highConfirmedTime, lowConfirmed, lowPrice, lowPivotTime, lowConfirmedTime, formed, zoneLow, zoneHigh, formedTime, bullish, fvgC3CloseAt, barLow, barHigh, barTime, barClose]
 
 f_track_extreme(float cur_extreme, int cur_time, float candidate, int candidate_time) =>
     if na(cur_extreme) or candidate > cur_extreme
@@ -609,7 +611,7 @@ f_session_rails_with_end() =>
         out_pwl_mitigated := true
         out_pwl_mitigated_time := time
 
-    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_session_end, out_pdh_mitigated, out_pdh_mitigated_time, out_pdl_mitigated, out_pdl_mitigated_time, out_pwh_mitigated, out_pwh_mitigated_time, out_pwl_mitigated, out_pwl_mitigated_time]
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_session_end, out_pdh_mitigated, out_pdh_mitigated_time, out_pdl_mitigated, out_pdl_mitigated_time, out_pwh_mitigated, out_pwh_mitigated_time, out_pwl_mitigated, out_pwl_mitigated_time, high, low, time]
 
 [
      highConfirmed4h,
@@ -625,6 +627,7 @@ f_session_rails_with_end() =>
      zoneHigh4h,
      formedTime4h,
      bullish4h,
+     fvgC3CloseAt4h,
      low4h,
      high4h,
      time4h,
@@ -651,6 +654,7 @@ f_session_rails_with_end() =>
      zoneHigh1h,
      formedTime1h,
      bullish1h,
+     fvgC3CloseAt1h,
      low1h,
      high1h,
      time1h,
@@ -663,7 +667,7 @@ f_session_rails_with_end() =>
      lookahead = barmerge.lookahead_off
  )
 
-[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime] = request.security(
+[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime, oneMinHigh, oneMinLow, oneMinTime] = request.security(
      syminfo.tickerid,
      "1",
      f_session_rails_with_end(),
@@ -696,6 +700,8 @@ type HtfFvgZone
     color bgcolor
     color borderColor
     int endBi
+    int fvgC3CloseAt
+    bool hasChartFvgEntry
 
 f_timeframe_rank(string txt) =>
     str.contains(txt, "4H") ? 2 : 1
@@ -752,6 +758,13 @@ f_swing_label_suppressed_by_liquidity_rail(
 f_fvg_closed_through_extreme(bool bullish, float zoneLow, float zoneHigh, float checkClose) =>
     bullish ? checkClose < zoneLow : checkClose > zoneHigh
 
+f_fvg_c3_extreme(bool bullish, float zoneLow, float zoneHigh) =>
+    bullish ? zoneHigh : zoneLow
+
+f_chart_fvg_entry_on_bar(bool bullish, float zoneLow, float zoneHigh, int fvgC3CloseAt, float oneMinLow, float oneMinHigh, int oneMinTime) =>
+    float extreme = f_fvg_c3_extreme(bullish, zoneLow, zoneHigh)
+    not na(oneMinTime) and not na(fvgC3CloseAt) and oneMinTime > fvgC3CloseAt and not na(extreme) and oneMinLow <= extreme and oneMinHigh >= extreme
+
 f_fvg_exists(array<HtfFvgZone> zones, int formedTime, string txt) =>
     bool found = false
     int count = array.size(zones)
@@ -769,10 +782,11 @@ f_try_add_fvg(
      float zoneHigh,
      int formedTime,
      string txt,
-     bool bullish
+     bool bullish,
+     int fvgC3CloseAt
  ) =>
     if formed and not f_fvg_exists(zones, formedTime, txt)
-        array.push(zones, HtfFvgZone.new(zoneLow, zoneHigh, formedTime, txt, bullish, false, na, f_bar_index_for_time(formedTime), FVG_COLOR, FVG_BORDER_COLOR, na))
+        array.push(zones, HtfFvgZone.new(zoneLow, zoneHigh, formedTime, txt, bullish, false, na, f_bar_index_for_time(formedTime), SMT_FILL_IDLE_BG, SMT_FILL_IDLE_BORDER, na, fvgC3CloseAt, false))
     zones
 
 f_remove_mitigated_fvgs(array<HtfFvgZone> zones, float checkClose, int checkTime) =>
@@ -793,6 +807,15 @@ f_prune_expired_fvgs(array<HtfFvgZone> zones) =>
         i -= 1
     zones
 
+f_update_chart_fvg_entry(array<HtfFvgZone> zones, float oneMinLow, float oneMinHigh, int oneMinTime) =>
+    int count = array.size(zones)
+    if count > 0
+        for i = 0 to count - 1
+            HtfFvgZone zone = array.get(zones, i)
+            if not zone.hasChartFvgEntry and f_chart_fvg_entry_on_bar(zone.bullish, zone.zoneLow, zone.zoneHigh, zone.fvgC3CloseAt, oneMinLow, oneMinHigh, oneMinTime)
+                array.set(zones, i, HtfFvgZone.new(zone.zoneLow, zone.zoneHigh, zone.formedTime, zone.txt, zone.bullish, zone.mitigated, zone.mitigatedTime, zone.formedBi, SMT_FILL_ACTIVE_BG, SMT_FILL_ACTIVE_BORDER, zone.endBi, zone.fvgC3CloseAt, true))
+    zones
+
 f_advance_fvg_lifecycle(
      array<HtfFvgZone> zones,
      bool formed,
@@ -801,13 +824,14 @@ f_advance_fvg_lifecycle(
      int formedTime,
      string txt,
      bool formedBullish,
+     int fvgC3CloseAt,
      float checkClose,
      int checkTime,
      bool bar_confirmed
  ) =>
     array<HtfFvgZone> result = zones
     if bar_confirmed
-        result := f_try_add_fvg(result, formed, zoneLow, zoneHigh, formedTime, txt, formedBullish)
+        result := f_try_add_fvg(result, formed, zoneLow, zoneHigh, formedTime, txt, formedBullish, fvgC3CloseAt)
     result := f_remove_mitigated_fvgs(result, checkClose, checkTime)
     result := f_prune_expired_fvgs(result)
     result
@@ -1126,16 +1150,21 @@ activeSwings := f_try_add_swing(activeSwings, lowConfirmed1h, lowPrice1h, lowPiv
 activeSwings := f_sweep_swings(activeSwings, low, high, time)
 activeSwings := f_prune_stale_mitigated_swings(activeSwings)
 
-htfFvgs4h := f_advance_fvg_lifecycle(htfFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, close4h, time4h, barstate.isconfirmed)
-htfFvgs1h := f_advance_fvg_lifecycle(htfFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, close1h, time1h, barstate.isconfirmed)
+htfFvgs4h := f_advance_fvg_lifecycle(htfFvgs4h, formed4h, zoneLow4h, zoneHigh4h, formedTime4h, "4H FVG", bullish4h, fvgC3CloseAt4h, close4h, time4h, barstate.isconfirmed)
+htfFvgs1h := f_advance_fvg_lifecycle(htfFvgs1h, formed1h, zoneLow1h, zoneHigh1h, formedTime1h, "1H FVG", bullish1h, fvgC3CloseAt1h, close1h, time1h, barstate.isconfirmed)
+htfFvgs4h := f_update_chart_fvg_entry(htfFvgs4h, oneMinLow, oneMinHigh, oneMinTime)
+htfFvgs1h := f_update_chart_fvg_entry(htfFvgs1h, oneMinLow, oneMinHigh, oneMinTime)
 
-[formedNative, zoneLowNative, zoneHighNative, formedTimeNative, bullishNative] = f_detect_fvg()
+[formedNative, zoneLowNative, zoneHighNative, formedTimeNative, bullishNative, fvgC3CloseAtNative] = f_detect_fvg()
 if on90mChart
-    fvgs90m := f_advance_fvg_lifecycle(fvgs90m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "90m FVG", bullishNative, close, time, barstate.isconfirmed)
+    fvgs90m := f_advance_fvg_lifecycle(fvgs90m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "90m FVG", bullishNative, fvgC3CloseAtNative, close, time, barstate.isconfirmed)
+    fvgs90m := f_update_chart_fvg_entry(fvgs90m, oneMinLow, oneMinHigh, oneMinTime)
 if on30mChart
-    fvgs30m := f_advance_fvg_lifecycle(fvgs30m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "30m FVG", bullishNative, close, time, barstate.isconfirmed)
+    fvgs30m := f_advance_fvg_lifecycle(fvgs30m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "30m FVG", bullishNative, fvgC3CloseAtNative, close, time, barstate.isconfirmed)
+    fvgs30m := f_update_chart_fvg_entry(fvgs30m, oneMinLow, oneMinHigh, oneMinTime)
 if on15mChart
-    fvgs15m := f_advance_fvg_lifecycle(fvgs15m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "15m FVG", bullishNative, close, time, barstate.isconfirmed)
+    fvgs15m := f_advance_fvg_lifecycle(fvgs15m, formedNative, zoneLowNative, zoneHighNative, formedTimeNative, "15m FVG", bullishNative, fvgC3CloseAtNative, close, time, barstate.isconfirmed)
+    fvgs15m := f_update_chart_fvg_entry(fvgs15m, oneMinLow, oneMinHigh, oneMinTime)
 
 [_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, daily_open_price, dailyOpenOriginBi, sessionEndBi, "Daily Open", dailyOpenStyle, "on", dailyOpenColor, false, na, false, LEVEL_COLOR)
 daily_open_line := _daily_open_line
