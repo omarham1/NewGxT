@@ -29,16 +29,16 @@ describe("pine peer triad → peer-first Active + SMT Fill Dead truncate (#55)",
     expect(source.match(/input\.symbol\(/g)?.length ?? 0).toBe(2);
   });
 
-  it("requests lean peer feeds only (gap-TF C3 high/low + 1m time/high/low)", () => {
+  it("requests lean peer feeds only (gap-TF C3 high/low/time/time_close + 1m time/high/low)", () => {
     const source = readPineSource();
 
     expect(source).toMatch(/f_peer_tf_c3_bar\(\)\s*=>/);
     expect(source).toMatch(/f_peer_1m_bar\(\)\s*=>/);
     expect(source).toMatch(
-      /f_peer_tf_c3_bar\(\)[\s\S]*?\bhigh\b[\s\S]*?\blow\b[\s\S]*?\btime\b/,
+      /f_peer_tf_c3_bar\(\)\s*=>\s*\n\s*\[high,\s*low,\s*time,\s*time_close\]/,
     );
     expect(source).toMatch(
-      /f_peer_1m_bar\(\)[\s\S]*?\bhigh\b[\s\S]*?\blow\b[\s\S]*?\btime_close\b/,
+      /f_peer_1m_bar\(\)\s*=>\s*\n\s*\[high,\s*low,\s*time_close\]/,
     );
 
     for (const peer of ["peerSymbol1", "peerSymbol2"]) {
@@ -114,11 +114,39 @@ describe("pine peer triad → peer-first Active + SMT Fill Dead truncate (#55)",
     expect(source).toMatch(/f_update_smt_fill_entries\(/);
   });
 
+  // Same mid-bar hole #54 fixed for the chart: a single aligned 1m sample misses
+  // peer tags inside the gap TF bar, so triad never reaches Dead / muted gray.
+  it("evaluates peer FVG Entry on gap-TF high/low after C3 close, not 1m alone", () => {
+    const source = readPineSource();
+
+    expect(source).toMatch(
+      /peer1TimeClose90m|peer1CloseTime90m|peer1TimeClose4h/,
+    );
+    expect(source).toMatch(
+      /f_update_smt_fill_entries\(\s*fvgs90m\s*,\s*low\s*,\s*high\s*,\s*time_close\s*,\s*peer1Low90m\s*,\s*peer1High90m\s*,\s*peer1\w*90m/,
+    );
+    expect(source).toMatch(
+      /f_update_smt_fill_entries\(\s*fvgs30m\s*,\s*low\s*,\s*high\s*,\s*time_close\s*,\s*peer1Low30m\s*,\s*peer1High30m\s*,\s*peer1\w*30m/,
+    );
+    expect(source).toMatch(
+      /f_update_smt_fill_entries\(\s*fvgs15m\s*,\s*low\s*,\s*high\s*,\s*time_close\s*,\s*peer1Low15m\s*,\s*peer1High15m\s*,\s*peer1\w*15m/,
+    );
+    expect(source).toMatch(
+      /f_update_smt_fill_entries\(\s*htfFvgs4h\s*,\s*low\s*,\s*high\s*,\s*time_close\s*,\s*peer1Low4h\s*,\s*peer1High4h\s*,\s*peer1\w*4h/,
+    );
+    expect(source).toMatch(
+      /f_update_smt_fill_entries\(\s*htfFvgs1h\s*,\s*low\s*,\s*high\s*,\s*time_close\s*,\s*peer1Low1h\s*,\s*peer1High1h\s*,\s*peer1\w*1h/,
+    );
+    expect(source).not.toMatch(
+      /f_update_smt_fill_entries\(\s*fvgs90m\s*,\s*low\s*,\s*high\s*,\s*time_close\s*,\s*na\s*,\s*na\s*,\s*na\s*,\s*na\s*,\s*na\s*,\s*na\s*\)/,
+    );
+  });
+
   it("keeps Dead sticky without setting mitigated", () => {
     const source = readPineSource();
 
     expect(source).toMatch(
-      /na\(\s*nextDeadAt\s*\)[\s\S]*?nextDeadAt\s*:=\s*completingTime/,
+      /na\(\s*nextDeadAt\s*\)[\s\S]*?nextDeadAt\s*:=\s*na\(completingTime\)\s*\?\s*chartTimeClose\s*:\s*completingTime/,
     );
     expect(source).toMatch(
       /HtfFvgZone\.new\([\s\S]*?zone\.mitigated\s*,\s*zone\.mitigatedTime[\s\S]*?SMT_FILL_DEAD_BG/,
