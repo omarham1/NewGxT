@@ -1,0 +1,7 @@
+# SMT Fill uses time-aligned FVG C3, not respective gaps
+
+ADR-0006 counted “each asset entering its own FVG.” That collapses when YM (or anyone) never prints a counterpart, and it treats three different prices as one idea. Participation is now **FVG Entry** on the **same FVG C3 bar time** across ES, NQ, and YM: after the reference gap’s FVG C3 close, a **1m** wick to that symbol’s own C3 low (bullish reference) or C3 high (bearish). A peer does not need a Fair Value Gap. The machine is per native-chart gap **15m through 4H** (no cross-TF). **Idle** (none in) is a light yellow box that still extends to session close; **Active** (one or two of any triad symbols) is light blue and still extends — the chart symbol need not be among them; **SMT Fill Dead** (all three) is muted gray truncated at the third FVG Entry — the gap is not mitigated. Forming C1/C2/C3 bars define the level; they do not count as entry. CISD / risk in ADR-0006 still stand. This is language and canvas spec only; the overlay does not ship triad feeds yet (ADR-0013).
+
+**Rejected:** gating Active (blue) on FVG Entry of the chart symbol only, so peer-only participation stays Idle yellow. Blue means SMT Fill is live on that gap for the triad, not “I have tagged this box.”
+
+**Supersedes:** ADR-0006 §1 (SMT Fill state machine). **Replaces:** ADR-0007 uniform teal (and Session POI emphasis on boxes — already out of overlay scope in ADR-0013).

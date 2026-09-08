@@ -53,8 +53,12 @@ _Avoid_: Imbalance zone, liquidity void, gap
 The three bars of a Fair Value Gap pattern. FVG C1 and FVG C3 are the outer candles that define the gap zone; FVG C2 is the middle candle whose range must not be fully overlapped. Confirmation waits for FVG C3 bar close — wick conditions met intrabar on a forming bar do not count.
 _Avoid_: C1, C2, C3 alone (those terms refer to the reversal sequence)
 
+**FVG Entry**:
+A 1m wick after FVG C3 confirmation to that symbol's time-aligned FVG C3 extreme — FVG C3 low if the reference Fair Value Gap is bullish, FVG C3 high if bearish. The symbol need not have printed its own Fair Value Gap. Distinct from mitigation, which still requires a later bar to body-close through the gap extreme.
+_Avoid_: gap fill, fill, enter the imbalance, wick into the full FVG zone
+
 **HTF FVG (Relevant Level)**:
-An unmitigated 4H or 1H Fair Value Gap shown on the Structural Canvas. All unmitigated gaps qualify regardless of position relative to the Previous Day range; no liquidity sweep is required for display. Eligibility uses the gap's formation time (FVG C3 bar open, at bar-close confirmation) and the CME daily session calendar (18:00 ET to 17:00 ET next day — same boundary as PDH/PDL): gaps formed during the current or immediately previous daily session are eligible for display, Session POI candidacy, and setup logic; older unmitigated gaps expire at each 18:00 ET daily session roll. On the first daily session of the CME week (Monday 18:00 ET, or Tuesday 18:00 ET when Monday is a holiday), eligibility also includes gaps from the prior Friday daily session — the last completed session before the weekend gap (Sunday 18:00 ET opens the Monday daily candle; there is no separate Sunday session). Session POI auto-selection at 18:00 ET still only considers gaps that existed at session open — intraday-formed gaps are visible Relevant Levels but do not auto-promote to Session POI. Rendered on native timeframe charts only — 4H gaps on the 4H chart, 1H gaps on the 1H chart; not projected to other timeframes. Uniform teal shading. Once a bar after formation closes through the gap extreme, the FVG is mitigated and removed from the canvas.
+An unmitigated 4H or 1H Fair Value Gap shown on the Structural Canvas. All unmitigated gaps qualify regardless of position relative to the Previous Day range; no liquidity sweep is required for display. Eligibility uses the gap's formation time (FVG C3 bar open, at bar-close confirmation) and the CME daily session calendar (18:00 ET to 17:00 ET next day — same boundary as PDH/PDL): gaps formed during the current or immediately previous daily session are eligible for display, Session POI candidacy, and setup logic; older unmitigated gaps expire at each 18:00 ET daily session roll. On the first daily session of the CME week (Monday 18:00 ET, or Tuesday 18:00 ET when Monday is a holiday), eligibility also includes gaps from the prior Friday daily session — the last completed session before the weekend gap (Sunday 18:00 ET opens the Monday daily candle; there is no separate Sunday session). Session POI auto-selection at 18:00 ET still only considers gaps that existed at session open — intraday-formed gaps are visible Relevant Levels but do not auto-promote to Session POI. Rendered on native timeframe charts only — 4H gaps on the 4H chart, 1H gaps on the 1H chart; not projected to other timeframes. Box fill follows SMT Fill (Idle / Active / Dead). Once a bar after formation closes through the gap extreme, the FVG is mitigated and removed from the canvas.
 _Avoid_: ITF imbalance, displacement zone
 
 **SMT Divergence**:
@@ -62,8 +66,12 @@ A cross-asset discrepancy where highly correlated assets fail to make symmetrica
 _Avoid_: Correlated divergence, correlation failure, crack in correlation
 
 **SMT Fill**:
-A state machine tracking the real-time participation of correlated assets as price trades within a Fair Value Gap.
-_Avoid_: Divergence fill, correlation tracker
+A per-gap state machine on each native-chart Fair Value Gap (15m through 4H) that counts FVG Entry of ES, NQ, and YM at the time-aligned FVG C3 extreme. Which symbol owns the chart does not gate color: Idle (light yellow, extends to session close) when none of the triad have entered; Active (light blue, extends) when one or two have — chart symbol or peers; Dead (muted gray, truncated at the third FVG Entry) when all three have — the Fair Value Gap remains unmitigated.
+_Avoid_: Divergence fill, correlation tracker, respective FVG fill, chart-only Active
+
+**SMT Fill Dead**:
+The SMT Fill state after all three triad assets have FVG Entry on that gap's time-aligned FVG C3. Distinct from Idle (no entries yet) and from a mitigated Fair Value Gap.
+_Avoid_: SMT Fill Idle, gray FVG as mitigated
 
 **Strength Switching**:
 The reversal of relative strength/weakness profiles between correlated assets during a structural shift, indicating institutional rotation. Garrett’s APD / Advanced Premium Discount sequence is spaced-SMT / cross-asset premium–discount packaging under this umbrella — not a separate NewGxT stage.
@@ -166,7 +174,7 @@ A build layer for the TradingView indicator ordered by what must exist on-chart 
 _Avoid_: Playbook phase, workflow step
 
 **Structural Canvas**:
-The always-visible foundation layer of the indicator: Relevant Levels at the same prices across monitored chart timeframes (Daily through 1m). PDH/PDL, PWH/PWL, and HTF Swing Points render as labeled solid lines on every timeframe. HTF FVGs render as shaded zones on their native 4H and 1H charts only. 90m, 30m, and 15m Fair Value Gaps use the same formation, mitigation, lookback, and teal shading on their native charts — they are not Relevant Levels and are not projected onto other timeframes.
+The always-visible foundation layer of the indicator: Relevant Levels at the same prices across monitored chart timeframes (Daily through 1m). PDH/PDL, PWH/PWL, and HTF Swing Points render as labeled solid lines on every timeframe. HTF FVGs render as shaded zones on their native 4H and 1H charts only. 90m, 30m, and 15m Fair Value Gaps use the same formation, mitigation, lookback, and SMT Fill shading on their native charts — they are not Relevant Levels and are not projected onto other timeframes.
 _Avoid_: Background levels, static overlay
 
 **Session Context**:

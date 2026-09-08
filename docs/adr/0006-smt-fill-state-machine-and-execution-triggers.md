@@ -1,7 +1,7 @@
 # ADR-0006: SMT Fill State Machine and Execution Triggers
 
 ## Status
-Accepted
+Accepted — **§1 SMT Fill state machine superseded by [ADR-0014](0014-smt-fill-time-aligned-c3.md).** §2 execution / CISD and §3 risk management still stand.
 
 ## Context
 Tracking real-time participation in Fair Value Gaps (FVGs) and defining entry execution and trade management rules are essential for the mechanical operation of the GxT Correlated Asset Indicator. We need to define how the FVG **SMT Fill** state machine operates, how [CISD](file:///Users/omarhamouda/Projects/NewGxT/CONTEXT.md#L56) entry signals are triggered across the triad, and how risk is managed post-entry.
