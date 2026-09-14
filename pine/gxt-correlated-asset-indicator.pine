@@ -1067,7 +1067,7 @@ f_draw_fvg_zones(
         if zone_count > 0
             for i = 0 to zone_count - 1
                 HtfFvgZone zone = array.get(zones, i)
-                int origin_bi = zone.formedBi
+                int origin_bi = zone.formedBi - 1
                 int end_bi = na(zone.endBi) ? math.max(origin_bi, session_end_bi) : math.max(origin_bi, zone.endBi)
                 box next_box = box.new(
                      origin_bi,

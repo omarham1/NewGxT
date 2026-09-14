@@ -150,6 +150,14 @@ describe("pine load complexity model", () => {
     expect(source).not.toMatch(/box\.new\([\s\S]*?bgcolor = FVG_COLOR/);
   });
 
+  it("draws FVG boxes from FVG C2 instead of FVG C3", () => {
+    const source = readPineSource();
+
+    expect(source).toMatch(
+      /f_draw_fvg_zones\([\s\S]*?origin_bi = zone\.formedBi - 1/,
+    );
+  });
+
   it("documents 1m session rails security and chart-path swing sweep (#31)", () => {
     const source = readPineSource();
 
