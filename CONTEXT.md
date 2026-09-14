@@ -46,7 +46,7 @@ High and low of the completed CME weekly session (Sunday 18:00 ET to Friday 17:0
 _Avoid_: Weekly extremes, range boundaries
 
 **Fair Value Gap (FVG)**:
-A market imbalance identified by a three-candle sequence where the range of the middle candle is not fully overlapped by the outer two candles. Bullish zone: FVG C1 high wick to FVG C3 low wick. Bearish zone: FVG C3 high wick to FVG C1 low wick. The pattern is confirmed only when FVG C3 closes as a complete bar; until then no FVG exists — nothing is drawn, tracked, or eligible for downstream logic. Applies to every gap type in GxT — HTF, ITF, LTF, and Expansion FVG. Mitigated when a bar after formation closes through the gap extreme — below the lower boundary for a bullish FVG, above the upper boundary for a bearish FVG. Wick contact alone does not mitigate.
+A market imbalance identified by a three-candle sequence where the range of the middle candle is not fully overlapped by the outer two candles. Bullish zone: FVG C1 high wick to FVG C3 low wick. Bearish zone: FVG C3 high wick to FVG C1 low wick. The pattern is confirmed only when FVG C3 closes as a complete bar; until then no FVG exists — nothing is drawn, tracked, or eligible for downstream logic. FVG C1 and FVG C3 in different CME weeks is the New Week Opening Gap, not a Fair Value Gap. Applies to every gap type in GxT — HTF, ITF, LTF, and Expansion FVG. Mitigated when a bar after formation closes through the gap extreme — below the lower boundary for a bullish FVG, above the upper boundary for a bearish FVG. Wick contact alone does not mitigate.
 _Avoid_: Imbalance zone, liquidity void, gap
 
 **FVG C1 / FVG C2 / FVG C3**:
@@ -159,6 +159,10 @@ _Avoid_: Trend-following, momentum trade
 The opening price of the current CME daily session at 18:00 ET. A session reference price used as TP1 on large-wick reversal days when the daily range is nearly consumed.
 _Avoid_: Daily open, session open
 
+**New Week Opening Gap**:
+Session Context: the current CME week's true weekend void between the last close of the Friday daily session (17:00 ET) and the first open of the new CME week (Sunday 18:00 ET, or Tuesday 18:00 ET when Monday is a holiday). Exists only when those two prints differ by more than four minimum ticks. Distinct from a Fair Value Gap and from the 18:00 Daily Open, which is only the week-open print of this void. Not a Relevant Level. After a 1m wick at or beyond the Friday-close bound, it stays on the canvas muted and truncated at that bar until the next CME week open.
+_Avoid_: NWOG, weekend FVG, weekly open, new day opening gap
+
 **Average Daily Range (ADR)**:
 The average range (high minus low) of the last 14 completed CME daily sessions. Rendered as faint dashed lines at Daily Open ± ADR with a consumption label showing how much of today's range has been used.
 _Avoid_: Daily range, ATR
@@ -178,5 +182,5 @@ The always-visible foundation layer of the indicator: Relevant Levels at the sam
 _Avoid_: Background levels, static overlay
 
 **Session Context**:
-The always-visible session reference layer sitting above Structural Canvas: 18:00 Daily Open (dashed labeled line), ADR band (faint dashed lines at open ± ADR with consumption label), and PD 50% Midpoint (labeled line). These are not Relevant Levels and are never Session POI.
+The always-visible session reference layer sitting above Structural Canvas: 18:00 Daily Open (dashed labeled line), ADR band (faint dashed lines at open ± ADR with consumption label), PD 50% Midpoint (labeled line), and New Week Opening Gap (box between Friday close and week open, projected to the current daily session close). These are not Relevant Levels and are never Session POI.
 _Avoid_: Session markers, time levels

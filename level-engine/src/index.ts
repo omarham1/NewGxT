@@ -2,6 +2,7 @@ export type { Bar, SessionContext, SessionRails } from "./types.js";
 export type { FvgTimeframe, HtfFvg, HtfTimeframe } from "./htf-fvg.js";
 export type { HtfSwingKind, HtfSwingPoint } from "./htf-swing.js";
 export type { LevelSnapshot } from "./level-snapshot.js";
+export type { NewWeekOpeningGap } from "./new-week-opening-gap.js";
 export type { SessionRailMitigation } from "./session-rail-mitigation.js";
 export type {
   EvaluateSmtFillInput,
@@ -23,9 +24,15 @@ export { computeSessionRailMitigation } from "./session-rail-mitigation.js";
 export { computeLevelSnapshot } from "./level-snapshot.js";
 export { evaluateSmtFill } from "./smt-fill.js";
 export {
+  NEW_WEEK_OPENING_GAP_MIN_TICKS,
+  computeNewWeekOpeningGap,
+  computeNewWeekOpeningGapMitigation,
+} from "./new-week-opening-gap.js";
+export {
   getDailySessionCloseTime,
   getDailySessionKey,
   getDailySessionOpenTime,
+  getWeeklySessionCloseTime,
   getWeeklySessionKey,
   isWithinHtfFvgLookback,
   isWithinHtfSwingLookback,

@@ -4,10 +4,17 @@ import { computeHtfFvgs, type HtfFvg } from "./htf-fvg.js";
 import { computeHtfSwingPoints, type HtfSwingPoint } from "./htf-swing.js";
 import { computeCurrentWeekRange } from "./session-rails.js";
 import { computeSessionRailMitigation } from "./session-rail-mitigation.js";
+import {
+  computeNewWeekOpeningGap,
+  computeNewWeekOpeningGapMitigation,
+  type NewWeekOpeningGap,
+} from "./new-week-opening-gap.js";
 
 export type LevelSnapshot = SessionContext & {
   htfFvgs: HtfFvg[];
   htfSwingPoints: HtfSwingPoint[];
+  newWeekOpeningGap?: NewWeekOpeningGap;
+  newWeekOpeningGapMitigatedAt?: number;
 };
 
 export type ComputeLevelSnapshotInput = {
@@ -18,6 +25,7 @@ export type ComputeLevelSnapshotInput = {
   bars30m?: Bar[];
   bars15m?: Bar[];
   mitigationBars: Bar[];
+  mintick?: number;
 };
 
 export function computeLevelSnapshot(
@@ -61,11 +69,28 @@ export function computeLevelSnapshot(
     asOf,
   });
 
+  const newWeekOpeningGap = computeNewWeekOpeningGap(
+    input.bars,
+    input.mintick ?? 0.25,
+  );
+  const newWeekOpeningGapMitigatedAt =
+    newWeekOpeningGap === undefined
+      ? undefined
+      : computeNewWeekOpeningGapMitigation({
+          gap: newWeekOpeningGap,
+          mitigationBars: input.mitigationBars,
+          asOf,
+        });
+
   return {
     ...context,
     ...railMitigation,
     htfFvgs,
     htfSwingPoints,
+    ...(newWeekOpeningGap === undefined ? {} : { newWeekOpeningGap }),
+    ...(newWeekOpeningGapMitigatedAt === undefined
+      ? {}
+      : { newWeekOpeningGapMitigatedAt }),
   };
 }
 

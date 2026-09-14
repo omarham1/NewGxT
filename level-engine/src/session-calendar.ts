@@ -49,6 +49,24 @@ function dailySessionStartEt(timeMs: number): DateTime {
   });
 }
 
+/** 17:00 ET Friday of the CME week that contains `timeMs`. */
+export function getWeeklySessionCloseTime(timeMs: number): number | null {
+  const weekKey = resolveWeeklySessionKey(timeMs);
+  if (weekKey === null) {
+    return null;
+  }
+
+  return DateTime.fromISO(weekKey, { zone: ET })
+    .plus({ days: WEEKLY_END_DAY })
+    .set({
+      hour: WEEKLY_END_HOUR,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+    })
+    .toMillis()!;
+}
+
 export function getWeeklySessionKey(timeMs: number): string | null {
   const et = toEt(timeMs);
   const weekStart = weekStartForEt(et);

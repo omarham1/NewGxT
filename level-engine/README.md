@@ -13,7 +13,7 @@ npm run test:watch
 
 - **Session Calendar** — CME daily (18:00–17:00 ET) and weekly (Sun 18:00–Fri 17:00 ET) session grouping
 - **Session Rails** — PDH, PDL, PWH, PWL, and 18:00 Daily Open from session-grouped bars; PD/PW rails mitigate on 1m wick cross after session/week open (gray truncated line for remainder of session or week)
-- **Session Context** — ADR band (open ± ADR, consumption %), PD 50% Midpoint
+- **Session Context** — ADR band (open ± ADR, consumption %), PD 50% Midpoint, New Week Opening Gap (Friday close ↔ week open box; muted/truncated on 1m wick at Friday close)
 - **HTF FVG** — wick-based three-candle gaps on 4H and 1H (candle 1 high to candle 3 low for bullish); 90m, 30m, and 15m gaps use the same detection, mitigation, and daily-session lookback; mitigation when a bar closes through the gap extreme (not wick-only entry); only gaps formed during the current or immediately previous CME daily session are eligible (18:00–17:00 ET, expiring at each 18:00 ET roll; Monday 18:00 ET week-open also includes the prior Friday daily session)
 - **HTF Swing Points** — strict fractal(3) pivot highs and lows on 4H and 1H; only swings whose formation time falls in the current or previous CME week and whose price lies within the combined previous-week (PWH/PWL) and current-week range are drawn; unmitigated swings include `displayUntil` at the current CME daily session close (17:00 ET); mitigation on 1m wick cross after fractal confirmation; mitigated swings stay in the snapshot for the current CME session with `mitigatedAt` set (canvas history); swings mitigated in prior sessions are excluded
 - **Level Snapshot** — session context plus unmitigated HTF FVGs and visible HTF swing points

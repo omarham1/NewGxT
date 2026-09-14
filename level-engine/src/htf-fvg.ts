@@ -1,5 +1,5 @@
 import type { Bar } from "./types.js";
-import { isWithinHtfFvgLookback } from "./session-calendar.js";
+import { isWithinHtfFvgLookback, resolveWeeklySessionKey } from "./session-calendar.js";
 
 export type HtfTimeframe = "4H" | "1H";
 
@@ -112,6 +112,12 @@ function detectFvgAt(
   middle: Bar,
   third: Bar,
 ): Pick<HtfFvg, "direction" | "zoneLow" | "zoneHigh" | "formedAt"> | null {
+  const c1Week = resolveWeeklySessionKey(first.time);
+  const c3Week = resolveWeeklySessionKey(third.time);
+  if (c1Week !== c3Week) {
+    return null;
+  }
+
   if (third.low > first.high) {
     if (middleRangeFullyOverlappedByOuter(first, middle, third)) {
       return null;

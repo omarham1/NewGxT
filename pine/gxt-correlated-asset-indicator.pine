@@ -16,6 +16,8 @@ WEEKLY_END_HOUR = 17
 LEVEL_COLOR = color.black
 SWING_MITIGATED_COLOR = color.new(color.gray, 35)
 SESSION_CONTEXT_COLOR = color.new(color.gray, 30)
+NWOG_FILL = color.new(color.gray, 96)
+NWOG_BORDER = color.new(color.gray, 80)
 SMT_FILL_IDLE_BG = color.new(color.yellow, 85)
 SMT_FILL_IDLE_BORDER = color.new(color.yellow, 40)
 SMT_FILL_ACTIVE_BG = color.new(color.blue, 85)
@@ -25,6 +27,7 @@ SMT_FILL_DEAD_BORDER = color.new(color.gray, 40)
 LABEL_SIZE = size.small
 LABEL_GAP_TICKS = 2
 ADR_LOOKBACK = 14
+NWOG_MIN_TICKS = 4
 CME_SESSION_MS = 86400000
 PINE_BAR_TIME_SEARCH_CEILING = 4999
 session_bar_cap = int(math.ceil(ADR_LOOKBACK * CME_SESSION_MS / (timeframe.in_seconds() * 1000)))
@@ -66,6 +69,7 @@ dailyOpenStyle = input.string("Dashed", "Daily Open Line Style", options = ["Sol
 showPdMidpoint = input.bool(true, "Show PD 50% Midpoint", group = "Session Context")
 pdMidpointColor = input.color(color.black, "PD 50% Midpoint Color", group = "Session Context")
 pdMidpointStyle = input.string("Dashed", "PD 50% Midpoint Line Style", options = ["Solid", "Dashed", "Dotted"], group = "Session Context")
+showNewWeekOpeningGap = input.bool(true, "Show New Week Opening Gap", group = "Session Context")
 failureSwingAdrPct = input.float(12.5, "Failure Swing ADR %", minval = 0, step = 0.1, group = "HTF Swings")
 peerSymbol1 = input.symbol("CME_MINI:ES1!", "Peer 1", group = "Triad")
 peerSymbol2 = input.symbol("CME_MINI:YM1!", "Peer 2", group = "Triad")
@@ -461,7 +465,8 @@ f_detect_fvg() =>
     bool gapBearish = bearish and not bullish
     float zoneLow = gapBullish ? high[2] : gapBearish ? high[0] : na
     float zoneHigh = gapBullish ? low[0] : gapBearish ? low[2] : na
-    bool formed = (gapBullish or gapBearish) and not middleOverlapped
+    bool weekend_void = f_resolve_week_session_key(time[2]) != f_resolve_week_session_key(time)
+    bool formed = (gapBullish or gapBearish) and not middleOverlapped and not weekend_void
     [formed, zoneLow, zoneHigh, time, gapBullish, time_close]
 
 f_detect_fvg_with_ohlc() =>
@@ -504,6 +509,10 @@ f_session_rails() =>
     var int out_pwl_time = na
     var float out_daily_open = na
     var int out_daily_open_time = na
+    var float cur_week_last_close = na
+    var float out_nwog_friday_close = na
+    var float out_nwog_week_open = na
+    var int out_nwog_week_open_time = na
     var array<float> completed_daily_ranges = array.new_float(0)
 
     daily_key = f_cme_daily_session_key()
@@ -540,6 +549,10 @@ f_session_rails() =>
 
     if not na(week_key)
         if new_week
+            if not na(cur_week_last_close)
+                out_nwog_friday_close := cur_week_last_close
+                out_nwog_week_open := open
+                out_nwog_week_open_time := time
             if not na(cur_week_high)
                 out_pwh := cur_week_high
                 out_pwl := cur_week_low
@@ -556,6 +569,7 @@ f_session_rails() =>
             cur_week_high_time := next_week_high_time
             cur_week_low := next_week_low
             cur_week_low_time := next_week_low_time
+        cur_week_last_close := close
 
     float out_adr = na
     int range_count = array.size(completed_daily_ranges)
@@ -569,8 +583,12 @@ f_session_rails() =>
     float out_open_minus_adr = not na(out_daily_open) and not na(out_adr) ? out_daily_open - out_adr : na
     float current_daily_range = not na(cur_daily_high) and not na(cur_daily_low) ? cur_daily_high - cur_daily_low : na
     float out_adr_consumption_pct = not na(current_daily_range) and not na(out_adr) and out_adr > 0 ? current_daily_range / out_adr * 100.0 : na
+    bool nwog_ok = not na(out_nwog_friday_close) and not na(out_nwog_week_open) and math.abs(out_nwog_week_open - out_nwog_friday_close) > NWOG_MIN_TICKS * syminfo.mintick
+    float pub_nwog_friday_close = nwog_ok ? out_nwog_friday_close : na
+    float pub_nwog_week_open = nwog_ok ? out_nwog_week_open : na
+    int pub_nwog_week_open_time = nwog_ok ? out_nwog_week_open_time : na
 
-    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low]
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, pub_nwog_friday_close, pub_nwog_week_open, pub_nwog_week_open_time]
 
 // Lean peer feeds for SMT Fill only — gap-TF OHLC times + 1m wick/time.
 // Gap-TF high/low/time_close covers mid-bar peer FVG Entry (same #54 hole as chart 1m-only).
@@ -581,7 +599,7 @@ f_peer_1m_bar() =>
     [high, low, time_close]
 
 f_session_rails_with_end() =>
-    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low] = f_session_rails()
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_nwog_friday_close, out_nwog_week_open, out_nwog_week_open_time] = f_session_rails()
     int out_session_end = f_current_daily_session_end()
 
     var bool out_pdh_mitigated = false
@@ -592,6 +610,8 @@ f_session_rails_with_end() =>
     var int out_pwh_mitigated_time = na
     var bool out_pwl_mitigated = false
     var int out_pwl_mitigated_time = na
+    var bool out_nwog_mitigated = false
+    var int out_nwog_mitigated_time = na
 
     daily_key = f_cme_daily_session_key()
     week_key = f_cme_week_session_key()
@@ -609,6 +629,8 @@ f_session_rails_with_end() =>
         out_pwh_mitigated_time := na
         out_pwl_mitigated := false
         out_pwl_mitigated_time := na
+        out_nwog_mitigated := false
+        out_nwog_mitigated_time := na
 
     if not out_pdh_mitigated and not na(out_pdh) and not na(out_daily_open_time) and time >= out_daily_open_time and high >= out_pdh
         out_pdh_mitigated := true
@@ -622,8 +644,13 @@ f_session_rails_with_end() =>
     if not out_pwl_mitigated and not na(out_pwl) and not na(week_key) and time >= week_key and low <= out_pwl
         out_pwl_mitigated := true
         out_pwl_mitigated_time := time
+    bool nwog_gap_up = not na(out_nwog_week_open) and not na(out_nwog_friday_close) and out_nwog_week_open > out_nwog_friday_close
+    bool nwog_far_side = nwog_gap_up ? low <= out_nwog_friday_close : high >= out_nwog_friday_close
+    if not out_nwog_mitigated and not na(out_nwog_friday_close) and not na(out_nwog_week_open_time) and time >= out_nwog_week_open_time and nwog_far_side
+        out_nwog_mitigated := true
+        out_nwog_mitigated_time := time
 
-    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_session_end, out_pdh_mitigated, out_pdh_mitigated_time, out_pdl_mitigated, out_pdl_mitigated_time, out_pwh_mitigated, out_pwh_mitigated_time, out_pwl_mitigated, out_pwl_mitigated_time, high, low, time_close]
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_session_end, out_pdh_mitigated, out_pdh_mitigated_time, out_pdl_mitigated, out_pdl_mitigated_time, out_pwh_mitigated, out_pwh_mitigated_time, out_pwl_mitigated, out_pwl_mitigated_time, out_nwog_friday_close, out_nwog_week_open, out_nwog_week_open_time, out_nwog_mitigated, out_nwog_mitigated_time, high, low, time_close]
 
 [
      highConfirmed4h,
@@ -679,7 +706,7 @@ f_session_rails_with_end() =>
      lookahead = barmerge.lookahead_off
  )
 
-[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime, oneMinHigh, oneMinLow, oneMinTimeClose] = request.security(
+[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime, nwogFridayClose, nwogWeekOpen, nwogWeekOpenTime, nwogMitigated, nwogMitigatedTime, oneMinHigh, oneMinLow, oneMinTimeClose] = request.security(
      syminfo.tickerid,
      "1",
      f_session_rails_with_end(),
@@ -1046,6 +1073,23 @@ if barstate.islast and not na(pwlTime)
 if barstate.islast and pwlMitigated and not na(pwlMitigatedTime)
     pwlMitigatedBi := f_bar_index_for_time(pwlMitigatedTime)
 
+var int nwogOriginBi = na
+var int nwogMitigatedBi = na
+var int cachedNwogWeekOpenTime = na
+if nwogWeekOpenTime != cachedNwogWeekOpenTime
+    cachedNwogWeekOpenTime := nwogWeekOpenTime
+    nwogOriginBi := not na(nwogWeekOpenTime) ? f_bar_index_for_time(nwogWeekOpenTime) : na
+    nwogMitigatedBi := na
+if nwogMitigated
+    if na(nwogMitigatedBi)
+        nwogMitigatedBi := f_bar_index_for_time(nwogMitigatedTime)
+else
+    nwogMitigatedBi := na
+if barstate.islast and not na(nwogWeekOpenTime)
+    nwogOriginBi := f_bar_index_for_time(nwogWeekOpenTime)
+if barstate.islast and nwogMitigated and not na(nwogMitigatedTime)
+    nwogMitigatedBi := f_bar_index_for_time(nwogMitigatedTime)
+
 f_draw_fvg_zones(
      array<box> existing_boxes,
      array<label> existing_labels,
@@ -1143,6 +1187,51 @@ f_draw_level(
                  )
     [next_line, next_label]
 
+f_draw_nwog(
+     box existing_box,
+     label existing_label,
+     float friday_close,
+     float week_open,
+     int origin_bi,
+     int session_end_bi,
+     bool mitigated,
+     int mitigated_bi
+ ) =>
+    box next_box = na
+    label next_label = na
+    if barstate.islast
+        if not na(existing_box)
+            box.delete(existing_box)
+        if not na(existing_label)
+            label.delete(existing_label)
+        if not na(friday_close) and not na(week_open) and not na(origin_bi) and not na(session_end_bi)
+            float zone_high = math.max(friday_close, week_open)
+            float zone_low = math.min(friday_close, week_open)
+            int end_bi = mitigated and not na(mitigated_bi) ? math.max(origin_bi, mitigated_bi) : math.max(origin_bi, session_end_bi)
+            color draw_fill = mitigated ? color.new(color.gray, 98) : NWOG_FILL
+            color draw_border = mitigated ? color.new(color.gray, 85) : NWOG_BORDER
+            next_box := box.new(
+                 origin_bi,
+                 zone_high,
+                 end_bi,
+                 zone_low,
+                 xloc = xloc.bar_index,
+                 bgcolor = draw_fill,
+                 border_color = draw_border,
+                 border_width = 1
+             )
+            next_label := label.new(
+                 end_bi,
+                 zone_high,
+                 "New Week Opening Gap",
+                 xloc = xloc.bar_index,
+                 style = label.style_label_down,
+                 color = color(na),
+                 textcolor = LEVEL_COLOR,
+                 size = LABEL_SIZE
+             )
+    [next_box, next_label]
+
 var line pdh_line = na
 var line pdl_line = na
 var line pwh_line = na
@@ -1151,6 +1240,7 @@ var line daily_open_line = na
 var line open_plus_adr_line = na
 var line open_minus_adr_line = na
 var line pd_midpoint_line = na
+var box nwog_box = na
 var label pdh_label = na
 var label pdl_label = na
 var label pwh_label = na
@@ -1158,6 +1248,7 @@ var label pwl_label = na
 var label daily_open_label = na
 var label adr_consumption_label = na
 var label pd_midpoint_label = na
+var label nwog_label = na
 
 open_near_pwl = not na(dailyOpen) and not na(pwl) and math.abs(dailyOpen - pwl) <= syminfo.mintick * LABEL_GAP_TICKS * 4
 pdMidpoint = not na(pdh) and not na(pdl) ? (pdh + pdl) / 2 : na
@@ -1178,6 +1269,12 @@ open_minus_adr_line := _open_minus_adr_line
 [_pd_midpoint_line, _pd_midpoint_label] = f_draw_level(pd_midpoint_line, pd_midpoint_label, pd_midpoint_price, dailyOpenOriginBi, sessionEndBi, "PD 50%", pdMidpointStyle, "on", pdMidpointColor)
 pd_midpoint_line := _pd_midpoint_line
 pd_midpoint_label := _pd_midpoint_label
+
+nwog_friday = showNewWeekOpeningGap ? nwogFridayClose : na
+nwog_open = showNewWeekOpeningGap ? nwogWeekOpen : na
+[_nwog_box, _nwog_label] = f_draw_nwog(nwog_box, nwog_label, nwog_friday, nwog_open, nwogOriginBi, sessionEndBi, nwogMitigated, nwogMitigatedBi)
+nwog_box := _nwog_box
+nwog_label := _nwog_label
 
 chartTfSeconds = timeframe.in_seconds()
 on4hChart = chartTfSeconds == 14400

@@ -339,4 +339,23 @@ describe("HTF FVG", () => {
 
     expect(fvgs).toEqual([]);
   });
+
+  it("does not treat the weekend void as a Fair Value Gap — that object is the New Week Opening Gap", () => {
+    const friC1 = 1735934400000; // Fri Jan 3 2025 15:00 ET
+    const friC2 = 1735938000000; // Fri Jan 3 2025 16:00 ET
+    const bars1h = [
+      bar(friC1, 5100, 5120, 5090, 5105),
+      bar(friC2, 5105, 5110, 5000, 5010),
+      bar(SUN_JAN_5_OPEN, 5020, 5030, 4980, 5000),
+    ];
+
+    const fvgs = computeHtfFvgs({
+      bars4h: [],
+      bars1h,
+      mitigationBars: [],
+      asOf: MON_JAN_6_EVAL,
+    });
+
+    expect(fvgs).toEqual([]);
+  });
 });
