@@ -24,9 +24,9 @@ describe("pine New Week Opening Gap", () => {
     );
     expect(source).not.toMatch(/nwogWeekEndBi/);
     expect(source).toMatch(/f_draw_nwog\(/);
-    expect(source).toMatch(/"New Week Opening Gap"/);
+    expect(source).toMatch(/"NWOG"/);
     expect(source).toMatch(
-      /"New Week Opening Gap"[\s\S]*?textcolor = LEVEL_COLOR/,
+      /"NWOG"[\s\S]*?textcolor = LEVEL_COLOR/,
     );
     expect(source).toMatch(
       /f_session_rails_with_end\(\)[\s\S]*?out_nwog_friday_close[\s\S]*?\bhigh\b[\s\S]*?\blow\b[\s\S]*?\btime_close\b/,

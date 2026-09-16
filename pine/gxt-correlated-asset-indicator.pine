@@ -1223,7 +1223,7 @@ f_draw_nwog(
             next_label := label.new(
                  end_bi,
                  zone_high,
-                 "New Week Opening Gap",
+                 "NWOG",
                  xloc = xloc.bar_index,
                  style = label.style_label_down,
                  color = color(na),

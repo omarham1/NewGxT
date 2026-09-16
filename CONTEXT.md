@@ -160,8 +160,8 @@ The opening price of the current CME daily session at 18:00 ET. A session refere
 _Avoid_: Daily open, session open
 
 **New Week Opening Gap**:
-Session Context: the current CME week's true weekend void between the last close of the Friday daily session (17:00 ET) and the first open of the new CME week (Sunday 18:00 ET, or Tuesday 18:00 ET when Monday is a holiday). Exists only when those two prints differ by more than four minimum ticks. Distinct from a Fair Value Gap and from the 18:00 Daily Open, which is only the week-open print of this void. Not a Relevant Level. After a 1m wick at or beyond the Friday-close bound, it stays on the canvas muted and truncated at that bar until the next CME week open.
-_Avoid_: NWOG, weekend FVG, weekly open, new day opening gap
+Session Context: the current CME week's true weekend void between the last close of the Friday daily session (17:00 ET) and the first open of the new CME week (Sunday 18:00 ET, or Tuesday 18:00 ET when Monday is a holiday). Exists only when those two prints differ by more than four minimum ticks. Distinct from a Fair Value Gap and from the 18:00 Daily Open, which is only the week-open print of this void. Not a Relevant Level. After a 1m wick at or beyond the Friday-close bound, it stays on the canvas muted and truncated at that bar until the next CME week open. Canvas label: NWOG.
+_Avoid_: weekend FVG, weekly open, new day opening gap
 
 **Average Daily Range (ADR)**:
 The average range (high minus low) of the last 14 completed CME daily sessions. Rendered as faint dashed lines at Daily Open ± ADR with a consumption label showing how much of today's range has been used.
