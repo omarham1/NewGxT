@@ -1250,39 +1250,47 @@ var label adr_consumption_label = na
 var label pd_midpoint_label = na
 var label nwog_label = na
 
-open_near_pwl = not na(dailyOpen) and not na(pwl) and math.abs(dailyOpen - pwl) <= syminfo.mintick * LABEL_GAP_TICKS * 4
-pdMidpoint = not na(pdh) and not na(pdl) ? (pdh + pdl) / 2 : na
-daily_open_price = showDailyOpen ? dailyOpen : na
-pd_midpoint_price = showPdMidpoint ? pdMidpoint : na
-
-weekKey = f_cme_week_session_key()
-newRailWeek = not na(weekKey) and ta.change(weekKey) != 0
-
-adr_consumption_txt = not na(adrConsumptionPct) ? str.format("ADR {0,number,#.#}%", adrConsumptionPct) : "ADR"
-[_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, openPlusAdr, dailyOpenOriginBi, sessionEndBi, adr_consumption_txt, "Dashed", "above", SESSION_CONTEXT_COLOR)
-open_plus_adr_line := _open_plus_adr_line
-adr_consumption_label := _adr_consumption_label
-
-[_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, openMinusAdr, dailyOpenOriginBi, sessionEndBi, "", "Dashed", "below", SESSION_CONTEXT_COLOR)
-open_minus_adr_line := _open_minus_adr_line
-
-[_pd_midpoint_line, _pd_midpoint_label] = f_draw_level(pd_midpoint_line, pd_midpoint_label, pd_midpoint_price, dailyOpenOriginBi, sessionEndBi, "PD 50%", pdMidpointStyle, "on", pdMidpointColor)
-pd_midpoint_line := _pd_midpoint_line
-pd_midpoint_label := _pd_midpoint_label
-
-nwog_friday = showNewWeekOpeningGap ? nwogFridayClose : na
-nwog_open = showNewWeekOpeningGap ? nwogWeekOpen : na
-[_nwog_box, _nwog_label] = f_draw_nwog(nwog_box, nwog_label, nwog_friday, nwog_open, nwogOriginBi, sessionEndBi, nwogMitigated, nwogMitigatedBi)
-nwog_box := _nwog_box
-nwog_label := _nwog_label
-
 chartTfSeconds = timeframe.in_seconds()
+onDailyOrAbove = chartTfSeconds >= 86400
+onAboveDaily = chartTfSeconds > 86400
 on4hChart = chartTfSeconds == 14400
 on1hChart = chartTfSeconds == 3600
 on90mChart = chartTfSeconds == 5400
 on30mChart = chartTfSeconds == 1800
 on15mChart = chartTfSeconds == 900
 showFvgs = on4hChart or on1hChart or on90mChart or on30mChart or on15mChart
+
+open_near_pwl = not na(dailyOpen) and not na(pwl) and math.abs(dailyOpen - pwl) <= syminfo.mintick * LABEL_GAP_TICKS * 4
+pdMidpoint = not na(pdh) and not na(pdl) ? (pdh + pdl) / 2 : na
+daily_open_price = showDailyOpen and not onDailyOrAbove ? dailyOpen : na
+pd_midpoint_price = showPdMidpoint and not onDailyOrAbove ? pdMidpoint : na
+pdh_draw_price = onDailyOrAbove ? na : pdh
+pdl_draw_price = onDailyOrAbove ? na : pdl
+pwh_draw_price = onAboveDaily ? na : pwh
+pwl_draw_price = onAboveDaily ? na : pwl
+open_plus_adr_draw = onAboveDaily ? na : openPlusAdr
+open_minus_adr_draw = onAboveDaily ? na : openMinusAdr
+
+weekKey = f_cme_week_session_key()
+newRailWeek = not na(weekKey) and ta.change(weekKey) != 0
+
+adr_consumption_txt = not na(adrConsumptionPct) ? str.format("ADR {0,number,#.#}%", adrConsumptionPct) : "ADR"
+[_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, open_plus_adr_draw, dailyOpenOriginBi, sessionEndBi, adr_consumption_txt, "Dashed", "above", SESSION_CONTEXT_COLOR)
+open_plus_adr_line := _open_plus_adr_line
+adr_consumption_label := _adr_consumption_label
+
+[_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, open_minus_adr_draw, dailyOpenOriginBi, sessionEndBi, "", "Dashed", "below", SESSION_CONTEXT_COLOR)
+open_minus_adr_line := _open_minus_adr_line
+
+[_pd_midpoint_line, _pd_midpoint_label] = f_draw_level(pd_midpoint_line, pd_midpoint_label, pd_midpoint_price, dailyOpenOriginBi, sessionEndBi, "PD 50%", pdMidpointStyle, "on", pdMidpointColor)
+pd_midpoint_line := _pd_midpoint_line
+pd_midpoint_label := _pd_midpoint_label
+
+nwog_friday = showNewWeekOpeningGap and not onAboveDaily ? nwogFridayClose : na
+nwog_open = showNewWeekOpeningGap and not onAboveDaily ? nwogWeekOpen : na
+[_nwog_box, _nwog_label] = f_draw_nwog(nwog_box, nwog_label, nwog_friday, nwog_open, nwogOriginBi, sessionEndBi, nwogMitigated, nwogMitigatedBi)
+nwog_box := _nwog_box
+nwog_label := _nwog_label
 
 var array<box> fvg_boxes = array.new<box>()
 var array<label> fvg_labels = array.new<label>()
@@ -1410,20 +1418,20 @@ daily_open_line := _daily_open_line
 daily_open_label := _daily_open_label
 
 bool pdhLabelSuppressed = f_daily_rail_label_suppressed("pdh", pdh, pwh, pwl, pwhMitigated, pwlMitigated)
-[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh, pdhOriginBi, sessionEndBi, "PDH", "Solid", "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedBi, pdhLabelSuppressed)
+[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh_draw_price, pdhOriginBi, sessionEndBi, "PDH", "Solid", "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedBi, pdhLabelSuppressed)
 pdh_line := _pdh_line
 pdh_label := _pdh_label
 
 bool pdlLabelSuppressed = f_daily_rail_label_suppressed("pdl", pdl, pwh, pwl, pwhMitigated, pwlMitigated)
-[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl, pdlOriginBi, sessionEndBi, "PDL", "Solid", "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedBi, pdlLabelSuppressed)
+[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl_draw_price, pdlOriginBi, sessionEndBi, "PDL", "Solid", "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedBi, pdlLabelSuppressed)
 pdl_line := _pdl_line
 pdl_label := _pdl_label
 
-[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh, pwhOriginBi, sessionEndBi, "PWH", "Solid", "on", LEVEL_COLOR, pwhMitigated, pwhMitigatedBi)
+[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh_draw_price, pwhOriginBi, sessionEndBi, "PWH", "Solid", "on", LEVEL_COLOR, pwhMitigated, pwhMitigatedBi)
 pwh_line := _pwh_line
 pwh_label := _pwh_label
 
-[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl, pwlOriginBi, sessionEndBi, "PWL", "Solid", open_near_pwl ? "below" : "on", LEVEL_COLOR, pwlMitigated, pwlMitigatedBi)
+[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl_draw_price, pwlOriginBi, sessionEndBi, "PWL", "Solid", open_near_pwl ? "below" : "on", LEVEL_COLOR, pwlMitigated, pwlMitigatedBi)
 pwl_line := _pwl_line
 pwl_label := _pwl_label
 
@@ -1435,6 +1443,7 @@ if showFvgs
 fvg_boxes := _fvg_boxes
 fvg_labels := _fvg_labels
 
-[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, activeSwings, sessionEndBi, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow)
+array<HtfSwingLevel> swingsToDraw = onDailyOrAbove ? array.new<HtfSwingLevel>() : activeSwings
+[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, swingsToDraw, sessionEndBi, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow)
 swing_lines := _swing_lines
 swing_labels := _swing_labels

@@ -178,9 +178,9 @@ A build layer for the TradingView indicator ordered by what must exist on-chart 
 _Avoid_: Playbook phase, workflow step
 
 **Structural Canvas**:
-The always-visible foundation layer of the indicator: Relevant Levels at the same prices across monitored chart timeframes (Daily through 1m). PDH/PDL, PWH/PWL, and HTF Swing Points render as labeled solid lines on every timeframe. HTF FVGs render as shaded zones on their native 4H and 1H charts only. 90m, 30m, and 15m Fair Value Gaps use the same formation, mitigation, lookback, and SMT Fill shading on their native charts — they are not Relevant Levels and are not projected onto other timeframes.
+The always-visible foundation layer of the indicator: Relevant Levels at the same prices across monitored chart timeframes. On Daily charts, only PWH/PWL render. On Weekly and higher charts, no Structural Canvas levels render. On lower timeframes (4H through 1m), PDH/PDL, PWH/PWL, and HTF Swing Points render as labeled solid lines. HTF FVGs render as shaded zones on their native 4H and 1H charts only. 90m, 30m, and 15m Fair Value Gaps use the same formation, mitigation, lookback, and SMT Fill shading on their native charts — they are not Relevant Levels and are not projected onto other timeframes.
 _Avoid_: Background levels, static overlay
 
 **Session Context**:
-The always-visible session reference layer sitting above Structural Canvas: 18:00 Daily Open (dashed labeled line), ADR band (faint dashed lines at open ± ADR with consumption label), PD 50% Midpoint (labeled line), and New Week Opening Gap (box between Friday close and week open, projected to the current daily session close). These are not Relevant Levels and are never Session POI.
+The always-visible session reference layer sitting above Structural Canvas: 18:00 Daily Open (dashed labeled line), ADR band (faint dashed lines at open ± ADR with consumption label), PD 50% Midpoint (labeled line), and New Week Opening Gap (box between Friday close and week open, projected to the current daily session close). On Daily charts, Daily Open and PD 50% Midpoint are not drawn; ADR band and New Week Opening Gap still are. On Weekly and higher charts, no Session Context levels render. These are not Relevant Levels and are never Session POI.
 _Avoid_: Session markers, time levels
