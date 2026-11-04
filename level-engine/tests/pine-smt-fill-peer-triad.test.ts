@@ -22,11 +22,42 @@ function countChartOneMinuteSecurityCalls(source: string): number {
 }
 
 describe("pine peer triad → peer-first Active + SMT Fill Dead truncate (#55)", () => {
-  it("keeps dynamic_requests false and adds two peer input.symbol inputs", () => {
+  it("keeps dynamic_requests false and selects automatic or manual peers", () => {
     const source = readPineSource();
 
     expect(source).toMatch(/dynamic_requests\s*=\s*false/);
     expect(source.match(/input\.symbol\(/g)?.length ?? 0).toBe(2);
+    expect(source).toMatch(
+      /input\.string\(\s*"Automatic"\s*,\s*"Triad peers"\s*,\s*options\s*=\s*\[\s*"Automatic"\s*,\s*"Manual"\s*\]/,
+    );
+    expect(source).toMatch(
+      /input\.symbol\(\s*"CME_MINI:ES1!"\s*,\s*"Peer 1"/,
+    );
+    expect(source).toMatch(
+      /input\.symbol\(\s*"CBOT_MINI:YM1!"\s*,\s*"Peer 2"/,
+    );
+    expect(source).not.toMatch(/CME_MINI:YM1!/);
+    expect(source).toMatch(/ES_PEER\s*=\s*"CME_MINI:ES1!"/);
+    expect(source).toMatch(/NQ_PEER\s*=\s*"CME_MINI:NQ1!"/);
+    expect(source).toMatch(/YM_PEER\s*=\s*"CBOT_MINI:YM1!"/);
+    expect(source).toMatch(
+      /chartIsEs\s*=\s*chartRoot\s*==\s*"ES"\s*or\s*chartRoot\s*==\s*"MES"/,
+    );
+    expect(source).toMatch(
+      /chartIsYm\s*=\s*chartRoot\s*==\s*"YM"\s*or\s*chartRoot\s*==\s*"MYM"/,
+    );
+    expect(source).toMatch(
+      /simple string autoPeer1\s*=\s*chartIsEs\s*\?\s*NQ_PEER\s*:\s*ES_PEER/,
+    );
+    expect(source).toMatch(
+      /simple string autoPeer2\s*=\s*chartIsYm\s*\?\s*NQ_PEER\s*:\s*YM_PEER/,
+    );
+    expect(source).toMatch(
+      /simple string peerSymbol1\s*=\s*triadMode\s*==\s*"Automatic"\s*\?\s*autoPeer1\s*:\s*manualPeer1/,
+    );
+    expect(source).toMatch(
+      /simple string peerSymbol2\s*=\s*triadMode\s*==\s*"Automatic"\s*\?\s*autoPeer2\s*:\s*manualPeer2/,
+    );
   });
 
   it("requests lean peer feeds only (gap-TF C3 high/low/time/time_close + 1m time/high/low)", () => {

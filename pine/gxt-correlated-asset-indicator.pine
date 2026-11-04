@@ -71,8 +71,23 @@ pdMidpointColor = input.color(color.black, "PD 50% Midpoint Color", group = "Ses
 pdMidpointStyle = input.string("Dashed", "PD 50% Midpoint Line Style", options = ["Solid", "Dashed", "Dotted"], group = "Session Context")
 showNewWeekOpeningGap = input.bool(true, "Show New Week Opening Gap", group = "Session Context")
 failureSwingAdrPct = input.float(12.5, "Failure Swing ADR %", minval = 0, step = 0.1, group = "HTF Swings")
-peerSymbol1 = input.symbol("CME_MINI:ES1!", "Peer 1", group = "Triad")
-peerSymbol2 = input.symbol("CME_MINI:YM1!", "Peer 2", group = "Triad")
+// syminfo.root and these inputs are simple for the life of the chart, so the peer ids
+// passed to request.security stay simple strings with dynamic_requests off.
+// Automatic: ES/MES → NQ+YM, YM/MYM → ES+NQ, NQ/MNQ and anything else → ES+YM.
+// Manual: Peer 1 and Peer 2.
+triadMode = input.string("Automatic", "Triad peers", options = ["Automatic", "Manual"], group = "Triad")
+manualPeer1 = input.symbol("CME_MINI:ES1!", "Peer 1", group = "Triad")
+manualPeer2 = input.symbol("CBOT_MINI:YM1!", "Peer 2", group = "Triad")
+ES_PEER = "CME_MINI:ES1!"
+NQ_PEER = "CME_MINI:NQ1!"
+YM_PEER = "CBOT_MINI:YM1!"
+chartRoot = syminfo.root
+chartIsEs = chartRoot == "ES" or chartRoot == "MES"
+chartIsYm = chartRoot == "YM" or chartRoot == "MYM"
+simple string autoPeer1 = chartIsEs ? NQ_PEER : ES_PEER
+simple string autoPeer2 = chartIsYm ? NQ_PEER : YM_PEER
+simple string peerSymbol1 = triadMode == "Automatic" ? autoPeer1 : manualPeer1
+simple string peerSymbol2 = triadMode == "Automatic" ? autoPeer2 : manualPeer2
 
 f_line_style(string style_str) =>
     style_str == "Dashed" ? line.style_dashed : style_str == "Dotted" ? line.style_dotted : line.style_solid
