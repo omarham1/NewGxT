@@ -93,7 +93,7 @@ Stage 1 of any reversal is always **classic SMT Divergence** (asymmetric extreme
 | Engagement | What is possible |
 |---|---|
 | **1–2 assets in** the gap; lead not reversing | **Catch-Up** for laggards into that FVG **and** Stage 1→2-Stage hunt are both live — take whichever arms first; size by play |
-| **All 3 in** the gap | **SMT Fill is dead** (ADR-0006). Keep hunting Stage 1 classic SMT (asymmetric extremes at/in the gap) → Stage 2. Do not abandon the FVG solely because everyone entered |
+| **All 3 in** the gap | **SMT Fill is dead**. Keep hunting Stage 1 classic SMT (asymmetric extremes at/in the gap) → Stage 2. Do not abandon the FVG solely because everyone entered |
 
 #### Rail Session POI (PDH/PDL, PWH/PWL, HTF swing)
 
@@ -114,7 +114,7 @@ Asset B fails to sweep / stalls / makes a higher low (bullish) or lower high (be
 
 ### Step 7 — After Stage 1 SMT, Watch for Stage 2 Confirmation
 
-Once Stage 1 SMT divergence is identified at the POI, you are now watching for **Stage 2** — either sequence completes Stage 2 (ADR-0005):
+Once Stage 1 SMT divergence is identified at the POI, you are now watching for **Stage 2** — either sequence completes Stage 2 :
 
 1. **2-Stage SMT — Second SMT**: A second SMT on **`30m` / `1H` / `90m` only** (not `4H`) where the stronger and weaker assets **switch strength** — the previously lagging asset now leads, creating a second divergence that confirms the reversal.
 2. **2-Stage PSP — Strength Switch PSP**: A **Strength Switch PSP** on full-ITF candle closes (`4H` / `90m` / `1H` / `30m`) where the asset that swept closes in the reversal direction while its correlated pair closes in the trend direction — confirming the strength rotation. A `4H` SS PSP can complete Stage 2.
@@ -149,7 +149,7 @@ flowchart TD
     I --> K["ITF FVG SMT Fill on ANY triad asset + LTF CSD"]
 ```
 
-> Decoupled triad → wait for **Decoupled Sync** (one asset at a Relevant Level) before Catch-Up / high-quality SS (ADR-0002).
+> Decoupled triad → wait for **Decoupled Sync** (one asset at a Relevant Level) before Catch-Up / high-quality SS.
 
 **Daily Bias gate:** Prefer trades **with** live Daily Bias. Catch-Up, Continuation, and Aggressive Fallback must **align with bias** (or stand down). Full **2-Stage SMT / 2-Stage PSP** may fade bias only at **reduced size**.
 
@@ -171,7 +171,7 @@ flowchart TD
    - **C1 (Protraction Candle)**: First candle that sweeps or trades into the Relevant Level
    - **C2 (Reversal Candle)**: Sweeps C1's extreme, then **body-closes back inside C1's range**
      - ✅ Valid C2 body close → structural C2 printed
-     - ⚠️ Entry still requires an **Expansion Candle** — large opposing wick → **do not enter on C2**; wait for the next candle or C3 (ADR-0001 / 4H Profiling)
+     - ⚠️ Entry still requires an **Expansion Candle** — large opposing wick → **do not enter on C2**; wait for the next candle or C3 (4H Profiling)
    - **C3 (Confirmation Candle)**: Needed if C2 body-closes **outside** C1's range, **or** if C2 failed the Expansion Candle wick gate. C3 must body-close past C2's body in the reversal direction
 6. Identify the **CISD (Change in State of Delivery)** on any triad asset — prioritize the one closest to its open DOL
 7. **Entry is armed** when any triad asset prints the LTF CISD (after Stage 2) on an Expansion Candle
@@ -190,14 +190,14 @@ flowchart TD
 
 > When the stronger asset has continued past the draw on liquidity or is consolidating at it, but the lagging asset hasn't reached its equivalent level.
 >
-> This is the **Universal Sequence** gap + SMT Fill leg on the lagging asset (ADR-0012) — not a separate model.
+> This is the **Universal Sequence** gap + SMT Fill leg on the lagging asset — not a separate model.
 
 **Conditions:**
 - Stronger asset has either **continued past its DOL** (PDH/PDL / rail Session POI) OR is **consolidating at it** — including partial FVG engagement where the lead is in the gap and holding
 - Lagging asset has NOT reached its equivalent level / has not yet crossed that POI
 - The stronger asset must be doing one of the two above — if it has reversed away from the DOL/POI without Stage 2, this play does NOT apply
 - Must **align with Daily Bias** (bias gate above)
-- If the triad is **decoupled** (assets pulling apart), wait for **Decoupled Sync** — one asset interacts with a Relevant Level — before treating Catch-Up as high quality (ADR-0002)
+- If the triad is **decoupled** (assets pulling apart), wait for **Decoupled Sync** — one asset interacts with a Relevant Level — before treating Catch-Up as high quality
 
 **Trigger:**
 1. Monitor the **lagging asset** for an **ITF FVG (30m / 1H / 90m)** to form
@@ -217,7 +217,7 @@ flowchart TD
 
 > When price has broken past the key level and is expanding toward the next HTF Draw on Liquidity.
 >
-> This is the **Universal Sequence** gap + SMT Fill leg after expansion past the key level (ADR-0012) — not a separate model.
+> This is the **Universal Sequence** gap + SMT Fill leg after expansion past the key level — not a separate model.
 
 **Conditions:**
 - Price (stronger asset) has expanded past PDH/PDL toward the next HTF DOL
@@ -227,7 +227,7 @@ flowchart TD
 
 **Trigger:**
 1. Wait for an **ITF FVG (30m / 1H / 90m)** to form during the expansion
-2. Watch for **SMT Fill** on **ANY** triad asset (not just the one you're trading). If all three fill that continuation gap, SMT Fill is dead — require **PSP** (close-polarity crack) at the gap instead (ADR-0012); that PSP is **not** Stage 1 of a Session POI reversal
+2. Watch for **SMT Fill** on **ANY** triad asset (not just the one you're trading). If all three fill that continuation gap, SMT Fill is dead — require **PSP** (close-polarity crack) at the gap instead; that PSP is **not** Stage 1 of a Session POI reversal
 3. Wait for a **LTF CSD (3m / 5m)** with displacement
 
 **Asset Selection:**

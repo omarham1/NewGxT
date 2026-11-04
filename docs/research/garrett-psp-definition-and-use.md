@@ -31,12 +31,6 @@ Transcripts: YouTube auto-captions via `yt-dlp --write-auto-sub` (2026-07-29). A
 |---|---|
 | `CONTEXT.md` | Glossary: PSP, SS PSP, SMT Divergence, Universal Sequence, 2-Stage SMT, Strength Switching |
 | `docs/daily_execution_playbook.md` | Stage 2 Path B SS PSP; Reversal Play |
-| `docs/adr/0004-timeframe-hierarchy-and-triad-specification.md` | PSP on full ITF closes; Path A vs Path B TF bands |
-| `docs/adr/0005-2-stage-smt-and-strength-switch.md` | Stage 2 Path B = SS PSP |
-| `docs/adr/0012-universal-sequence.md` | Gap retrace: SMT Fill preferred; PSP if both fill |
-| `docs/adr/0002-strength-rotation-and-catchup.md` | Strength switch / catch-up (no PSP-specific text) |
-| `docs/adr/0001-reversal-validation-rules.md` | SMT + SS / SS PSP can override 50% / FVG depth rules |
-| `docs/adr/0003-daily-bias-and-target-selection.md` | Reversal gate = 2-Stage SMT/SS (incl. SS PSP) |
 
 ### Secondary (discovery only — not definitional authority)
 
@@ -157,8 +151,8 @@ PSP as **trigger** for expansion → retracement → re-expansion / reversal pha
 | **PSP** (`CONTEXT.md`) | Opposite-polarity closes on full ITF (`30m` / `1h` / `90m` / `4h`); formerly Polarized Strength Profile; named **Precision Swing Point** |
 | **SS PSP** | After SMT: sweeper closes reversal direction, pair closes trend direction; Stage 2 Path B on full ITF incl. `4H` |
 | **2-Stage SMT** | Stage 1 HTF/ITF SMT → Stage 2 Path A (second SMT on `30m`/`1H`/`90m`) **or** Path B SS PSP; LTF C2/C3/CISD = entry only |
-| **Universal Sequence** (`CONTEXT.md` + ADR-0012) | Gap retrace prefers SMT Fill; **PSP when both assets fill**; one-stage at continuation gap |
-| **Playbook** | Step 7 / Play A Stage 2 Path B = SS PSP (same TF rule as ADR-0005) |
+| **Universal Sequence** (`CONTEXT.md` + ) | Gap retrace prefers SMT Fill; **PSP when both assets fill**; one-stage at continuation gap |
+| **Playbook** | Step 7 / Play A Stage 2 Path B = SS PSP (same TF rule as 2-Stage PSP) |
 | **Crack in correlation** | Not a separate glossary head term; aliased under **SMT Divergence** (“Same crack Garrett calls crack in correlation”) |
 | **Named variants** | SS PSP yes; **two-stage PSP** and **continuation PSP** not named as PSP subtypes |
 | **Naked-PSP warning / phases-of-price** | Implicit via POI / Relevant Level / DOL gates; not stated as Garrett’s “always within narrative” rule |
@@ -171,11 +165,11 @@ PSP as **trigger** for expansion → retracement → re-expansion / reversal pha
 |---|---|---|---|
 | Acronym = Precision Swing Point | **Already aligned** | None for naming | **Keep** `CONTEXT.md` PSP title + `_Avoid_: Polarized Strength Profile`. See [`psp-dedicated-video.md`](psp-dedicated-video.md). |
 | Core definition = opposite closes | **Mostly aligned** | Glossary emphasizes closes only; Garrett’s dual “swing + crack” is thinner | **Enrich** `CONTEXT.md` **Precision Swing Point** one clause: swing formation **and** opposite closes (crack in correlation). File: `CONTEXT.md` PSP entry. |
-| SS PSP as Stage 2 Path B | **Already aligned** | Mechanized TF split (Path A no `4H`) is NewGxT precision, not a Garrett quote conflict | **Keep** ADR-0005 / playbook Path B; optional one-line cite that Garrett treats SS PSP as freest reversal / Stage-2 style confirmation. |
-| PSP when both assets fill gap | **Already aligned** | — | **Keep** Universal Sequence / ADR-0012 step 6 wording. |
-| Two-stage PSP (PSP+SMT on C1–C2 / C2–C3) | **Gap (pedagogy)** | NewGxT “2-Stage SMT” is the structural gate; does not name **two-stage PSP** as candle packaging | **Enrich** (glossary and/or ADR-0005 note): two-stage PSP = PSP + SMT between adjacent swing candles; maps onto Stage 1/2 cracks without inventing a new play. Prefer `CONTEXT.md` under PSP or 2-Stage SMT; short cross-link in ADR-0005. |
-| Continuation PSP | **Gap (pedagogy)** | ADR-0012 / Universal Sequence describe the behavior (gap candle / post-reversal opposite closes) without the name | **Enrich** `CONTEXT.md` PSP or Universal Sequence: name **continuation PSP** = opposite closes in expansion/retrace with open DOL — not a counter-trend reversal. Pointer: ADR-0012 step 6. |
-| Timeframe band ITF-only for “general PSP” | **Intentional narrowing** | Garrett is fractal (incl. 15m, daily); NewGxT locks structural PSP to ITF | **Keep** ADR-0004 ITF band for Stage 2 / indicator; **enrich** with explicit “NewGxT mechanization” note that Garrett applies PSP fractally, while product Stage-2 / dashboard PSP uses ITF closes. Optional: playbook tip that LTF (e.g. 15m) SS PSP can be early confirmation before ITF close — mirrors [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I) — only if product wants that discretion. |
+| SS PSP as Stage 2 Path B | **Already aligned** | Mechanized TF split (Path A no `4H`) is NewGxT precision, not a Garrett quote conflict | **Keep** playbook Path B; optional one-line cite that Garrett treats SS PSP as freest reversal / Stage-2 style confirmation. |
+| PSP when both assets fill gap | **Already aligned** | — | **Keep** Universal Sequence gap-retrace wording. |
+| Two-stage PSP (PSP+SMT on C1–C2 / C2–C3) | **Gap (pedagogy)** | NewGxT “2-Stage SMT” is the structural gate; does not name **two-stage PSP** as candle packaging | **Enrich** (glossary and/or a 2-Stage note): two-stage PSP = PSP + SMT between adjacent swing candles; maps onto Stage 1/2 cracks without inventing a new play. Prefer `CONTEXT.md` under PSP or 2-Stage SMT; short cross-link in CONTEXT.md. |
+| Continuation PSP | **Gap (pedagogy)** | Universal Sequence describes the behavior (gap candle / post-reversal opposite closes) without the name | **Enrich** `CONTEXT.md` PSP or Universal Sequence: name **continuation PSP** = opposite closes in expansion/retrace with open DOL — not a counter-trend reversal. Pointer: Universal Sequence gap-retrace step. |
+| Timeframe band ITF-only for “general PSP” | **Intentional narrowing** | Garrett is fractal (incl. 15m, daily); NewGxT locks structural PSP to ITF | **Keep** the ITF band for Stage 2 / indicator; **enrich** with explicit “NewGxT mechanization” note that Garrett applies PSP fractally, while product Stage-2 / dashboard PSP uses ITF closes. Optional: playbook tip that LTF (e.g. 15m) SS PSP can be early confirmation before ITF close — mirrors [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I) — only if product wants that discretion. |
 | Don’t pattern-trade PSP alone | **Partial** | Hierarchy (draw → profile → crack) not written next to PSP | **Enrich** playbook or `CONTEXT.md` PSP `_Avoid_` / note: require Relevant Level / open DOL / framework; never naked PSP. Cite Garrett hierarchy from Strength Switching. |
 | Phases-of-price PSP triggers | **Gap (optional)** | Not in NewGxT | **Defer** unless product wants phase pedagogy; Pt.2 (if published) may expand. Not required for execution alignment. |
 | Credit Trader Day / QT lineage | **Optional** | Not in glossary | **Optional enrich** one credit line under PSP; not required for ops. |
@@ -187,7 +181,7 @@ PSP as **trigger** for expansion → retracement → re-expansion / reversal pha
 1. **Keep (no change):** Precision Swing Point naming; SS PSP Stage 2 Path B; Universal Sequence “PSP when both fill”; ITF band for structural PSP; no SSPS alias.
 2. **Change / enrich (recommended):**
    - `CONTEXT.md` — PSP entry: add swing+crack dual definition; add short bullets for **two-stage PSP** and **continuation PSP**; one-line “always in framework / Relevant Level.”
-   - `docs/adr/0005-…` or `0012-…` — one cross-link sentence mapping two-stage / continuation PSP names to existing Stage-2 / gap rules (no new mechanical paths unless desired).
+   - One cross-link sentence mapping two-stage / continuation PSP names to existing Stage-2 / gap rules (no new mechanical paths unless desired).
    - `docs/daily_execution_playbook.md` — brief Path B / gap note: plain PSP substitutes for missing SMT Fill / missing key-level SMT; SS PSP is the strength-rotation form; don’t take opposing-DOL continuation PSPs as reversals.
 3. **Defer:** Phases-of-price section; waiting on unpublished PSP Pt.2.
 

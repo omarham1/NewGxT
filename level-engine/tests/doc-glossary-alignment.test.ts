@@ -5,10 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
-const neutralDayExecutionDocs = [
-  "docs/daily_execution_playbook.md",
-  "docs/adr/0003-daily-bias-and-target-selection.md",
-] as const;
+const neutralDayExecutionDocs = ["docs/daily_execution_playbook.md"] as const;
 
 const retiredNeutralDayPhrases = [
   {
@@ -46,9 +43,5 @@ describe("doc glossary alignment", () => {
     const playbook = readRepoFile("docs/daily_execution_playbook.md");
     expect(playbook).toMatch(/\*\*Consolidation\*\*/);
     expect(playbook).toMatch(/Neutral Bias \(Consolidation Day\)/);
-
-    const adr = readRepoFile("docs/adr/0003-daily-bias-and-target-selection.md");
-    expect(adr).toMatch(/\*\*Consolidation Days\*\*/);
-    expect(adr).toMatch(/\*\*Neutral Bias\*\*/);
   });
 });

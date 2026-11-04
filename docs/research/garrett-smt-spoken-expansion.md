@@ -4,7 +4,7 @@
 
 **Question / goal:** Does Garrett (GxtTrades / GxT / @GxTradez) ever speak (or put on-slide / in title / description) a long-form expansion of **SMT** — e.g. Smart Money Technique, Smart Money Tool, Smart Money Theory, or any other S-M-T expansion — in first-party sources? Pin evidence for NewGxT glossary / docs follow-up (issue **#34**).
 
-**Out of scope:** Changing SMT Fill mechanics (ADR-0006); inventing an expansion from ICT secondary sources.
+**Out of scope:** Changing SMT Fill mechanics; inventing an expansion from ICT secondary sources.
 
 **Builds on (do not duplicate):**
 
@@ -42,7 +42,6 @@
 | File | Role |
 |---|---|
 | `CONTEXT.md` | Glossary: **SMT Divergence** (operational crack / institutional divergence wording); **SMT Fill**; no Technique/Tool/Theory expansion asserted |
-| `docs/adr/0006-smt-fill-state-machine-and-execution-triggers.md` | Mechanics only — out of scope for this note |
 
 ### Secondary (discovery only — **not** definitional authority for NewGxT)
 
@@ -121,9 +120,9 @@ Elsewhere he packages the same idea as **crack in / cracking correlation** / two
 | Verdict | **Leave unspecified** — do **not** add Technique / Tool / Theory to `CONTEXT.md` |
 |---|---|
 | Why | Primary evidence is a clear **negative** on acronym expansion. Asserting Smart Money Technique or Tool would elevate ICT-secondary gloss over Garrett’s own usage. |
-| Keep | Operational glossary: SMT / SMT Divergence as cross-asset crack (already aligned with “crack in correlation”); SMT Fill mechanics unchanged (ADR-0006 out of scope). |
+| Keep | Operational glossary: SMT / SMT Divergence as cross-asset crack (already aligned with “crack in correlation”); SMT Fill mechanics unchanged (out of scope). |
 | Optional later (not required to close #34) | If product wants a one-line pedagogy note: “Garrett uses SMT as jargon for crack-in-correlation; he does not expand the letters in consulted first-party video.” Prefer a docs comment / research cite over inventing a glossary expansion. |
-| Do **not** | Edit CONTEXT.md / ADRs to assert Technique vs Tool from secondary sources. |
+| Do **not** | Edit CONTEXT.md to assert Technique vs Tool from secondary sources. |
 
 ---
 

@@ -4,6 +4,18 @@ Domain glossary for GxT - a TradingView indicator system designed for high-preci
 
 ## Language
 
+**Higher Timeframe (HTF)**:
+Monthly, Weekly, and Daily for bias and session rails; 4H and 1H when they produce Relevant Levels (HTF FVG, HTF Swing Point).
+_Avoid_: Big timeframe, macro timeframe
+
+**Intermediate Timeframe (ITF)**:
+4H, 90m, 1H, and 30m candles used for SMT Divergence, PSP, and Stage 2 confirmation; 15m through 4H Fair Value Gaps used for SMT Fill and continuation gaps. 4H and 1H are HTF in their level role and ITF in their confirmation role.
+_Avoid_: Mid timeframe, IMT
+
+**Lower Timeframe (LTF)**:
+15m, 5m, 3m, and 1m candles used for entry triggers — C2/C3 closures and CISD. 15m is LTF when its candles trigger entry and ITF when its gaps carry SMT Fill.
+_Avoid_: Execution timeframe alone, micro timeframe
+
 **Relevant Levels**:
 Any price projected from higher timeframes onto the execution chart where a market reaction is expected.
 _Includes_: unmitigated PDH/PDL, unmitigated PWH/PWL, unmitigated 4H and 1H FVGs, and unmitigated HTF swing points that are not failure swings.
@@ -148,11 +160,11 @@ TP1 is the nearest unmitigated HTF swing, PDH/PDL, or PWH/PWL in bias direction,
 _Avoid_: Target, take profit line
 
 **Catch-Up Play**:
-A continuation trade execution on a lagging asset when a highly correlated leading asset has already reached its Draw on Liquidity (DOL) target and is in passive consolidation, expecting the lagging asset to trade to its own equivalent target level. Operationally the gap + SMT Fill legs of Universal Sequence (ADR-0012) on the lagging asset.
+A continuation trade execution on a lagging asset when a highly correlated leading asset has already reached its Draw on Liquidity (DOL) target and is in passive consolidation, expecting the lagging asset to trade to its own equivalent target level. Operationally the gap + SMT Fill legs of Universal Sequence on the lagging asset.
 _Avoid_: Lagging entry, delay trade
 
 **Continuation Play**:
-A trade execution in the direction of the dominant expansion trend after a key level has been broken or when a reversal setup fails, targeting the next Higher Timeframe Draw on Liquidity. Operationally the gap + SMT Fill legs of Universal Sequence (ADR-0012) after expansion past the key level.
+A trade execution in the direction of the dominant expansion trend after a key level has been broken or when a reversal setup fails, targeting the next Higher Timeframe Draw on Liquidity. Operationally the gap + SMT Fill legs of Universal Sequence after expansion past the key level.
 _Avoid_: Trend-following, momentum trade
 
 **18:00 Daily Open**:

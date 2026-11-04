@@ -2,9 +2,9 @@
 
 **Research date:** 2026-08-02
 
-**Question / goal:** Extract Garrett’s first-party definition / step list for **APD** (named in Strength Switching). Map APD ↔ Universal Sequence, 2-Stage SMT / 2-Stage PSP, and strength-switch forms. Recommend whether NewGxT should **adopt** into CONTEXT/ADRs, add **glossary `_Avoid_` only**, or **remain out of scope** (issue **#36**).
+**Question / goal:** Extract Garrett’s first-party definition / step list for **APD** (named in Strength Switching). Map APD ↔ Universal Sequence, 2-Stage SMT / 2-Stage PSP, and strength-switch forms. Recommend whether NewGxT should **adopt** into CONTEXT.md, add **glossary `_Avoid_` only**, or **remain out of scope** (issue **#36**).
 
-**Out of scope:** Implementing indicator logic for APD; editing `CONTEXT.md`, ADRs, or the playbook until this adoption decision is approved.
+**Out of scope:** Implementing indicator logic for APD; editing `CONTEXT.md` or the playbook until this adoption decision is approved.
 
 **Builds on (do not duplicate wholesale):**
 
@@ -13,7 +13,6 @@
 - [`garrett-psp-definition-and-use.md`](garrett-psp-definition-and-use.md) — SS PSP / hierarchy
 - [`universal-sequence-step-list-recheck.md`](universal-sequence-step-list-recheck.md) — Universal Sequence legs
 - `CONTEXT.md` — APD absent today; Strength Switching, Decoupled Sync, Universal Sequence, 2-Stage SMT / 2-Stage PSP present
-- ADRs **0002**, **0005**, **0012** — strength rotation / 2-Stage / Universal Sequence
 
 ---
 
@@ -45,9 +44,6 @@
 | File | Role |
 |---|---|
 | `CONTEXT.md` | No APD; Strength Switching, Decoupled Sync, Universal Sequence, 2-Stage SMT / PSP |
-| `docs/adr/0002-strength-rotation-and-catchup.md` | Strength rotation, Decoupled Sync gate |
-| `docs/adr/0005-2-stage-smt-and-strength-switch.md` | 2-Stage SMT / 2-Stage PSP |
-| `docs/adr/0012-universal-sequence.md` | Named continuation sequence |
 
 ### Secondary
 
@@ -117,7 +113,7 @@ Mechanical sketch he *does* give for **advanced premium discount** as a filter:
 
 #### Step list?
 
-**No authoritative numbered APD checklist** in titles, descriptions, or narration comparable to Universal Sequence / ADR-0012. “Sequence” here means **premium-discount positioning + spaced SMT packaging**, not Stage 1 → Stage 2.
+**No authoritative numbered APD checklist** in titles, descriptions, or narration comparable to Universal Sequence. “Sequence” here means **premium-discount positioning + spaced SMT packaging**, not Stage 1 → Stage 2.
 
 Dedicated APD video: **promised** in Universal Sequence (“which I'll make a video on”); **not found** in `@GxTradez` title inventory this pass.
 
@@ -127,30 +123,30 @@ Dedicated APD video: **promised** in Universal Sequence (“which I'll make a vi
 
 | NewGxT / Garrett construct | Relationship to APD | Evidence |
 |---|---|---|
-| **Universal Sequence** (ADR-0012) | **Adjacent, not a required US step.** APD / advanced premium discount appears as optional framing inside sync / metals examples; US owns gap → SMT fill → DOL. Garrett promises a separate APD video. | [oucPinjDdlk](https://www.youtube.com/watch?v=oucPinjDdlk); [universal-sequence-step-list-recheck.md](universal-sequence-step-list-recheck.md) |
-| **2-Stage SMT** (ADR-0005) | **Orthogonal quality filter.** Large-range → small-range / alternating SMT can *co-occur* with APD spacing; APD does not replace Stage 1 or Stage 2. | [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I) (2-stage + APD case packaging) |
-| **2-Stage PSP / SS PSP** (ADR-0005) | **Can stack.** Case-two style examples add gap + PSP / gap-fill SS on top of APD spacing; SS PSP remains Stage 2 Path B, not “APD.” | [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I) |
-| **Strength Switching** (CONTEXT / ADR-0002) | **Parent pedagogy.** APD is taught *inside* Strength Switching as why spaced cracks expand and how to pick lead vs lag; SS forms remain SS PSP, SMT fill, temporary LTF switches. | [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I); alignment Strength switching § |
-| **Decoupled Sync** (CONTEXT / ADR-0002) | **Overlapping concern, different rule.** Decoupled Sync = wait for Relevant Level before high-quality SS/catch-up. APD = premium/discount / spacing of failure swings vs swept extreme. Related tug-of-war / sync family; **not synonymous.** | ADR-0002; [ZTIRoNI8HGs](https://www.youtube.com/watch?v=ZTIRoNI8HGs); [G-M-ElP1MOE](https://www.youtube.com/watch?v=G-M-ElP1MOE) |
-| **SMT Fill / Catch-Up / Continuation** | APD informs **whether** catch-up distance is “too much” and whether an SMT is likely to hold vs break; it does not redefine Fill state machine (ADR-0006 out of scope). | [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I); [G-M-ElP1MOE](https://www.youtube.com/watch?v=G-M-ElP1MOE) |
+| **Universal Sequence** | **Adjacent, not a required US step.** APD / advanced premium discount appears as optional framing inside sync / metals examples; US owns gap → SMT fill → DOL. Garrett promises a separate APD video. | [oucPinjDdlk](https://www.youtube.com/watch?v=oucPinjDdlk); [universal-sequence-step-list-recheck.md](universal-sequence-step-list-recheck.md) |
+| **2-Stage SMT** | **Orthogonal quality filter.** Large-range → small-range / alternating SMT can *co-occur* with APD spacing; APD does not replace Stage 1 or Stage 2. | [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I) (2-stage + APD case packaging) |
+| **2-Stage PSP / SS PSP** | **Can stack.** Case-two style examples add gap + PSP / gap-fill SS on top of APD spacing; SS PSP remains Stage 2 Path B, not “APD.” | [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I) |
+| **Strength Switching** (CONTEXT) | **Parent pedagogy.** APD is taught *inside* Strength Switching as why spaced cracks expand and how to pick lead vs lag; SS forms remain SS PSP, SMT fill, temporary LTF switches. | [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I); alignment Strength switching § |
+| **Decoupled Sync** (CONTEXT) | **Overlapping concern, different rule.** Decoupled Sync = wait for Relevant Level before high-quality SS/catch-up. APD = premium/discount / spacing of failure swings vs swept extreme. Related tug-of-war / sync family; **not synonymous.** | ; [ZTIRoNI8HGs](https://www.youtube.com/watch?v=ZTIRoNI8HGs); [G-M-ElP1MOE](https://www.youtube.com/watch?v=G-M-ElP1MOE) |
+| **SMT Fill / Catch-Up / Continuation** | APD informs **whether** catch-up distance is “too much” and whether an SMT is likely to hold vs break; it does not redefine Fill state machine (out of scope). | [wVS09HYcp_I](https://www.youtube.com/watch?v=wVS09HYcp_I); [G-M-ElP1MOE](https://www.youtube.com/watch?v=G-M-ElP1MOE) |
 
 ---
 
 ## Explicit recommendation
 
-| Verdict | **Glossary `_Avoid_` only** — do **not** adopt APD as a named NewGxT sequence / ADR |
+| Verdict | **Glossary `_Avoid_` only** — do **not** adopt APD as a named NewGxT sequence |
 |---|---|
 | **Why Avoid (not silent out-of-scope)** | Garrett names **APD sequence** repeatedly in Strength Switching and related erik audio; agents reading Garrett corpus will treat it as a missing P0 model (same failure mode Universal Sequence had). An `_Avoid_` on existing Strength Switching / Decoupled Sync entries stops inventing a parallel stage list without elevating the label to canonical vocabulary. |
-| **Why not adopt into CONTEXT/ADRs** | No locked numbered step list; expansion is collocated not formally “stands for”; Garrett defers depth (“future episode” / “I'll make a video”); mechanics are a **premium-discount proximity filter** already partially covered by Strength Switching + Decoupled Sync + asset-selection notes — not a third confirmation sequence beside 2-Stage / Universal Sequence. |
+| **Why not adopt into CONTEXT.md** | No locked numbered step list; expansion is collocated not formally “stands for”; Garrett defers depth (“future episode” / “I'll make a video”); mechanics are a **premium-discount proximity filter** already partially covered by Strength Switching + Decoupled Sync + asset-selection notes — not a third confirmation sequence beside 2-Stage / Universal Sequence. |
 | **Why not pure remain-out-of-scope** | Leaving zero doc footprint invites re-open of alignment Open question #4 as “unknown missing model.” Avoid + this research note closes the question without product expansion. |
-| **Suggested follow-up doc edit (separate change; not this pass)** | Add `APD`, `APD sequence`, and optionally `Advanced Premium Discount sequence` to `_Avoid_` under **Strength Switching** and/or **Decoupled Sync**, with a one-line research cite: *Garrett packaging for spaced SMT / cross-asset premium-discount proximity — not a NewGxT stage.* Do **not** add a dedicated APD glossary entry or ADR. |
+| **Suggested follow-up doc edit (separate change; not this pass)** | Add `APD`, `APD sequence`, and optionally `Advanced Premium Discount sequence` to `_Avoid_` under **Strength Switching** and/or **Decoupled Sync**, with a one-line research cite: *Garrett packaging for spaced SMT / cross-asset premium-discount proximity — not a NewGxT stage.* Do **not** add a dedicated APD glossary entry. |
 | **Do not** | Implement APD indicator logic; invent Stage-style APD steps; assert AMD / other expansions; fold APD into Universal Sequence step list. |
 
 ---
 
 ## Suggested follow-up
 
-1. **Approve Avoid-only edit** on issue **#36** (or a small follow-up issue) — then touch `CONTEXT.md` only; no ADR.
+1. **Approve Avoid-only edit** on issue **#36** (or a small follow-up issue) — then touch `CONTEXT.md` only.
 2. **Mark alignment Open question #4 resolved** — point at this note.
 3. Re-open adoption only if Garrett ships the promised dedicated advanced-premium-discount video with a mechanical checklist NewGxT wants to encode.
 

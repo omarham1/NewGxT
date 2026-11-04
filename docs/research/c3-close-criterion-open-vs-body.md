@@ -4,7 +4,7 @@
 
 **Question / goal:** Re-check first-party Garrett / GxT sources for the exact **C3 confirmation close** rule — close past C2’s **opening price**, past C2’s **body**, and/or past C2’s **high/low**. Diff against NewGxT’s current body-close rule. Recommend a single rule (or scoped dual rule) with citations (issue **#37**).
 
-**Out of scope:** Editing `CONTEXT.md`, ADR-0001, or the playbook; indicator implementation changes. Product decision stays deferred until this recommend is approved.
+**Out of scope:** Editing `CONTEXT.md` or the playbook; indicator implementation changes. Product decision stays deferred until this recommend is approved.
 
 **Builds on (do not duplicate wholesale):**
 
@@ -41,7 +41,6 @@
 | File | Current C3 wording |
 |---|---|
 | `CONTEXT.md` Candle 3 | Alternative Reversal: body-closing **above/below the body of C2** |
-| `docs/adr/0001-reversal-validation-rules.md` | Same: body-closing **above/below the body of C2** |
 | `docs/daily_execution_playbook.md` Play A | C3 must **body-close past C2’s body** |
 
 ### Secondary
@@ -135,7 +134,7 @@ PSP Pt.1, Trade Recap, Asset Sync Pt.1, SMT dive, Strength Switching: **no** com
 
 | Claim | NewGxT today | Primary sources |
 |---|---|---|
-| C3 when no C2 closure | Body-close past C2 **body** (`CONTEXT` / ADR-0001 / playbook) | **Supports keep:** TTrades “mechanically defined… **body**”; 4H Profiling “**body** or high” |
+| C3 when no C2 closure | Body-close past C2 **body** (`CONTEXT` /  / playbook) | **Supports keep:** TTrades “mechanically defined… **body**”; 4H Profiling “**body** or high” |
 | C3 vs C2 **open** | Not used | Universal Sequence named C3 formula only; often ≈ body on directional C2 |
 | C3 vs C2 **high/low** | Not required | 4H Profiling OR / example; Universal Sequence **continuation** “body closure above C2 **high**” (different beat) |
 | Dual-context rules | Single body rule for Alternative Reversal | Pedagogy distinguishes **no-C2 C3** vs **post-C2 expansion strength**; NewGxT need not adopt a second entry rule unless product wants the stricter high bar for continuation packaging |

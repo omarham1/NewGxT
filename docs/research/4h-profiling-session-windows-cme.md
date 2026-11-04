@@ -4,7 +4,7 @@
 
 **Question / goal:** Re-extract Garrett’s 4H Profiling **session / kill-zone if-then timing windows** from first-party sources, diff against NewGxT’s current docs (playbook Step 5b / CONTEXT 4H Profiling / alignment open Q #7), and recommend playbook or CONTEXT follow-up — or none (issue **#38**).
 
-**Out of scope:** Editing `CONTEXT.md`, ADRs, or the playbook; changing CME session open (18:00 ET) or PDH/PDL calendar; indicator kill-zone alerts. Product edits stay deferred until this recommend is approved.
+**Out of scope:** Editing `CONTEXT.md` or the playbook; changing CME session open (18:00 ET) or PDH/PDL calendar; indicator kill-zone alerts. Product edits stay deferred until this recommend is approved.
 
 **Builds on (do not duplicate wholesale):**
 
@@ -163,7 +163,7 @@ Supporting corpus (indices, not the definitional map): Strength Switching shows 
 
 ### 5. FX clock transferability
 
-Garrett presents **1/5/9** as the **Forex** focus stack and **2/6/10** as the parallel a.m. stack used throughout the indices/futures examples (ES/NQ, 8:30/9:30 drivers). For NewGxT’s indices-first triad (ADR-0004), FX 1/5/9 is **not** needed as operational law. Playbook’s “(CME session clock — not FX 1/5/9)” matches Garrett’s split. Defer FX remap until an FX triad is in scope.
+Garrett presents **1/5/9** as the **Forex** focus stack and **2/6/10** as the parallel a.m. stack used throughout the indices/futures examples (ES/NQ, 8:30/9:30 drivers). For NewGxT’s indices-first triad, FX 1/5/9 is **not** needed as operational law. Playbook’s “(CME session clock — not FX 1/5/9)” matches Garrett’s split. Defer FX remap until an FX triad is in scope.
 
 ---
 

@@ -23,12 +23,6 @@
 |---|---|
 | `/Users/omarhamouda/Development/Repos/NewGxT/CONTEXT.md` | Domain glossary |
 | `/Users/omarhamouda/Development/Repos/NewGxT/docs/daily_execution_playbook.md` | Day-of execution workflow |
-| `/Users/omarhamouda/Development/Repos/NewGxT/docs/adr/0001-reversal-validation-rules.md` | C1/C2/C3 + 50% leg rule |
-| `/Users/omarhamouda/Development/Repos/NewGxT/docs/adr/0002-strength-rotation-and-catchup.md` | Catch-up / continuation after SS |
-| `/Users/omarhamouda/Development/Repos/NewGxT/docs/adr/0003-daily-bias-and-target-selection.md` | Bias + 2-Stage SMT/SS gate |
-| `/Users/omarhamouda/Development/Repos/NewGxT/docs/adr/0004-timeframe-hierarchy-and-triad-specification.md` | HTF / ITF / LTF + triad |
-| `/Users/omarhamouda/Development/Repos/NewGxT/docs/adr/0005-2-stage-smt-and-strength-switch.md` | Mechanical 2-Stage SMT |
-| `/Users/omarhamouda/Development/Repos/NewGxT/docs/adr/0006-smt-fill-state-machine-and-execution-triggers.md` | SMT Fill state machine |
 
 ### Secondary / uncertain (not used as definitional authority)
 
@@ -77,10 +71,10 @@ Continuation SMT fill is **one-stage**; he explicitly says you do **not** need 2
 
 **Not documented as a named concept.** Closest operational pieces exist piecemeal:
 
-- Key level / POI → DOL framing — `CONTEXT.md` (Relevant Level, POI, DOL); playbook Phases 1–3; ADR-0003.
-- SMT Fill as continuation/catch-up trigger — ADR-0006; playbook Plays B/C; ADR-0002.
-- C1/C2/C3 — `CONTEXT.md`; ADR-0001.
-- No glossary entry, ADR, or playbook section titled Universal Sequence / universal model / IRL–ERL framing as Garrett packages it.
+- Key level / POI → DOL framing — `CONTEXT.md` (Relevant Level, POI, DOL); playbook Phases 1–3.
+- SMT Fill as continuation/catch-up trigger — playbook Plays B/C.
+- C1/C2/C3 — `CONTEXT.md`.
+- No glossary entry or playbook section titled Universal Sequence / universal model / IRL–ERL framing as Garrett packages it.
 
 #### Alignment / gap / recommendation
 
@@ -88,7 +82,7 @@ Continuation SMT fill is **one-stage**; he explicitly says you do **not** need 2
 |---|---|
 | Alignment | Partial: SMT Fill continuation / catch-up **implements the last legs** of Garrett’s Universal Sequence without naming or framing steps 1–5 as one model. |
 | Gap | Missing the named sequence, fractal gap-selection-within-EQ rule, and “SMT-at-reversal → gap → SMT-fill” as the headline high-probability model. |
-| Doc change | Add `Universal Sequence` to `CONTEXT.md`; add a playbook section (or ADR) that lists Garrett’s steps and maps them to existing Session POI / SMT Fill / CISD machinery. Cross-link ADR-0006 as the mechanical SMT-fill sub-state of Universal Sequence. |
+| Doc change | Add `Universal Sequence` to `CONTEXT.md`; add a playbook section that lists Garrett’s steps and maps them to existing Session POI / SMT Fill / CISD machinery. Cross-link SMT Fill as the mechanical sub-state of Universal Sequence. |
 
 ---
 
@@ -116,19 +110,19 @@ From [GxT 4H Profiling transcript](https://sozai.app/transcript/gxt-4h-profiling
 
 #### NewGxT definition
 
-- C1 / C2 / C3 and CISD exist in `CONTEXT.md` and ADR-0001 / playbook Play A.
-- 4H appears as an **ITF** for POI / FVG / structure (ADR-0004; playbook Step 2–5), and Session POI prefers 4H FVG in biased PD half (`CONTEXT.md` Session POI; ADR-0003).
+- C1 / C2 / C3 and CISD exist in `CONTEXT.md` and playbook Play A.
+- 4H appears as an **ITF** for POI / FVG / structure (playbook Step 2–5), and Session POI prefers 4H FVG in biased PD half (`CONTEXT.md` Session POI).
 - **No** dedicated “4H Profiling” concept, expansion-candle wick filter, session if-then kill zones, or “ideal SMT LOD → 4H expansion alignment” narrative.
 
-**Notable divergence:** ADR-0001 states a C2 closure is validated **immediately regardless of wick size** when paired with SMT/SS. Garrett’s 4H Profiling treats large opposing wick as **disqualifying** for trading that candle as expansion (wait for next candle / C3).
+**Notable divergence:** NewGxT states a C2 closure is validated **immediately regardless of wick size** when paired with SMT/SS. Garrett’s 4H Profiling treats large opposing wick as **disqualifying** for trading that candle as expansion (wait for next candle / C3).
 
 #### Alignment / gap / recommendation
 
 | Status | **Partial alignment + gap** |
 |---|---|
 | Alignment | C1/C2/C3 roles and “key level before reversal” match. 4H FVG as POI is a narrow slice of Garrett’s 4H framework. |
-| Gap | Missing expansion-candle filter, session kill-zone if-then map, and SMT-formed daily wick → 4H expansion narrative. ADR-0001 wick rule conflicts with Garrett’s expansion filter. |
-| Doc change | Either (a) document intentional NewGxT divergence (SMT/SS overrides wick filter — already implied by ADR-0001), or (b) add 4H Profiling notes to playbook Phase 2 + glossary (“Expansion Candle”, session windows). Do not silently leave both rules without a stated precedence. |
+| Gap | Missing expansion-candle filter, session kill-zone if-then map, and SMT-formed daily wick → 4H expansion narrative. The C2 wick rule conflicts with Garrett’s expansion filter. |
+| Doc change | Either (a) document intentional NewGxT divergence (SMT/SS overrides wick filter — already implied by the C2/Expansion Candle rules), or (b) add 4H Profiling notes to playbook Phase 2 + glossary (“Expansion Candle”, session windows). Do not silently leave both rules without a stated precedence. |
 
 ---
 
@@ -164,7 +158,7 @@ Playbook Step 7 / Play A Stage 2 offers **2-Stage PSP** as an alternate Stage 2 
 
 | Status | **Mostly aligned operationally; acronym mismatch** |
 |---|---|
-| Alignment | Opposite-polarity closes + SS PSP semantics match Garrett’s SSPS examples closely. Timeframes (ITF closes) match ADR-0004. |
+| Alignment | Opposite-polarity closes + SS PSP semantics match Garrett’s SSPS examples closely. Timeframes (ITF closes) match the ITF band. |
 | Gap | Glossary expands PSP as **Polarized Strength Profile**; Garrett’s spoken expansion is **Precision Swing Point**. Risk of confusing agents/traders who read secondary “Precision Swing Point” material. |
 | Doc change | In `CONTEXT.md`, keep the operational definition; either (1) retitle/expand as **Precision Swing Point (PSP)** with “also described here as polarized opposite closes,” or (2) keep Polarized Strength Profile but add a note: “Garrett (GxT) verbalizes this as Precision Swing Point; NewGxT uses Polarized Strength Profile for the same close-polarity condition.” Avoid inventing a third meaning. |
 
@@ -192,7 +186,7 @@ Garrett does not spell out “SMT = Smart Money Technique/Tool” in the consult
 
 > **SMT Fill:** A state machine tracking real-time participation of correlated assets as price trades within a Fair Value Gap.
 
-ADR-0006 mechanizes SMT Fill: `Idle` → `SMT_Fill_Active` when 1–2 triad assets enter FVGs; invalid if all 3 enter.
+NewGxT mechanizes SMT Fill: `Idle` → `SMT_Fill_Active` when 1–2 triad assets enter FVGs; invalid if all 3 enter.
 
 #### Alignment / gap / recommendation
 
@@ -200,7 +194,7 @@ ADR-0006 mechanizes SMT Fill: `Idle` → `SMT_Fill_Active` when 1–2 triad asse
 |---|---|
 | Alignment | Divergence-at-extremes and gap SMT fill match Garrett. Triad (ES/NQ/YM) matches his index examples. |
 | Gap | Minor: NewGxT’s “institutional divergence” wording is interpretive; Garrett stresses **crack in correlation** and tradability filters. Acronym expansion confirmed absent in primary set (see Open question #2 / `garrett-smt-spoken-expansion.md`). |
-| Doc change | Optional: add “crack in correlation” as preferred synonym in glossary Avoid list / aliases. Leave SMT letters unspecified (no Technique/Tool). No urgent rewrite of ADR-0006. |
+| Doc change | Optional: add “crack in correlation” as preferred synonym in glossary Avoid list / aliases. Leave SMT letters unspecified (no Technique/Tool).  |
 
 ---
 
@@ -220,19 +214,19 @@ Garrett’s **two-stage** (also “two-stage SMT”, “two-stage crack”, some
 
 `CONTEXT.md` **2-Stage SMT:** HTF SMT (Stage 1) → LTF alternating SMT sweep (lagging asset drives through its extreme; leading holds HL/LH) → strength switch.
 
-**ADR-0005:** Stage 2 locked on **LTF** (`15m/5m/3m/1m`) via alternating sweep + any-triad C2/C3; synergy filter on third asset.
+**Earlier Stage-2 write-up:** Stage 2 locked on **LTF** (`15m/5m/3m/1m`) via alternating sweep + any-triad C2/C3; synergy filter on third asset.
 
-**Playbook Step 7 / Play A:** Stage 2 on **“IMT”** (`15m / 30m / 1H / 90m`) as second SMT **or** Strength Switch PSP, **then** drop to LTF for C1→C2→C3 / CISD. Uses undefined label **IMT** (ADR-0004 only defines HTF/ITF/LTF; and places `15m` in LTF).
+**Playbook Step 7 / Play A:** Stage 2 on **“IMT”** (`15m / 30m / 1H / 90m`) as second SMT **or** Strength Switch PSP, **then** drop to LTF for C1→C2→C3 / CISD. Uses undefined label **IMT** (CONTEXT.md only defines HTF/ITF/LTF; and places `15m` in LTF).
 
-**ADR-0003:** Reversal bias requires full 2-Stage SMT/SS; aggressive fallback without it.
+**Daily Bias / Session POI write-up:** Reversal bias requires full 2-Stage SMT/SS; aggressive fallback without it.
 
 #### Alignment / gap / recommendation
 
 | Status | **Conceptually aligned; internal NewGxT conflict + Stage-2 TF mismatch** |
 |---|---|
 | Alignment | HTF crack → confirming lower-range crack / strength switch matches Garrett. Synergy / 2-of-3 triad matches his ES/NQ/YM practice. Fallback when no clean 2-stage echoes Garrett’s “not tradable as reversal” nuance (NewGxT continues via aggressive path). |
-| Gap | (1) Playbook vs ADR-0005 disagree on where Stage 2 lives and whether PSP is Stage 2. (2) “IMT” is undocumented. (3) ADR-0005’s alternating-sweep definition is more rigid than Garrett’s broader Stage-2 (any smaller-range SMT / SS PSP). |
-| Doc change | Reconcile playbook ↔ ADR-0005 ↔ CONTEXT in one pass; pick Garrett-compatible Stage-2 band (likely ITF confirming HTF, then LTF entry — closer to playbook + Garrett 90m examples). Rename IMT → ITF or define IMT. Soften ADR-0005 if SS PSP alone can complete Stage 2 (as playbook and Garrett allow). |
+| Gap | (1) Playbook vs earlier Stage-2 wording disagree on where Stage 2 lives and whether PSP is Stage 2. (2) “IMT” is undocumented. (3) The earlier Stage-2 write-up's alternating-sweep definition is more rigid than Garrett’s broader Stage-2 (any smaller-range SMT / SS PSP). |
+| Doc change | Reconcile playbook ↔ CONTEXT in one pass; pick Garrett-compatible Stage-2 band (likely ITF confirming HTF, then LTF entry — closer to playbook + Garrett 90m examples). Rename IMT → ITF or define IMT. Soften Stage 2 if SS PSP alone can complete Stage 2 (as playbook and Garrett allow). |
 
 ---
 
@@ -256,9 +250,9 @@ From [Strength Switching](https://www.youtube.com/watch?v=wVS09HYcp_I) and Unive
 
 `CONTEXT.md` **Strength Switching:** reversal of relative strength/weakness during a structural shift (institutional rotation).
 
-ADR-0002: after SS, all triad assets expected to reach corresponding DOL; trade lead (clean V); catch-up lagging via ITF FVG SMT Fill + LTF CISD; continuation beyond high/low similarly.
+Strength rotation: after SS, all triad assets expected to reach corresponding DOL; trade lead (clean V); catch-up lagging via ITF FVG SMT Fill + LTF CISD; continuation beyond high/low similarly.
 
-Playbook Plays A–C encode the same rotation / catch-up / continuation tree; forbid reversing lagging while lead consolidates without full 2-Stage SMT/SS (ADR-0003).
+Playbook Plays A–C encode the same rotation / catch-up / continuation tree; forbid reversing lagging while lead consolidates without full 2-Stage SMT/SS.
 
 #### Alignment / gap / recommendation
 
@@ -266,7 +260,7 @@ Playbook Plays A–C encode the same rotation / catch-up / continuation tree; fo
 |---|---|
 | Alignment | Catch-up after failed manipulation, SMT fill triggers, trade-lead on reversal, dual-path continuation — map cleanly to Garrett. |
 | Gap | NewGxT under-documents **decoupled-market tug-of-war** protocol and “wait until one asset hits a relevant level before SS trade” (Garrett’s 9:30 indices lecture content). APD sequence named by Garrett is absent from NewGxT docs (may be out of scope). |
-| Doc change | Add a short “Decoupled strength / asset sync” note to ADR-0002 or playbook Phase 3; optional glossary Avoid: APD until primary step-list is locked. |
+| Doc change | Add a short “Decoupled strength / asset sync” note to playbook Phase 3; optional glossary Avoid: APD until primary step-list is locked. |
 
 ---
 
@@ -278,8 +272,8 @@ Playbook Plays A–C encode the same rotation / catch-up / continuation tree; fo
 | 4H Profiling | High (dedicated video) | Partial (4H FVG POI, C1–C3 only) | **Partial** — missing session profile + wick filter conflict |
 | PSP | High operationally; acronym = Precision Swing Point (spoken once) | High as Polarized Strength Profile | **Operational align / naming diverge** |
 | SMT | High operationally; acronym expansion weak | High + mechanized Fill | **Aligned** |
-| 2-Stage SMT | High | High but playbook ≠ ADR-0005 | **Partial** — internal doc conflict |
-| Strength switching | High | High (ADR-0002 + playbook) | **Aligned** — minor decoupled-market gap |
+| 2-Stage SMT | High | High but playbook ≠ glossary | **Partial** — internal doc conflict |
+| Strength switching | High | High (CONTEXT.md + playbook) | **Aligned** — minor decoupled-market gap |
 
 ---
 
@@ -289,15 +283,15 @@ Do **not** edit these files in this research task; recommendations only.
 
 ### P0 — Fix contradictions / severe omissions
 
-1. **`CONTEXT.md` + new ADR or playbook section — Universal Sequence**  
+1. **`CONTEXT.md` + playbook section — Universal Sequence**  
    - Add glossary entry.  
-   - Document the 7-step continuation sequence above and map to Session POI / Expansion FVG / SMT Fill (ADR-0006) / CISD.  
+   - Document the 7-step continuation sequence above and map to Session POI / Expansion FVG / SMT Fill / CISD.  
    - State explicitly: Universal Sequence is Garrett’s headline continuation model; NewGxT’s Catch-Up / Continuation plays are implementations of its gap+SMT-fill legs.
 
-2. **Reconcile 2-Stage SMT: `docs/adr/0005-…md` ↔ `docs/daily_execution_playbook.md` ↔ `CONTEXT.md`**  
+2. **Reconcile 2-Stage SMT: `docs/daily_execution_playbook.md` ↔ `CONTEXT.md`**  
    - Resolve Stage-2 timeframe band (ITF vs LTF).  
-   - Decide whether SS PSP alone completes Stage 2 (Garrett + playbook yes; ADR-0005 implies alternating sweep + C2/C3).  
-   - Replace undefined **IMT** with ADR-0004 vocabulary (or define IMT).
+   - Decide whether SS PSP alone completes Stage 2 (Garrett + playbook yes; earlier Stage-2 wording implies alternating sweep + C2/C3).  
+   - Replace undefined **IMT** with HTF/ITF/LTF vocabulary (or define IMT).
 
 3. **`CONTEXT.md` — PSP naming note**  
    - Record Garrett’s spoken **Precision Swing Point** vs NewGxT **Polarized Strength Profile** as the same close-polarity condition; pick one canonical expansion for the repo and mention the other as alias.
@@ -306,15 +300,15 @@ Do **not** edit these files in this research task; recommendations only.
 
 4. **`docs/daily_execution_playbook.md` Phase 2 — 4H Profiling / expansion candles**  
    - Optional but valuable: session if-then windows (2/6/10 ET futures), expansion-candle wick filter, SMT-formed daily wick → trade 4H expansion.  
-   - Cross-reference ADR-0001: document that NewGxT **intentionally** allows C2 without wick filter when SMT/SS present (if that remains product intent).
+   - Cross-reference C2/Expansion Candle rules: document that NewGxT **intentionally** allows C2 without wick filter when SMT/SS present (if that remains product intent).
 
-5. **`docs/adr/0002-…md` — decoupled sync**  
+5. **`CONTEXT.md` — decoupled sync**  
    - Add Garrett’s tug-of-war rule: in decoupled opens, wait for one asset to hit a relevant level before treating SS / catch-up as high quality.
 
 ### P2 — Polish
 
 6. Glossary aliases: “crack in correlation” ↔ SMT Divergence; “SSPS” ↔ Strength Switch PSP.  
-7. ADR-0004: clarify where PSP is evaluated (ITF closes) vs where Stage-2 SMT is evaluated after reconciliation.  
+7. Timeframe hierarchy: clarify where PSP is evaluated (ITF closes) vs where Stage-2 SMT is evaluated after reconciliation.  
 8. Consider a one-page `docs/` map: Universal Sequence (continuation) vs 2-Stage SMT/SS (reversal) vs 4H Profiling (timing filter) — three layers Garrett treats as complementary, NewGxT currently flattens.
 
 ---
@@ -326,9 +320,9 @@ Do **not** edit these files in this research task; recommendations only.
 2. **SMT long-form expansion** in Garrett’s own words (Smart Money Technique vs Tool vs other) — not confirmed in consulted transcripts.
    - **Resolved 2026-07-31:** Dedicated first-party SMT lecture located — [A Deeper Dive Into SMT Divergence](https://www.youtube.com/watch?v=eADu2pFnyAU). Garrett asks “what is an SMT?” and answers with **correlated-market divergence / crack in correlation** only; **no** spoken or title/description expansion to Smart Money Technique, Tool, Theory, or other. Same negative finding across expanded primary set (Universal Sequence, PSP Pt.1, Trade Recap, 4H Profiling, Asset Sync Pt.1, TTrades guest). Doc recommend: **leave unspecified** in glossary — do not assert Technique/Tool from ICT secondary sources. Full write-up: `docs/research/garrett-smt-spoken-expansion.md`.
 3. **Exact slide title / numbered Universal Sequence checklist** — the YouTube lecture narrates steps continuously; no authoritative slide text was captured. Treat the 7-step list above as research synthesis of his narration, not a verbatim slide dump.
-   - **Resolved 2026-07-31:** Full auto-transcript recheck of [The GxT "Universal Sequence"](https://www.youtube.com/watch?v=oucPinjDdlk) — no title/description checklist; spoken numbering only “step one = universal model” then “next step = invalidation (EQ).” Steps 1–7 vs ADR-0012: **no material drift**; optional wording tweaks only (EQ / “universal model” label). Doc recommend: **no reorder / no new step / no Catch-Up–Continuation redesign**. Full write-up: `docs/research/universal-sequence-step-list-recheck.md`.
+   - **Resolved 2026-07-31:** Full auto-transcript recheck of [The GxT "Universal Sequence"](https://www.youtube.com/watch?v=oucPinjDdlk) — no title/description checklist; spoken numbering only “step one = universal model” then “next step = invalidation (EQ).” Steps 1–7 vs the documented Universal Sequence: **no material drift**; optional wording tweaks only (EQ / “universal model” label). Doc recommend: **no reorder / no new step / no Catch-Up–Continuation redesign**. Full write-up: `docs/research/universal-sequence-step-list-recheck.md`.
 4. **APD sequence** — named repeatedly in Strength Switching; relationship to Universal Sequence / 2-stage not fully mapped here. Out of NewGxT docs today.
-5. **Whether NewGxT should adopt Garrett’s expansion-wick filter as hard law** or keep ADR-0001’s SMT/SS override — product decision, not settled by primary sources alone.
+5. **Whether NewGxT should adopt Garrett’s expansion-wick filter as hard law** or keep the existing SMT/SS override — product decision, not settled by primary sources alone.
 6. **C3 close criterion nuance:** Garrett Universal Sequence says close over C2’s **opening price**; 4H Profiling / NewGxT emphasize close past C2 **body** (and sometimes high). Needs a single rule.
    - **Resolved 2026-08-02:** Side-by-side primary recheck — Universal Sequence names C3 = close over C2 **open**; 4H Profiling = “**body or high**”; TTrades guest (Garrett) = “mechanically defined as closing over the **body of candle 2**.” Doc recommend: **keep body** as the single Alternative Reversal C3 rule; open is near-synonym on directional C2; high is optional stricter confluence, not required. No ADR/CONTEXT edit until approval. Full write-up: `docs/research/c3-close-criterion-open-vs-body.md`.
 7. **Kill zone / CME vs FX clock** — Garrett mixes FX and futures clocks; NewGxT is CME 18:00 ET–centric. Any 4H Profiling import must remap session windows to CME explicitly.

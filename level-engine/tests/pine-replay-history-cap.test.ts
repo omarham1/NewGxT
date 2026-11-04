@@ -85,15 +85,12 @@ describe("pine replay history cap (#30)", () => {
     expect(result).toBe(30);
   });
 
-  it("documents the perf trade-off in ADR-0010", () => {
-    const adr = readFileSync(
-      join(repoRoot, "docs/adr/0010-pine-replay-history-cap.md"),
-      "utf-8",
-    );
+  it("documents replay depth against glossary lookbacks", () => {
+    const glossary = readFileSync(join(repoRoot, "CONTEXT.md"), "utf-8");
 
-    expect(adr).toMatch(/14.*session/i);
-    expect(adr).toMatch(/four.*week/i);
-    expect(adr).toMatch(/failure swing/i);
+    expect(glossary).toMatch(/last 14 completed CME daily sessions/);
+    expect(glossary).toMatch(/four CME weeks/);
+    expect(glossary).toMatch(/Failure Swing/);
   });
 
   it("bounds time-index scan depth below Pine CE ceiling on coarse timeframes", () => {
