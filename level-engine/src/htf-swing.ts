@@ -16,7 +16,7 @@ export type HtfSwingPoint = {
   price: number;
   formedAt: number;
   confirmedAt: number;
-  /** Unmitigated swings project through the current CME daily session close (17:00 ET). */
+  /** Unmitigated swings stay active through the current CME daily session close (17:00 ET). Chart lines end at the latest bar. */
   displayUntil?: number;
   mitigatedAt?: number;
   isFailureSwing?: boolean;

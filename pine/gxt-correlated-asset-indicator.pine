@@ -26,6 +26,9 @@ SMT_FILL_DEAD_BG = color.new(color.gray, 85)
 SMT_FILL_DEAD_BORDER = color.new(color.gray, 40)
 LABEL_SIZE = size.small
 LABEL_GAP_TICKS = 2
+// Unmitigated levels stop a few bars past the last candle. Projecting them to
+// the 17:00 ET session close puts labels off a 5m chart until the user zooms out.
+LEVEL_LABEL_PAD_BARS = 4
 ADR_LOOKBACK = 14
 NWOG_MIN_TICKS = 4
 CME_SESSION_MS = 86400000
@@ -39,7 +42,7 @@ BAR_TIME_SEARCH_MAX = math.min(PINE_BAR_TIME_SEARCH_CEILING, session_bar_cap - 1
 max_bars_back(time, 5000)
 
 // Map a timestamp to the chart bar that contains it (avoids bar_time rounding forward).
-// Future targets (e.g. current session close at 17:00 ET) project forward from the active bar.
+// Targets after the current bar close project forward from the active bar.
 f_bar_index_for_time(int target_time) =>
     int result = bar_index
     if not na(target_time)
@@ -104,13 +107,6 @@ f_cme_daily_session_key_for(int t) =>
 
 f_cme_daily_session_key() =>
     f_cme_daily_session_key_for(time)
-
-f_current_daily_session_end() =>
-    session_start_day = f_cme_daily_session_key()
-    y = year(session_start_day, TZ)
-    m = month(session_start_day, TZ)
-    d = dayofmonth(session_start_day, TZ)
-    timestamp(TZ, y, m, d + 1, WEEKLY_END_HOUR, 0)
 
 f_in_cme_week() =>
     dow = dayofweek(time, TZ)
@@ -615,7 +611,6 @@ f_peer_1m_bar() =>
 
 f_session_rails_with_end() =>
     [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_nwog_friday_close, out_nwog_week_open, out_nwog_week_open_time] = f_session_rails()
-    int out_session_end = f_current_daily_session_end()
 
     var bool out_pdh_mitigated = false
     var int out_pdh_mitigated_time = na
@@ -665,7 +660,7 @@ f_session_rails_with_end() =>
         out_nwog_mitigated := true
         out_nwog_mitigated_time := time
 
-    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_session_end, out_pdh_mitigated, out_pdh_mitigated_time, out_pdl_mitigated, out_pdl_mitigated_time, out_pwh_mitigated, out_pwh_mitigated_time, out_pwl_mitigated, out_pwl_mitigated_time, out_nwog_friday_close, out_nwog_week_open, out_nwog_week_open_time, out_nwog_mitigated, out_nwog_mitigated_time, high, low, time_close]
+    [out_pdh, out_pdl, out_pwh, out_pwl, out_daily_open, out_pdh_time, out_pdl_time, out_pwh_time, out_pwl_time, out_daily_open_time, out_adr, out_open_plus_adr, out_open_minus_adr, out_adr_consumption_pct, cur_week_high, cur_week_low, out_pdh_mitigated, out_pdh_mitigated_time, out_pdl_mitigated, out_pdl_mitigated_time, out_pwh_mitigated, out_pwh_mitigated_time, out_pwl_mitigated, out_pwl_mitigated_time, out_nwog_friday_close, out_nwog_week_open, out_nwog_week_open_time, out_nwog_mitigated, out_nwog_mitigated_time, high, low, time_close]
 
 [
      highConfirmed4h,
@@ -721,7 +716,7 @@ f_session_rails_with_end() =>
      lookahead = barmerge.lookahead_off
  )
 
-[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, sessionEnd, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime, nwogFridayClose, nwogWeekOpen, nwogWeekOpenTime, nwogMitigated, nwogMitigatedTime, oneMinHigh, oneMinLow, oneMinTimeClose] = request.security(
+[pdh, pdl, pwh, pwl, dailyOpen, pdhTime, pdlTime, pwhTime, pwlTime, dailyOpenTime, adr, openPlusAdr, openMinusAdr, adrConsumptionPct, currentWeekHigh, currentWeekLow, pdhMitigated, pdhMitigatedTime, pdlMitigated, pdlMitigatedTime, pwhMitigated, pwhMitigatedTime, pwlMitigated, pwlMitigatedTime, nwogFridayClose, nwogWeekOpen, nwogWeekOpenTime, nwogMitigated, nwogMitigatedTime, oneMinHigh, oneMinLow, oneMinTimeClose] = request.security(
      syminfo.tickerid,
      "1",
      f_session_rails_with_end(),
@@ -1008,10 +1003,6 @@ f_advance_fvg_lifecycle(
     result := f_prune_expired_fvgs(result)
     result
 
-var int sessionEndBi = na
-if barstate.islast
-    sessionEndBi := f_bar_index_for_time(sessionEnd)
-
 var int dailyOpenOriginBi = na
 var int cachedDailyOpenTime = na
 if dailyOpenTime != cachedDailyOpenTime
@@ -1109,7 +1100,7 @@ f_draw_fvg_zones(
      array<box> existing_boxes,
      array<label> existing_labels,
      array<HtfFvgZone> zones,
-     int session_end_bi
+     int right_bi
  ) =>
     array<box> next_boxes = array.new<box>()
     array<label> next_labels = array.new<label>()
@@ -1127,7 +1118,7 @@ f_draw_fvg_zones(
             for i = 0 to zone_count - 1
                 HtfFvgZone zone = array.get(zones, i)
                 int origin_bi = zone.formedBi - 1
-                int end_bi = na(zone.endBi) ? math.max(origin_bi, session_end_bi) : math.max(origin_bi, zone.endBi)
+                int end_bi = na(zone.endBi) ? math.max(origin_bi, right_bi) : math.max(origin_bi, zone.endBi)
                 box next_box = box.new(
                      origin_bi,
                      zone.zoneHigh,
@@ -1157,7 +1148,7 @@ f_draw_level(
      label existing_label,
      float price,
      int origin_bi,
-     int session_end_bi,
+     int right_bi,
      string txt,
      string line_style_str,
      string label_placement,
@@ -1174,8 +1165,8 @@ f_draw_level(
             line.delete(existing_line)
         if not na(existing_label)
             label.delete(existing_label)
-        if not na(price) and not na(origin_bi) and not na(session_end_bi)
-            end_bi = mitigated and not na(mitigated_bi) ? math.max(origin_bi, mitigated_bi) : math.max(origin_bi, session_end_bi)
+        if not na(price) and not na(origin_bi) and not na(right_bi)
+            end_bi = mitigated and not na(mitigated_bi) ? math.max(origin_bi, mitigated_bi) : math.max(origin_bi, right_bi)
             color draw_color = mitigated ? SWING_MITIGATED_COLOR : line_color
             color txt_color = na(label_textcolor) ? draw_color : label_textcolor
             next_line := line.new(
@@ -1208,7 +1199,7 @@ f_draw_nwog(
      float friday_close,
      float week_open,
      int origin_bi,
-     int session_end_bi,
+     int right_bi,
      bool mitigated,
      int mitigated_bi
  ) =>
@@ -1219,10 +1210,10 @@ f_draw_nwog(
             box.delete(existing_box)
         if not na(existing_label)
             label.delete(existing_label)
-        if not na(friday_close) and not na(week_open) and not na(origin_bi) and not na(session_end_bi)
+        if not na(friday_close) and not na(week_open) and not na(origin_bi) and not na(right_bi)
             float zone_high = math.max(friday_close, week_open)
             float zone_low = math.min(friday_close, week_open)
-            int end_bi = mitigated and not na(mitigated_bi) ? math.max(origin_bi, mitigated_bi) : math.max(origin_bi, session_end_bi)
+            int end_bi = mitigated and not na(mitigated_bi) ? math.max(origin_bi, mitigated_bi) : math.max(origin_bi, right_bi)
             color draw_fill = mitigated ? color.new(color.gray, 98) : NWOG_FILL
             color draw_border = mitigated ? color.new(color.gray, 85) : NWOG_BORDER
             next_box := box.new(
@@ -1290,20 +1281,21 @@ weekKey = f_cme_week_session_key()
 newRailWeek = not na(weekKey) and ta.change(weekKey) != 0
 
 adr_consumption_txt = not na(adrConsumptionPct) ? str.format("ADR {0,number,#.#}%", adrConsumptionPct) : "ADR"
-[_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, open_plus_adr_draw, dailyOpenOriginBi, sessionEndBi, adr_consumption_txt, "Dashed", "above", SESSION_CONTEXT_COLOR)
+int levelLabelBi = bar_index + LEVEL_LABEL_PAD_BARS
+[_open_plus_adr_line, _adr_consumption_label] = f_draw_level(open_plus_adr_line, adr_consumption_label, open_plus_adr_draw, dailyOpenOriginBi, levelLabelBi, adr_consumption_txt, "Dashed", "above", SESSION_CONTEXT_COLOR)
 open_plus_adr_line := _open_plus_adr_line
 adr_consumption_label := _adr_consumption_label
 
-[_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, open_minus_adr_draw, dailyOpenOriginBi, sessionEndBi, "", "Dashed", "below", SESSION_CONTEXT_COLOR)
+[_open_minus_adr_line, _] = f_draw_level(open_minus_adr_line, na, open_minus_adr_draw, dailyOpenOriginBi, levelLabelBi, "", "Dashed", "below", SESSION_CONTEXT_COLOR)
 open_minus_adr_line := _open_minus_adr_line
 
-[_pd_midpoint_line, _pd_midpoint_label] = f_draw_level(pd_midpoint_line, pd_midpoint_label, pd_midpoint_price, dailyOpenOriginBi, sessionEndBi, "PD 50%", pdMidpointStyle, "on", pdMidpointColor)
+[_pd_midpoint_line, _pd_midpoint_label] = f_draw_level(pd_midpoint_line, pd_midpoint_label, pd_midpoint_price, dailyOpenOriginBi, levelLabelBi, "PD 50%", pdMidpointStyle, "on", pdMidpointColor)
 pd_midpoint_line := _pd_midpoint_line
 pd_midpoint_label := _pd_midpoint_label
 
 nwog_friday = showNewWeekOpeningGap and not onAboveDaily ? nwogFridayClose : na
 nwog_open = showNewWeekOpeningGap and not onAboveDaily ? nwogWeekOpen : na
-[_nwog_box, _nwog_label] = f_draw_nwog(nwog_box, nwog_label, nwog_friday, nwog_open, nwogOriginBi, sessionEndBi, nwogMitigated, nwogMitigatedBi)
+[_nwog_box, _nwog_label] = f_draw_nwog(nwog_box, nwog_label, nwog_friday, nwog_open, nwogOriginBi, levelLabelBi, nwogMitigated, nwogMitigatedBi)
 nwog_box := _nwog_box
 nwog_label := _nwog_label
 
@@ -1314,7 +1306,7 @@ f_draw_swing_levels(
      array<line> existing_lines,
      array<label> existing_labels,
      array<HtfSwingLevel> swings,
-     int session_end_bi,
+     int right_bi,
      float pdh,
      float pdl,
      bool pdhMitigated,
@@ -1349,7 +1341,7 @@ f_draw_swing_levels(
                     if f_timeframe_rank(swing.txt) != drawRank
                         continue
                     int origin_bi = swing.formedBi
-                    int end_bi = swing.mitigated ? math.max(origin_bi, swing.mitigatedBi) : math.max(origin_bi, session_end_bi)
+                    int end_bi = swing.mitigated ? math.max(origin_bi, swing.mitigatedBi) : math.max(origin_bi, right_bi)
                     color line_color = swing.mitigated ? SWING_MITIGATED_COLOR : LEVEL_COLOR
                     line next_line = line.new(
                          origin_bi,
@@ -1428,25 +1420,25 @@ if on15mChart
     fvgs15m := f_update_smt_fill_entries(fvgs15m, low, high, time_close, peer1Low15m, peer1High15m, peer1TimeClose15m, peer2Low15m, peer2High15m, peer2TimeClose15m)
     fvgs15m := f_update_smt_fill_entries(fvgs15m, oneMinLow, oneMinHigh, oneMinTimeClose, peer1OneMinLow, peer1OneMinHigh, peer1OneMinTimeClose, peer2OneMinLow, peer2OneMinHigh, peer2OneMinTimeClose)
 
-[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, daily_open_price, dailyOpenOriginBi, sessionEndBi, "Daily Open", dailyOpenStyle, "on", dailyOpenColor, false, na, false, LEVEL_COLOR)
+[_daily_open_line, _daily_open_label] = f_draw_level(daily_open_line, daily_open_label, daily_open_price, dailyOpenOriginBi, levelLabelBi, "Daily Open", dailyOpenStyle, "on", dailyOpenColor, false, na, false, LEVEL_COLOR)
 daily_open_line := _daily_open_line
 daily_open_label := _daily_open_label
 
 bool pdhLabelSuppressed = f_daily_rail_label_suppressed("pdh", pdh, pwh, pwl, pwhMitigated, pwlMitigated)
-[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh_draw_price, pdhOriginBi, sessionEndBi, "PDH", "Solid", "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedBi, pdhLabelSuppressed)
+[_pdh_line, _pdh_label] = f_draw_level(pdh_line, pdh_label, pdh_draw_price, pdhOriginBi, levelLabelBi, "PDH", "Solid", "on", LEVEL_COLOR, pdhMitigated, pdhMitigatedBi, pdhLabelSuppressed)
 pdh_line := _pdh_line
 pdh_label := _pdh_label
 
 bool pdlLabelSuppressed = f_daily_rail_label_suppressed("pdl", pdl, pwh, pwl, pwhMitigated, pwlMitigated)
-[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl_draw_price, pdlOriginBi, sessionEndBi, "PDL", "Solid", "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedBi, pdlLabelSuppressed)
+[_pdl_line, _pdl_label] = f_draw_level(pdl_line, pdl_label, pdl_draw_price, pdlOriginBi, levelLabelBi, "PDL", "Solid", "on", LEVEL_COLOR, pdlMitigated, pdlMitigatedBi, pdlLabelSuppressed)
 pdl_line := _pdl_line
 pdl_label := _pdl_label
 
-[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh_draw_price, pwhOriginBi, sessionEndBi, "PWH", "Solid", "on", LEVEL_COLOR, pwhMitigated, pwhMitigatedBi)
+[_pwh_line, _pwh_label] = f_draw_level(pwh_line, pwh_label, pwh_draw_price, pwhOriginBi, levelLabelBi, "PWH", "Solid", "on", LEVEL_COLOR, pwhMitigated, pwhMitigatedBi)
 pwh_line := _pwh_line
 pwh_label := _pwh_label
 
-[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl_draw_price, pwlOriginBi, sessionEndBi, "PWL", "Solid", open_near_pwl ? "below" : "on", LEVEL_COLOR, pwlMitigated, pwlMitigatedBi)
+[_pwl_line, _pwl_label] = f_draw_level(pwl_line, pwl_label, pwl_draw_price, pwlOriginBi, levelLabelBi, "PWL", "Solid", open_near_pwl ? "below" : "on", LEVEL_COLOR, pwlMitigated, pwlMitigatedBi)
 pwl_line := _pwl_line
 pwl_label := _pwl_label
 
@@ -1454,11 +1446,11 @@ array<HtfFvgZone> fvgZonesToDraw = array.new<HtfFvgZone>()
 if showFvgs
     fvgZonesToDraw := on4hChart ? htfFvgs4h : on1hChart ? htfFvgs1h : on90mChart ? fvgs90m : on30mChart ? fvgs30m : fvgs15m
 
-[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, sessionEndBi)
+[_fvg_boxes, _fvg_labels] = f_draw_fvg_zones(fvg_boxes, fvg_labels, fvgZonesToDraw, levelLabelBi)
 fvg_boxes := _fvg_boxes
 fvg_labels := _fvg_labels
 
 array<HtfSwingLevel> swingsToDraw = onDailyOrAbove ? array.new<HtfSwingLevel>() : activeSwings
-[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, swingsToDraw, sessionEndBi, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow)
+[_swing_lines, _swing_labels] = f_draw_swing_levels(swing_lines, swing_labels, swingsToDraw, levelLabelBi, pdh, pdl, pdhMitigated, pdlMitigated, pwh, pwl, pwhMitigated, pwlMitigated, currentWeekHigh, currentWeekLow)
 swing_lines := _swing_lines
 swing_labels := _swing_labels

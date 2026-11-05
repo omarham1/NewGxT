@@ -10,22 +10,11 @@ const pinePath = join(repoRoot, "pine/gxt-correlated-asset-indicator.pine");
 const WEIGHT = {
   requestSecurity: 1_000,
   requestSecurityLowerTf: 5_000,
-  barIndexScan: 50,
   oneMinInnerLoop: 1,
   swingSweepInner: 2,
   crossTfAlignInner: 3,
   arrayCopy: 5,
 } as const;
-
-import {
-  adrLookbackBarCap,
-  barTimeSearchMax as replayBarTimeSearchMax,
-} from "./helpers/pine-replay-history.js";
-
-/** Pine CE ceiling; on coarse TFs the ADR lookback window is smaller. */
-function barTimeSearchMaxForTimeframe(timeframeSeconds: number): number {
-  return replayBarTimeSearchMax(adrLookbackBarCap(timeframeSeconds));
-}
 
 function readPineSource(): string {
   return readFileSync(pinePath, "utf-8");
@@ -70,8 +59,6 @@ function estimateLoadUnits(input: {
   const fvgConcatCopy =
     fvgLifecycleEvents * activeFvgs * WEIGHT.arrayCopy;
   const drawOriginScans = 0;
-  const sessionEndScan =
-    barTimeSearchMaxForTimeframe(60) * WEIGHT.barIndexScan;
 
   const breakdown = {
     requestSecurity,
@@ -81,7 +68,6 @@ function estimateLoadUnits(input: {
     crossTfAlign,
     fvgConcatCopy,
     drawOriginScans,
-    sessionEndScan,
   };
 
   const total = Object.values(breakdown).reduce((sum, n) => sum + n, 0);
@@ -161,7 +147,10 @@ describe("pine load complexity model", () => {
   it("documents 1m session rails security and chart-path swing sweep (#31)", () => {
     const source = readPineSource();
 
-    expect(source).toMatch(/var int sessionEndBi/);
+    expect(source).toMatch(/LEVEL_LABEL_PAD_BARS/);
+    expect(source).toMatch(/int levelLabelBi = bar_index \+ LEVEL_LABEL_PAD_BARS/);
+    expect(source).not.toMatch(/sessionEndBi/);
+    expect(source).not.toMatch(/out_session_end/);
     let topLevelSecurityCalls = 0;
     for (const line of source.split("\n")) {
       if (/= request\.security\(/.test(line)) {
