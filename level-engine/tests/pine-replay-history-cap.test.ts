@@ -86,7 +86,7 @@ describe("pine replay history cap (#30)", () => {
   });
 
   it("documents replay depth against glossary lookbacks", () => {
-    const glossary = readFileSync(join(repoRoot, "CONTEXT.md"), "utf-8");
+    const glossary = readFileSync(join(repoRoot, "GLOSSARY.md"), "utf-8");
 
     expect(glossary).toMatch(/last 14 completed CME daily sessions/);
     expect(glossary).toMatch(/four CME weeks/);
